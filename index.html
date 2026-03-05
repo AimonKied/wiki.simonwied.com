@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki.simonwied.com</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">wiki.simonwied.com</div>
+      <div class="logo-sub">// persönliche wissensbasis</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Navigation</div>
+      <a href="index.html" class="nav-item active">
+        <div class="dot" style="background:var(--accent)"></div> Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:8px">
+      <div class="nav-section-title">Security</div>
+      <a href="web-hacking.html" class="nav-item">
+        <div class="dot" style="background:#ff4466"></div> Web Hacking
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:8px">
+      <div class="nav-section-title">Coming Soon</div>
+      <div class="nav-item" style="opacity:0.4;cursor:default">
+        <div class="dot" style="background:var(--muted)"></div> Networking
+      </div>
+      <div class="nav-item" style="opacity:0.4;cursor:default">
+        <div class="dot" style="background:var(--muted)"></div> Linux
+      </div>
+      <div class="nav-item" style="opacity:0.4;cursor:default">
+        <div class="dot" style="background:var(--muted)"></div> Programming
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-eyebrow">// wiki.simonwied.com</div>
+      <h1 class="hero-title">Simon's<br><span>Knowledge Base</span></h1>
+      <p class="hero-sub">
+        Persönliche Notizen, Guides und Lernmaterialien zu Cybersecurity,
+        Programmierung, Tools und mehr.
+      </p>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-num">1</span>
+          <span class="stat-label">Artikel</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">1</span>
+          <span class="stat-label">Kategorien</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">∞</span>
+          <span class="stat-label">Zu lernen</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <span>⌕</span>
+      <input type="text" placeholder="Artikel suchen..." id="searchInput" oninput="filterCards()">
+      <span class="kbd">⌘K</span>
+    </div>
+
+    <!-- Security Section -->
+    <div class="section-header">
+      <span class="section-title">🛡️ Security</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="card-grid" id="cardGrid">
+
+      <a href="web-hacking.html" class="card cat-security" data-tags="web hacking security owasp xss sqli csrf idor">
+        <div class="card-top">
+          <span class="card-icon">⚔️</span>
+          <span class="card-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">OWASP</span>
+        </div>
+        <div class="card-title">Web Hacking</div>
+        <div class="card-desc">Authentication Bypass, SQLi, XSS, CSRF, IDOR, Recon & mehr — vollständige Einführung in Web Application Security.</div>
+        <div class="card-footer">
+          <span class="card-tag">Security</span>
+          <span class="card-tag">Beginner–Advanced</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </a>
+
+      <!-- Coming soon placeholders -->
+      <div class="card-placeholder" data-tags="">
+        <div class="card-icon">🌐</div>
+        <div class="card-title">Networking Basics</div>
+        <div class="card-desc">// coming soon</div>
+      </div>
+
+      <div class="card-placeholder" data-tags="">
+        <div class="card-icon">🐧</div>
+        <div class="card-title">Linux & Shell</div>
+        <div class="card-desc">// coming soon</div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="wiki-footer">
+      <span>// wiki.simonwied.com · made by Simon Wied</span>
+      <span id="footerDate"></span>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// Filter cards by search
+function filterCards() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  document.querySelectorAll('#cardGrid .card, #cardGrid .card-placeholder').forEach(card => {
+    const text = (card.innerText + ' ' + (card.dataset.tags || '')).toLowerCase();
+    card.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+
+// Keyboard shortcut ⌘K / Ctrl+K
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+
+// Footer date
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+</script>
+</body>
+</html>
