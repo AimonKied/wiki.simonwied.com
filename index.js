@@ -2,7 +2,7 @@
 window.dataLayer = window.dataLayer || [];
 function gtag() { dataLayer.push(arguments); }
 gtag('js', new Date());
-gtag('config', 'G-2YXVEH3ZW6');
+gtag('config', 'G-G07DY445N4');
 
 // ─── Search ──────────────────────────────────────────────
 function filterCards() {
