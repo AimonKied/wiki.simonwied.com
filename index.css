@@ -60,28 +60,57 @@ body::before {
   overflow-y: auto;
   flex-shrink: 0;
   transition: width 0.3s, min-width 0.3s, padding 0.3s;
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-logo {
   padding: 0 20px;
   margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-logo .logo-img {
-  width: 70px;
-  height: 70px;
-  border-radius: 10px;
+  max-height: 40px;
+  width: auto;
   display: block;
-  margin-bottom: 10px;
 }
 
-.sidebar-logo .logo-text {
+.hero-logo {
+  display: block;
+  max-height: 80px;
+  width: auto;
+  margin-bottom: 16px;
+}
+
+.sidebar-logo .logo-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-decoration: none;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sidebar-logo .logo-dot {
+  color: var(--accent);
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-logo .logo-text,
+.sidebar-bottom .logo-text {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   color: var(--muted);
   font-weight: 400;
   letter-spacing: 0.06em;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
 }
 
 .nav-section { padding: 0 12px; margin-bottom: 8px; }
