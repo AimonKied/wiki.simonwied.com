@@ -57,8 +57,8 @@ body::before {
   height: 100vh;
   overflow-y: auto;
   flex-shrink: 0;
+  transition: width 0.3s, min-width 0.3s, padding 0.3s;
 }
-
 .sidebar-logo {
   padding: 0 20px;
   margin-bottom: 16px;
@@ -408,8 +408,78 @@ body::before {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Sidebar Toggle ── */
+.sidebar-toggle {
+  position: absolute;
+  top: 14px;
+  right: 10px;
+  z-index: 100;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.sidebar-toggle:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  right: auto;
+}
+
+/* ── Sidebar Collapsed ── */
+
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0;
+  overflow: visible;
+  border-right: none;
+}
+
+.sidebar.collapsed > *:not(.sidebar-toggle) {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  height: 0;
+  padding: 0;
+  margin: 0;
+}
+
+/* ── Sidebar Resize Handle ── */
+.sidebar-resize {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.sidebar-resize:hover,
+.sidebar-resize.active {
+  background: var(--accent);
+}
+
 @media (max-width: 900px) {
   .sidebar { display: none; }
+  .sidebar-toggle { display: none; }
+  .sidebar-resize { display: none; }
   .main { padding: 32px 24px; }
   .hero-title { font-size: 34px; }
   .card-grid { grid-template-columns: 1fr; }
