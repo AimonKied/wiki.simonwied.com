@@ -43,20 +43,3 @@ document.querySelectorAll('.sub-header').forEach(h => {
 // Open first subcategory in each category by default
 document.querySelectorAll('.subcategory:first-of-type .sub-header').forEach(h => toggle(h));
 
-// ─── Theme ───────────────────────────────────────────────
-function toggleTheme() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'light' ? '☾ Dunkel' : '☀ Hell';
-  localStorage.setItem('theme', next);
-}
-
-document.getElementById('themeBtn').addEventListener('click', toggleTheme);
-
-// Apply saved theme on load (defer guarantees DOM is ready)
-(function () {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('themeBtn').textContent = saved === 'light' ? '☾ Dunkel' : '☀ Hell';
-})();

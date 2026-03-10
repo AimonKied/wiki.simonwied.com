@@ -33,20 +33,3 @@ document.getElementById('statArticles').textContent = cards.length;
 document.getElementById('statCategories').textContent =
   document.querySelectorAll('.section-header').length;
 
-// ─── Theme ───────────────────────────────────────────────
-function toggleTheme() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'light' ? '☾ Dunkel' : '☀ Hell';
-  localStorage.setItem('theme', next);
-}
-
-document.getElementById('themeBtn').addEventListener('click', toggleTheme);
-
-// Apply saved theme on load (defer guarantees DOM is ready)
-(function () {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('themeBtn').textContent = saved === 'light' ? '☾ Dunkel' : '☀ Hell';
-})();
