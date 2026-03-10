@@ -515,6 +515,29 @@ pre {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* ─── Breadcrumb ─────────────────────────────────────────── */
+.breadcrumb {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.breadcrumb-link:hover { color: var(--accent); }
+
+.breadcrumb-sep { color: var(--border); }
+
+.breadcrumb-current { color: var(--accent); }
+
 @media (max-width: 900px) {
   .sidebar { display: none; }
   .main { padding: 32px 24px; }

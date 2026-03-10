@@ -30,10 +30,15 @@
 -->
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="web-hacking.css">
+<!-- ANPASSEN: JS-Datei entsprechend der Seite benennen -->
+<script src="web-hacking.js" defer></script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
 
-<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀ Hell</button>
+<button class="theme-toggle" id="themeBtn">☀ Hell</button>
 
 <div class="layout">
   <nav class="sidebar">
@@ -105,7 +110,7 @@
 
       <!-- Eintrag (aufklappbar) -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📌</div>
           <span class="sub-title">Titel des Eintrags</span>
           <span class="sub-arrow">▶</span>
@@ -146,7 +151,7 @@
 
       <!-- Weiterer Eintrag — einfach kopieren -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">📎</div>
           <span class="sub-title">Zweiter Eintrag</span>
           <span class="sub-arrow">▶</span>
@@ -175,7 +180,7 @@
       </div>
 
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🗒️</div>
           <span class="sub-title">Eintrag in Abschnitt 2</span>
           <span class="sub-arrow">▶</span>
@@ -193,42 +198,5 @@
   </main>
 </div>
 
-<script>
-function toggle(header) {
-  const arrow = header.querySelector('.sub-arrow');
-  const content = header.nextElementSibling;
-  arrow.classList.toggle('open');
-  content.classList.toggle('open');
-}
-
-// Smooth scroll + aktive Nav-Markierung
-document.querySelectorAll('a[href^="#"]').forEach(a => {
-  a.addEventListener('click', e => {
-    e.preventDefault();
-    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    a.classList.add('active');
-  });
-});
-
-// Ersten Eintrag jeder Kategorie standardmäßig öffnen
-document.querySelectorAll('.subcategory:first-of-type .sub-header').forEach(h => toggle(h));
-
-// Theme toggle
-function toggleTheme() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'light' ? '☾ Dunkel' : '☀ Hell';
-  localStorage.setItem('theme', next);
-}
-(function() {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('themeBtn').textContent = saved === 'light' ? '☾ Dunkel' : '☀ Hell';
-  });
-})();
-</script>
 </body>
 </html>

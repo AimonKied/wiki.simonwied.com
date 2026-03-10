@@ -6,10 +6,14 @@
 <title>wiki.simonwied.com</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="index.css">
+<script src="index.js" defer></script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
 
-<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀ Hell</button>
+<button class="theme-toggle" id="themeBtn">☀ Hell</button>
 
 <div class="layout">
 
@@ -32,9 +36,9 @@
       <a href="web-hacking.html" class="nav-item">
         <div class="dot" style="background:#ff4466"></div> Web Hacking
       </a>
-        <a href="cybertools.html" class="nav-item">
-          <div class="dot" style="background:#4488ff"></div> CyberTools
-        </a>
+      <a href="cybertools.html" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> CyberTools
+      </a>
     </div>
 
   </nav>
@@ -69,7 +73,7 @@
     <!-- Search -->
     <div class="search-bar">
       <span>⌕</span>
-      <input type="text" placeholder="Artikel suchen..." id="searchInput" oninput="filterCards()">
+      <input type="text" placeholder="Artikel suchen..." id="searchInput">
       <span class="kbd">⌘K</span>
     </div>
 
@@ -120,45 +124,5 @@
   </main>
 </div>
 
-<script>
-// Filter cards by search
-function filterCards() {
-  const q = document.getElementById('searchInput').value.toLowerCase();
-  document.querySelectorAll('#cardGrid .card, #cardGrid .card-placeholder').forEach(card => {
-    const text = (card.innerText + ' ' + (card.dataset.tags || '')).toLowerCase();
-    card.style.display = text.includes(q) ? '' : 'none';
-  });
-}
-
-// Keyboard shortcut ⌘K / Ctrl+K
-document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault();
-    document.getElementById('searchInput').focus();
-  }
-});
-
-// Footer date
-document.getElementById('footerDate').textContent =
-  new Date().toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
-
-// Theme toggle
-function toggleTheme() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'light' ? '☾ Dunkel' : '☀ Hell';
-  localStorage.setItem('theme', next);
-}
-
-// Apply saved theme on load
-(function() {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('themeBtn').textContent = saved === 'light' ? '☾ Dunkel' : '☀ Hell';
-  });
-})();
-</script>
 </body>
 </html>

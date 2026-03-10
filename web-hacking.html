@@ -6,10 +6,14 @@
 <title>Web Hacking – wiki.simonwied.com</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="web-hacking.css">
+<script src="web-hacking.js" defer></script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
 
-<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀ Hell</button>
+<button class="theme-toggle" id="themeBtn">☀ Hell</button>
 
 <div class="layout">
   <!-- SIDEBAR -->
@@ -59,10 +63,10 @@
 
   <!-- MAIN -->
   <main class="main">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:32px;display:flex;align-items:center;gap:8px">
-      <a href="index.html" style="color:var(--muted);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">wiki.simonwied.com</a>
-      <span style="color:var(--border)">/</span>
-      <span style="color:var(--accent)">Web Hacking</span>
+    <div class="breadcrumb">
+      <a href="index.html" class="breadcrumb-link">wiki.simonwied.com</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Web Hacking</span>
     </div>
     <div class="page-header" id="intro">
       <span class="page-emoji">⚔️</span>
@@ -89,7 +93,7 @@
     <div class="divider"></div>
 
     <!-- ============ CATEGORY 1: AUTHENTICATION ============ -->
-    <div class="category" id="auth" style="animation-delay:0.1s">
+    <div class="category" id="auth">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">🔐 Auth</span>
         <h2 class="cat-title">Authentication Bypass</h2>
@@ -98,7 +102,7 @@
 
       <!-- Brute Force -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔨</div>
           <span class="sub-title">Brute-Force Angriff</span>
           <span class="sub-arrow">▶</span>
@@ -139,7 +143,7 @@
 
       <!-- SQL Injection Login -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">💉</div>
           <span class="sub-title">SQL Injection (Login Bypass)</span>
           <span class="sub-arrow">▶</span>
@@ -174,7 +178,7 @@
 
       <!-- JWT Attacks -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🎫</div>
           <span class="sub-title">JWT Token Manipulation</span>
           <span class="sub-arrow">▶</span>
@@ -210,7 +214,7 @@
     </div>
 
     <!-- ============ CATEGORY 2: INJECTION ============ -->
-    <div class="category" id="injection" style="animation-delay:0.2s">
+    <div class="category" id="injection">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">💉 Injection</span>
         <h2 class="cat-title">Injection Attacks</h2>
@@ -219,7 +223,7 @@
 
       <!-- SQL Injection Deep Dive -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🗄️</div>
           <span class="sub-title">SQL Injection (Daten extrahieren)</span>
           <span class="sub-arrow">▶</span>
@@ -267,7 +271,7 @@ FROM users--</span>
 
       <!-- Command Injection -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💻</div>
           <span class="sub-title">Command Injection (OS)</span>
           <span class="sub-arrow">▶</span>
@@ -307,7 +311,7 @@ FROM users--</span>
 
       <!-- LDAP Injection -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📁</div>
           <span class="sub-title">LDAP Injection</span>
           <span class="sub-arrow">▶</span>
@@ -331,7 +335,7 @@ FROM users--</span>
     </div>
 
     <!-- ============ CATEGORY 3: XSS ============ -->
-    <div class="category" id="xss" style="animation-delay:0.3s">
+    <div class="category" id="xss">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🕷️ XSS</span>
         <h2 class="cat-title">Cross-Site Scripting (XSS)</h2>
@@ -340,7 +344,7 @@ FROM users--</span>
 
       <!-- Reflected XSS -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">↩️</div>
           <span class="sub-title">Reflected XSS</span>
           <span class="sub-arrow">▶</span>
@@ -376,7 +380,7 @@ Suchergebnis für: <span class="hl-danger">&lt;script&gt;alert('XSS')&lt;/script
 
       <!-- Stored XSS -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💾</div>
           <span class="sub-title">Stored XSS (Persistent)</span>
           <span class="sub-arrow">▶</span>
@@ -408,7 +412,7 @@ Suchergebnis für: <span class="hl-danger">&lt;script&gt;alert('XSS')&lt;/script
 
       <!-- DOM XSS -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🌐</div>
           <span class="sub-title">DOM-based XSS</span>
           <span class="sub-arrow">▶</span>
@@ -430,7 +434,7 @@ document.getElementById(<span class="hl-str">'welcome'</span>).<span class="hl-g
     </div>
 
     <!-- ============ CATEGORY 4: CSRF ============ -->
-    <div class="category" id="csrf" style="animation-delay:0.35s">
+    <div class="category" id="csrf">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(170,68,255,0.12);color:#aa44ff;border:1px solid rgba(170,68,255,0.3)">🎭 CSRF</span>
         <h2 class="cat-title">Cross-Site Request Forgery</h2>
@@ -438,7 +442,7 @@ document.getElementById(<span class="hl-str">'welcome'</span>).<span class="hl-g
       </div>
 
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🎭</div>
           <span class="sub-title">CSRF Angriff</span>
           <span class="sub-arrow">▶</span>
@@ -471,7 +475,7 @@ document.getElementById(<span class="hl-str">'welcome'</span>).<span class="hl-g
     </div>
 
     <!-- ============ CATEGORY 5: IDOR ============ -->
-    <div class="category" id="idor" style="animation-delay:0.4s">
+    <div class="category" id="idor">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(255,136,68,0.12);color:#ff8844;border:1px solid rgba(255,136,68,0.3)">🔓 AccessCtrl</span>
         <h2 class="cat-title">IDOR & Access Control</h2>
@@ -480,7 +484,7 @@ document.getElementById(<span class="hl-str">'welcome'</span>).<span class="hl-g
 
       <!-- IDOR -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,136,68,0.1)">📂</div>
           <span class="sub-title">IDOR (Insecure Direct Object Reference)</span>
           <span class="sub-arrow">▶</span>
@@ -518,7 +522,7 @@ done</pre>
 
       <!-- Privilege Escalation -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,68,102,0.1)">⬆️</div>
           <span class="sub-title">Privilege Escalation</span>
           <span class="sub-arrow">▶</span>
@@ -546,7 +550,7 @@ done</pre>
     </div>
 
     <!-- ============ CATEGORY 6: RECON ============ -->
-    <div class="category" id="recon" style="animation-delay:0.45s">
+    <div class="category" id="recon">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(68,255,204,0.12);color:#44ffcc;border:1px solid rgba(68,255,204,0.3)">🔍 Recon</span>
         <h2 class="cat-title">Reconnaissance & Enumeration</h2>
@@ -555,7 +559,7 @@ done</pre>
 
       <!-- Subdomain Enum -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🌐</div>
           <span class="sub-title">Subdomain Enumeration</span>
           <span class="sub-arrow">▶</span>
@@ -583,7 +587,7 @@ done</pre>
 
       <!-- Directory Fuzzing -->
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📁</div>
           <span class="sub-title">Directory & File Fuzzing</span>
           <span class="sub-arrow">▶</span>
@@ -611,7 +615,7 @@ done</pre>
     </div>
 
     <!-- ============ CATEGORY 7: TOOLS ============ -->
-    <div class="category" id="tools" style="animation-delay:0.5s">
+    <div class="category" id="tools">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(204,255,68,0.12);color:#ccff44;border:1px solid rgba(204,255,68,0.3)">🧰 Tools</span>
         <h2 class="cat-title">Tools & Lernressourcen</h2>
@@ -619,7 +623,7 @@ done</pre>
       </div>
 
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(204,255,68,0.08)">🧰</div>
           <span class="sub-title">Essential Security Tools</span>
           <span class="sub-arrow">▶</span>
@@ -639,7 +643,7 @@ done</pre>
       </div>
 
       <div class="subcategory">
-        <div class="sub-header" onclick="toggle(this)">
+        <div class="sub-header">
           <div class="sub-icon" style="background:rgba(0,255,136,0.08)">📚</div>
           <span class="sub-title">Lernplattformen & Übungsumgebungen</span>
           <span class="sub-arrow">▶</span>
@@ -673,64 +677,5 @@ done</pre>
   </main>
 </div>
 
-<script>
-function toggle(header) {
-  const arrow = header.querySelector('.sub-arrow');
-  const content = header.nextElementSibling;
-  arrow.classList.toggle('open');
-  content.classList.toggle('open');
-}
-
-function markTopic(chip) {
-  chip.classList.toggle('done');
-  if (chip.classList.contains('done')) {
-    chip.style.background = 'rgba(0,255,136,0.12)';
-    chip.style.borderColor = 'rgba(0,255,136,0.4)';
-    chip.style.color = '#00ff88';
-  } else {
-    chip.style.background = '';
-    chip.style.borderColor = '';
-    chip.style.color = '';
-  }
-}
-
-// Smooth scroll for nav links
-document.querySelectorAll('a[href^="#"]').forEach(a => {
-  a.addEventListener('click', e => {
-    e.preventDefault();
-    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    a.classList.add('active');
-  });
-});
-
-// Staggered animations
-document.querySelectorAll('.category').forEach((cat, i) => {
-  cat.style.animationDelay = (0.1 + i * 0.08) + 's';
-});
-
-// Open first subcategory in each category by default
-document.querySelectorAll('.subcategory:first-of-type .sub-header').forEach(h => {
-  toggle(h);
-});
-
-// Theme toggle
-function toggleTheme() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'light' ? '☾ Dunkel' : '☀ Hell';
-  localStorage.setItem('theme', next);
-}
-
-// Apply saved theme on load
-(function() {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('themeBtn').textContent = saved === 'light' ? '☾ Dunkel' : '☀ Hell';
-  });
-})();
-</script>
 </body>
 </html>
