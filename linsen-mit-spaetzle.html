@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linsen mit Spätzle – wiki.simonwied.com</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="web-hacking.css">
+<script src="linsen-mit-spaetzle.js" defer></script>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" href="assets/favicon-96x96.png">
+<link rel="shortcut icon" href="assets/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
+    <div class="sidebar-logo">
+      <a href="index.html"><img src="assets/logo_big.png" alt="Wiki." class="logo-img"></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Wiki</div>
+      <a href="index.html" class="nav-item">
+        <div class="dot" style="background:var(--accent)"></div> ← Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px">
+      <div class="nav-section-title">Auf dieser Seite</div>
+      <a href="#intro" class="nav-item active">
+        <div class="dot" style="background:#bb7700"></div> Einleitung
+      </a>
+      <a href="#zutaten" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Zutaten
+      </a>
+      <a href="#zubereitung" class="nav-item">
+        <div class="dot" style="background:#44cc88"></div> Zubereitung
+      </a>
+      <a href="#spaetzle" class="nav-item">
+        <div class="dot" style="background:#ffcc44"></div> Spätzle selber machen
+      </a>
+      <a href="#tipps" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> Tipps
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="logo-text">wiki.simonwied.com</div>
+    </div>
+  </nav>
+  <div class="sidebar-resize" id="sidebarResize"></div>
+
+  <main class="main">
+    <!-- Breadcrumb -->
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:32px;display:flex;align-items:center;gap:8px">
+      <a href="index.html" style="color:var(--muted);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">wiki.simonwied.com</a>
+      <span style="color:var(--border)">/</span>
+      <span style="color:var(--accent)">Linsen mit Spätzle</span>
+    </div>
+
+    <!-- Seitenheader -->
+    <div class="page-header" id="intro">
+      <span class="page-emoji">🍲</span>
+      <h1 class="page-title">Linsen mit Spätzle</h1>
+      <p class="page-subtitle">Klassisches schwäbisches Gericht</p>
+      <div class="page-meta">
+        <span class="tag">Rezept</span>
+        <span class="tag">Schwäbisch</span>
+        <span class="tag">Hausmannskost</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════
+         ZUTATEN
+    ══════════════════════════════════════════ -->
+    <div class="category" id="zutaten">
+      <div class="category-header" style="cursor:pointer" onclick="toggleCategory(this)">
+        <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">🥘 Zutaten</span>
+        <h2 class="cat-title">Zutaten</h2>
+        <div class="cat-line"></div>
+        <span class="sub-arrow">▶</span>
+      </div>
+
+      <div class="category-content">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:13px">
+          <span style="color:var(--muted)">Portionen:</span>
+          <button onclick="changeServings(-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+          <span id="servingCount" style="font-weight:700;font-size:16px;min-width:20px;text-align:center">4</span>
+          <button onclick="changeServings(1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+        </div>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">🫘 Für die Linsen</h4>
+        <table class="info-table" id="ingredientTable">
+          <tr><th>Menge</th><th>Zutat</th></tr>
+          <tr><td data-base="250" data-unit="g"><span class="qty">250</span> g</td><td>Tellerlinsen (hellbraun)</td></tr>
+          <tr><td data-base="1000" data-unit="ml"><span class="qty">1000</span> ml</td><td>Gemüse- oder Fleischbrühe</td></tr>
+          <tr><td data-base="250" data-unit="g"><span class="qty">250</span> g</td><td>Suppengrün (Sellerie, Möhren, Lauch, Petersilie)</td></tr>
+          <tr><td data-base="1" data-unit=""><span class="qty">1</span></td><td>Zwiebel</td></tr>
+          <tr><td data-base="40" data-unit="g"><span class="qty">40</span> g</td><td>Butter</td></tr>
+          <tr><td data-base="20" data-unit="g"><span class="qty">20</span> g</td><td>Mehl (Type 405)</td></tr>
+          <tr><td data-base="2" data-unit=""><span class="qty">2</span></td><td>Lorbeerblätter</td></tr>
+          <tr><td></td><td>Salz, schwarzer Pfeffer</td></tr>
+        </table>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px">🍝 Spätzle</h4>
+        <table class="info-table" id="ingredientTable2">
+          <tr><th>Menge</th><th>Zutat</th></tr>
+          <tr><td data-base="400" data-unit="g"><span class="qty">400</span> g</td><td>Mehl (Type 405)</td></tr>
+          <tr><td data-base="4" data-unit=""><span class="qty">4</span></td><td>Eier</td></tr>
+          <tr><td data-base="100" data-unit="ml"><span class="qty">100</span> ml</td><td>Wasser (lauwarm)</td></tr>
+          <tr><td data-base="1" data-unit="TL"><span class="qty">1</span> TL</td><td>Salz</td></tr>
+        </table>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px">🧂 Sonstiges</h4>
+        <table class="info-table" id="ingredientTable3">
+          <tr><th>Menge</th><th>Zutat</th></tr>
+          <tr><td data-base="8" data-unit=""><span class="qty">8</span></td><td>Wiener Würstchen / Saitenwürste</td></tr>
+          <tr><td>viel</td><td>Essig nach Wahl</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         ZUBEREITUNG
+    ══════════════════════════════════════════ -->
+    <div class="category" id="zubereitung">
+      <div class="category-header" style="cursor:pointer" onclick="toggleCategory(this)">
+        <span class="category-badge" style="background:rgba(68,204,136,0.12);color:#44cc88;border:1px solid rgba(68,204,136,0.3)">👨‍🍳 Anleitung</span>
+        <h2 class="cat-title">Zubereitung</h2>
+        <div class="cat-line"></div>
+        <span class="sub-arrow">▶</span>
+      </div>
+
+      <div class="category-content">
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">1️⃣ Vorbereitung</h4>
+        <div class="steps" style="margin-bottom:20px">
+          <div class="step"><span class="step-num">01.</span> Suppengrün und Zwiebel putzen, schälen und waschen. Zwiebel, Möhre und Sellerie in sehr kleine Würfel schneiden.</div>
+          <div class="step"><span class="step-num">02.</span> Lauch putzen, waschen und fein würfeln. Petersilie waschen und trockenschütteln.</div>
+          <div class="step"><span class="step-num">03.</span> Tellerlinsen in einem Sieb abwaschen.</div>
+        </div>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">2️⃣ Mehlschwitze & Gemüse</h4>
+        <div class="steps" style="margin-bottom:20px">
+          <div class="step"><span class="step-num">01.</span> Butter in einem mittelgroßen Topf zerlassen. Mehl mit einem Schneebesen einrühren.</div>
+          <div class="step"><span class="step-num">02.</span> Bei mittlerer Hitze köcheln lassen, bis die Mehl-Butter-Mischung leicht gebräunt ist.</div>
+          <div class="step"><span class="step-num">03.</span> Das geschnittene Gemüse und die Linsen dazugeben, 3–5 Minuten dünsten.</div>
+          <div class="step"><span class="step-num">04.</span> Lorbeerblätter hinzufügen.</div>
+          <div class="step"><span class="step-num">05.</span> Mit 1 Liter Brühe aufgießen und gut umrühren.</div>
+        </div>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">3️⃣ Köcheln & Abschmecken</h4>
+        <div class="steps" style="margin-bottom:20px">
+          <div class="step"><span class="step-num">01.</span> Im offenen Topf 35 Minuten unter gelegentlichem Rühren köcheln. Bei Bedarf etwas Wasser nachgießen.</div>
+          <div class="step"><span class="step-num">02.</span> Linsen auf Garheit testen. Lorbeerblätter entfernen.</div>
+          <div class="step"><span class="step-num">03.</span> Mit 1–2 EL Essig, Salz und Pfeffer abschmecken. Hinweis: Essig erst am Ende hinzufügen, da er die Linsenschale verhärtet.</div>
+          <div class="step"><span class="step-num">04.</span> Petersilie fein hacken und unterrühren.</div>
+        </div>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">4️⃣ Servieren</h4>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span> Würstchen auf das fertige Linsengemüse legen und mit geschlossenem Deckel 5 Minuten erwärmen (oder separat in heißem Wasser ziehen lassen).</div>
+          <div class="step"><span class="step-num">02.</span> Spätzle in kochendem Salzwasser 1 Minute ziehen lassen, abgießen und Butterflöckchen unterrühren.</div>
+          <div class="step"><span class="step-num">03.</span> Linsengemüse mit Würstchen und Spätzle anrichten.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         SPÄTZLE SELBER MACHEN
+    ══════════════════════════════════════════ -->
+    <div class="category" id="spaetzle">
+      <div class="category-header" style="cursor:pointer" onclick="toggleCategory(this)">
+        <span class="category-badge" style="background:rgba(255,204,68,0.12);color:#ccaa00;border:1px solid rgba(255,204,68,0.3)">🍝 Selbstgemacht</span>
+        <h2 class="cat-title">Spätzle selber machen</h2>
+        <div class="cat-line"></div>
+        <span class="sub-arrow">▶</span>
+      </div>
+
+      <div class="category-content">
+        <p style="font-size:15px;line-height:1.7;margin-bottom:20px;color:var(--text)">Selbstgemachte Spätzle sind unvergleichlich besser als gekaufte. Der Teig ist einfach und braucht nur 4 Zutaten — das Ergebnis lohnt sich!</p>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">🥚 Zutaten</h4>
+        <table class="info-table" id="spaetzleTable">
+          <tr><th>Menge</th><th>Zutat</th></tr>
+          <tr><td data-base="400" data-unit="g"><span class="qty">400</span> g</td><td>Mehl (Type 405)</td></tr>
+          <tr><td data-base="4" data-unit=""><span class="qty">4</span></td><td>Eier</td></tr>
+          <tr><td data-base="100" data-unit="ml"><span class="qty">100</span> ml</td><td>Wasser (lauwarm)</td></tr>
+          <tr><td data-base="1" data-unit="TL"><span class="qty">1</span> TL</td><td>Salz</td></tr>
+        </table>
+
+        <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px">👨‍🍳 Zubereitung</h4>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span> Mehl und Salz in eine Schüssel geben, eine Mulde formen.</div>
+          <div class="step"><span class="step-num">02.</span> Eier hineinschlagen und mit dem Wasser verrühren.</div>
+          <div class="step"><span class="step-num">03.</span> Mit einem Kochlöffel kräftig schlagen, bis der Teig Blasen wirft und zäh vom Löffel fällt.</div>
+          <div class="step"><span class="step-num">04.</span> Teig 15–20 Minuten ruhen lassen.</div>
+          <div class="step"><span class="step-num">05.</span> Einen großen Topf Salzwasser zum Kochen bringen.</div>
+          <div class="step"><span class="step-num">06.</span> Teig portionsweise auf ein nasses Brett streichen und mit einem Messer oder Schaber dünne Streifen ins Wasser schaben.</div>
+          <div class="step"><span class="step-num">07.</span> Alternativ: Spätzlepresse oder Spätzlehobel verwenden.</div>
+          <div class="step"><span class="step-num">08.</span> Sobald die Spätzle oben schwimmen (ca. 1–2 Min.), mit einer Schaumkelle abschöpfen.</div>
+          <div class="step"><span class="step-num">09.</span> Kurz in kaltem Wasser abschrecken oder direkt servieren.</div>
+        </div>
+
+        <div class="defense-block" style="margin-top:16px">
+          <h4>💡 Tipp</h4>
+          <ul>
+            <li>Der Teig muss zäh sein — wenn er zu flüssig ist, noch etwas Mehl dazugeben.</li>
+            <li>Je länger man schlägt, desto besser wird die Konsistenz.</li>
+            <li>Ein Spätzlehobel ist am einfachsten für Anfänger.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TIPPS
+    ══════════════════════════════════════════ -->
+    <div class="category" id="tipps">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">💡 Tipps</span>
+        <h2 class="cat-title">Tipps & Variationen</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="defense-block">
+        <h4>📝 Tipps</h4>
+        <ul>
+          <li>Essig erst am Ende zugeben — er verhärtet sonst die Linsenschale beim Kochen.</li>
+          <li>Am nächsten Tag schmeckt es oft noch besser.</li>
+          <li>Für Vegetarier: Würstchen weglassen, dafür geräucherten Tofu verwenden.</li>
+          <li>Wer es deftiger mag: ein Stück Speck oder Bauchfleisch mitkochen.</li>
+          <li>Bei Bedarf etwas Wasser nachgießen, falls die Linsen zu dick werden.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
+      // wiki.simonwied.com
+    </p>
+  </main>
+</div>
+
+</body>
+</html>
