@@ -56,7 +56,7 @@ document.querySelectorAll('.subcategory:first-of-type .sub-header').forEach(h =>
 
   const STORAGE_KEY = 'sidebar-collapsed';
   const WIDTH_KEY = 'sidebar-width';
-  const DEFAULT_W = 280;
+  const DEFAULT_W = 276;
   const MIN_W = 180;
   const MAX_W = 480;
 

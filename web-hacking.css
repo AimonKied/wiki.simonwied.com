@@ -48,7 +48,7 @@ body::before {
 }
 
 .sidebar {
-  width: 280px;
+  width: 276px;
   min-height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
