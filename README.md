@@ -10,7 +10,7 @@ The main goal of this wiki is to spread useful information. That said, not every
 
 ```
 ├── index.html / index.css / index.js   # Homepage with card grid & search
-├── web-hacking.css                     # Shared stylesheet for all sub-pages
+├── style.css                           # Shared stylesheet for all sub-pages
 ├── version.js                          # Site version constant
 ├── _template.html                      # Template for new pages
 ├── _template.js                        # Template JS for new pages
