@@ -3,27 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SEITENTITEL – wiki.simonwied.com</title>
+<title>PAGE_TITLE – wiki.simonwied.com</title>
 <!--
-  ANLEITUNG: Neue Seite hinzufügen
+  HOW TO: Add a new page
   ─────────────────────────────────
-  1. Diese Datei kopieren, umbenennen (z.B. "linux.html")
-  2. SEITENTITEL oben anpassen
-  3. Sidebar: Kategorie und Seitenname eintragen
-  4. page-header: Titel + Beschreibung anpassen
-  5. Kategorien und Abschnitte befüllen (Beispiele unten)
-  6. In index.html einen neuen Eintrag unter der richtigen Kategorie hinzufügen
+  1. Copy this file and rename it (e.g. "linux.html")
+  2. Create a matching JS file: copy _template.js → rename to "linux.js"
+  3. Replace PAGE_TITLE in the <title> tag above
+  4. Update the <script src="..."> below to point to your JS file
+  5. Sidebar: fill in your categories and section names
+  6. Page header: set title, emoji, description and tags
+  7. Breadcrumb: replace PAGE_TITLE
+  8. Fill in categories and entries (examples below)
+  9. Add a card entry in index.html under the correct category
 
-  In index.html einfach hinzufügen:
+  index.html card example:
   <a href="linux.html" class="card cat-other" data-tags="linux shell bash ...">
     <div class="card-top">
       <span class="card-icon">🐧</span>
       <span class="card-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">LINUX</span>
     </div>
     <div class="card-title">Linux & Shell</div>
-    <div class="card-desc">Kurzbeschreibung was drin ist.</div>
+    <div class="card-desc">Short description of what's inside.</div>
     <div class="card-footer">
-      <span class="card-tag">Kategorie</span>
+      <span class="card-tag">Category</span>
       <span class="card-arrow">→</span>
     </div>
   </a>
@@ -31,9 +34,10 @@
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="web-hacking.css">
-<!-- ANPASSEN: JS-Datei entsprechend der Seite benennen -->
-<script src="web-hacking.js" defer></script>
+<link rel="stylesheet" href="web-hacking.css?v=1.4.1">
+<script src="version.js?v=1.4.1"></script>
+<!-- CHANGE: rename the JS file to match your page (e.g. linux.js) -->
+<script src="_template.js?v=1.4.1" defer></script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" href="assets/favicon-96x96.png">
 <link rel="shortcut icon" href="assets/favicon.ico">
@@ -43,7 +47,8 @@
 <body>
 
 <div class="layout">
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
     <div class="sidebar-logo">
       <a href="index.html"><img src="assets/logo_big.png" alt="Wiki." class="logo-img"></a>
     </div>
@@ -55,14 +60,14 @@
       </a>
     </div>
 
-    <!-- Abschnitte dieser Seite — für jeden <div class="category"> einen Eintrag -->
+    <!-- Sections on this page — add one entry per <div class="category"> -->
     <div class="nav-section" style="margin-top:4px">
       <div class="nav-section-title">Auf dieser Seite</div>
-      <a href="#abschnitt1" class="nav-item active">
-        <div class="dot" style="background:#4488ff"></div> Abschnitt 1
+      <a href="#section1" class="nav-item active">
+        <div class="dot" style="background:#4488ff"></div> Section 1
       </a>
-      <a href="#abschnitt2" class="nav-item">
-        <div class="dot" style="background:#ffaa00"></div> Abschnitt 2
+      <a href="#section2" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Section 2
       </a>
     </div>
 
@@ -70,133 +75,134 @@
       <div class="logo-text">wiki.simonwied.com</div>
     </div>
   </nav>
+  <div class="sidebar-resize" id="sidebarResize"></div>
 
   <main class="main">
     <!-- Breadcrumb -->
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:32px;display:flex;align-items:center;gap:8px">
-      <a href="index.html" style="color:var(--muted);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">wiki.simonwied.com</a>
-      <span style="color:var(--border)">/</span>
-      <span style="color:var(--accent)">SEITENTITEL</span>
+    <div class="breadcrumb">
+      <a href="index.html" class="breadcrumb-link">wiki.simonwied.com</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">PAGE_TITLE</span>
     </div>
 
-    <!-- Seitenheader -->
+    <!-- Page header -->
     <div class="page-header" id="intro">
       <span class="page-emoji">📄</span>
-      <h1 class="page-title">SEITENTITEL</h1>
-      <p class="page-subtitle">Kurze Beschreibung worum es auf dieser Seite geht.</p>
+      <h1 class="page-title">PAGE_TITLE</h1>
+      <p class="page-subtitle">Short description of what this page is about.</p>
       <div class="page-meta">
         <span class="tag">Tag 1</span>
         <span class="tag">Tag 2</span>
       </div>
     </div>
 
-    <!-- Optionaler Hinweis-Block -->
+    <!-- Optional callout block -->
     <!--
     <div class="callout">
       <span class="callout-icon">ℹ️</span>
-      <div>Hier kommt ein wichtiger Hinweis hin.</div>
+      <div>Important note goes here.</div>
     </div>
     -->
 
     <div class="divider"></div>
 
     <!-- ══════════════════════════════════════════
-         KATEGORIE 1
-         id muss mit dem Sidebar-Link übereinstimmen
+         CATEGORY 1
+         id must match the sidebar link href
     ══════════════════════════════════════════ -->
-    <div class="category" id="abschnitt1">
+    <div class="category" id="section1">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🔷 Label</span>
-        <h2 class="cat-title">Abschnitt 1</h2>
+        <h2 class="cat-title">Section 1</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- Eintrag (aufklappbar) -->
+      <!-- Collapsible entry -->
       <div class="subcategory">
         <div class="sub-header">
           <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📌</div>
-          <span class="sub-title">Titel des Eintrags</span>
+          <span class="sub-title">Entry Title</span>
           <span class="sub-arrow">▶</span>
         </div>
         <div class="sub-content">
-          <!-- Schwierigkeitsgrad / Wichtigkeit (optional) -->
+          <!-- Severity / importance (optional) -->
           <!-- <span class="severity sev-high">● HIGH</span> -->
 
           <p class="sub-desc">
-            Erklärender Text. Was ist das, warum ist es wichtig?
+            Explanatory text. What is it and why does it matter?
           </p>
 
-          <!-- Code-Block (optional) -->
+          <!-- Code block (optional) -->
           <div class="code-block">
             <div class="code-header">
-              <span class="code-lang">bash · Beispiel</span>
+              <span class="code-lang">bash · Example</span>
               <div class="code-dots"><span></span><span></span><span></span></div>
             </div>
-            <pre><span class="hl-comment"># Kommentar</span>
-<span class="hl-func">befehl</span> --option <span class="hl-str">wert</span>
+            <pre><span class="hl-comment"># Comment</span>
+<span class="hl-func">command</span> --option <span class="hl-str">value</span>
 
-<span class="hl-comment"># Ergebnis:</span>
-<span class="hl-good">Erfolgreiche Ausgabe hier</span>
-<span class="hl-danger">Gefährliche Ausgabe hier</span></pre>
+<span class="hl-comment"># Result:</span>
+<span class="hl-good">Successful output here</span>
+<span class="hl-danger">Dangerous output here</span></pre>
           </div>
 
-          <!-- Stichpunkte / Notizen (optional) -->
+          <!-- Bullet points / notes (optional) -->
           <div class="defense-block">
-            <h4>📝 Notizen</h4>
+            <h4>📝 Notes</h4>
             <ul>
-              <li>Wichtiger Punkt 1</li>
-              <li>Wichtiger Punkt 2</li>
-              <li>Wichtiger Punkt 3</li>
+              <li>Important point 1</li>
+              <li>Important point 2</li>
+              <li>Important point 3</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <!-- Weiterer Eintrag — einfach kopieren -->
+      <!-- Another entry — just copy this block -->
       <div class="subcategory">
         <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">📎</div>
-          <span class="sub-title">Zweiter Eintrag</span>
+          <span class="sub-title">Second Entry</span>
           <span class="sub-arrow">▶</span>
         </div>
         <div class="sub-content">
-          <p class="sub-desc">Beschreibung des zweiten Eintrags.</p>
+          <p class="sub-desc">Description of the second entry.</p>
 
-          <!-- Tabelle (optional) -->
+          <!-- Table (optional) -->
           <table class="info-table">
-            <tr><th>Spalte A</th><th>Spalte B</th><th>Spalte C</th></tr>
-            <tr><td>Wert 1</td><td>Wert 2</td><td>Wert 3</td></tr>
-            <tr><td>Wert 4</td><td>Wert 5</td><td>Wert 6</td></tr>
+            <tr><th>Column A</th><th>Column B</th><th>Column C</th></tr>
+            <tr><td>Value 1</td><td>Value 2</td><td>Value 3</td></tr>
+            <tr><td>Value 4</td><td>Value 5</td><td>Value 6</td></tr>
           </table>
         </div>
       </div>
     </div>
 
     <!-- ══════════════════════════════════════════
-         KATEGORIE 2 — einfach die ganze category-div kopieren
+         CATEGORY 2 — copy the entire category div to add more
     ══════════════════════════════════════════ -->
-    <div class="category" id="abschnitt2">
+    <div class="category" id="section2">
       <div class="category-header">
         <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">🔶 Label</span>
-        <h2 class="cat-title">Abschnitt 2</h2>
+        <h2 class="cat-title">Section 2</h2>
         <div class="cat-line"></div>
       </div>
 
       <div class="subcategory">
         <div class="sub-header">
           <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🗒️</div>
-          <span class="sub-title">Eintrag in Abschnitt 2</span>
+          <span class="sub-title">Entry in Section 2</span>
           <span class="sub-arrow">▶</span>
         </div>
         <div class="sub-content">
-          <p class="sub-desc">Inhalt hier.</p>
+          <p class="sub-desc">Content goes here.</p>
         </div>
       </div>
     </div>
 
     <div class="divider"></div>
     <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
-      // wiki.simonwied.com
+      // wiki.simonwied.com · PAGE_TITLE · <span id="siteVersion"></span>
     </p>
   </main>
 </div>
