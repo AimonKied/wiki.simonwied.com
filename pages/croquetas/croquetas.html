@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spanische Kroketten – wiki.simonwied.com</title>
+
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css?v=1.5.3">
+<script src="croquetas.js" defer></script>
+
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
+
+    <div class="sidebar-logo">
+      <a href="../../index.html"><img src="../../assets/logo_big.png" class="logo-img"></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Wiki</div>
+      <a href="../../index.html" class="nav-item">
+        <div class="dot" style="background:var(--accent)"></div> ← Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px">
+      <div class="nav-section-title">Auf dieser Seite</div>
+      <a href="#intro" class="nav-item active">
+        <div class="dot" style="background:#bb7700"></div> Einleitung
+      </a>
+      <a href="#zutaten" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Zutaten
+      </a>
+      <a href="#zubereitung" class="nav-item">
+        <div class="dot" style="background:#44cc88"></div> Zubereitung
+      </a>
+      <a href="#spaetzle" class="nav-item">
+        <div class="dot" style="background:#ffcc44"></div> Spätzle selber machen
+      </a>
+      <a href="#tipps" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> Tipps
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="logo-text">wiki.simonwied.com</div>
+    </div>
+  </nav>
+<div class="sidebar-resize" id="sidebarResize"></div>
+  <main class="main">
+<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:32px;display:flex;align-items:center;gap:8px">
+      <a href="../../index.html" style="color:var(--muted);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">wiki.simonwied.com</a>
+      <span style="color:var(--border)">/</span>
+      <span style="color:var(--accent)">Kroketten mit Schinken (Spanisch)</span>
+    </div>
+    <!-- HEADER -->
+    <div class="page-header" id="intro">
+      <span class="page-emoji">🇪🇸</span>
+      <h1 class="page-title">Kroketten mit Schinken (Spanisch)</h1>
+      <p class="page-subtitle">Klassisches Rezept, ca. 4 Portionen</p>
+      <div class="page-meta">
+        <span class="tag">Rezept</span>
+        <span class="tag">Tapas</span>
+        <span class="tag">Spanisch</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════
+     ZUTATEN
+══════════════════════════════════════════ -->
+<div class="category" id="zutaten">
+  <div class="category-header" style="cursor:pointer" onclick="toggleCategory(this)">
+    <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">🥘 Zutaten</span>
+    <h2 class="cat-title">Zutaten</h2>
+    <div class="cat-line"></div>
+    <span class="sub-arrow">▶</span>
+  </div>
+
+  <div class="category-content">
+
+    <!-- CONTADOR DE RACIONES -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:13px">
+      <span style="color:var(--muted)">Portionen:</span>
+
+      <button onclick="changeServings(-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer">−</button>
+
+      <span id="servingCount" style="font-weight:700;font-size:16px;min-width:20px;text-align:center">4</span>
+
+      <button onclick="changeServings(1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer">+</button>
+    </div>
+
+    <!-- MASSE -->
+    <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">
+      🥣 Für die Krokettenmasse
+    </h4>
+
+    <table class="info-table" id="ingredientTable">
+      <tr><th>Menge</th><th>Zutat</th></tr>
+
+      <tr><td data-base="50" data-unit="g"><span class="qty">50</span> g</td><td>Butter</td></tr>
+      <tr><td data-base="50" data-unit="g"><span class="qty">50</span> g</td><td>Mehl</td></tr>
+      <tr><td data-base="500" data-unit="ml"><span class="qty">500</span> ml</td><td>Milch</td></tr>
+      <tr><td data-base="150" data-unit="g"><span class="qty">150</span> g</td><td>Serrano-Schinken (fein gehackt)</td></tr>
+      <tr><td data-base="1" data-unit="Stk"><span class="qty">1</span></td><td>Zwiebel (fein gehackt)</td></tr>
+      <tr><td data-base="1" data-unit="TL"><span class="qty">1</span> TL</td><td>Salz</td></tr>
+      <tr><td data-base="0.5" data-unit="TL"><span class="qty">0.5</span> TL</td><td>Pfeffer</td></tr>
+      <tr><td data-base="0.25" data-unit="TL"><span class="qty">0.25</span> TL</td><td>Muskatnuss</td></tr>
+    </table>
+
+    <!-- PANIEREN -->
+    <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px">
+      🍳 Zum Panieren
+    </h4>
+
+    <table class="info-table" id="ingredientTable2">
+      <tr><th>Menge</th><th>Zutat</th></tr>
+
+      <tr><td data-base="2" data-unit="Stk"><span class="qty">2</span></td><td>Eier</td></tr>
+      <tr><td data-base="100" data-unit="g"><span class="qty">100</span> g</td><td>Semmelbrösel</td></tr>
+      <tr><td data-base="50" data-unit="g"><span class="qty">50</span> g</td><td>Mehl</td></tr>
+      <tr><td data-base="500" data-unit="ml"><span class="qty">500</span> ml</td><td>Öl zum Frittieren</td></tr>
+    </table>
+
+  </div>
+</div>
+
+    <!-- ZUBEREITUNG -->
+    <div class="category" id="zubereitung">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="category-badge" style="background:rgba(68,204,136,0.12);color:#44cc88;border:1px solid rgba(68,204,136,0.3)">👨‍🍳 Anleitung</span>
+        <h2 class="cat-title">Zubereitung</h2>
+      </div>
+
+      <div class="category-content">
+
+        <h4>1️⃣ Béchamelsauce vorbereiten</h4>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Butter in einem Topf schmelzen.</div>
+          <div class="step"><span class="step-num">02.</span>Zwiebel glasig anbraten.</div>
+          <div class="step"><span class="step-num">03.</span>Mehl hinzufügen und kurz anschwitzen.</div>
+          <div class="step"><span class="step-num">04.</span>Milch nach und nach einrühren, bis eine cremige Masse entsteht.</div>
+        </div>
+
+        <h4>2️⃣ Füllung hinzufügen</h4>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Schinken unterrühren.</div>
+          <div class="step"><span class="step-num">02.</span>Mit Salz, Pfeffer und Muskat abschmecken.</div>
+          <div class="step"><span class="step-num">03.</span>Masse abkühlen lassen (am besten mehrere Stunden im Kühlschrank).</div>
+        </div>
+
+        <h4>3️⃣ Kroketten formen & frittieren</h4>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Aus der Masse kleine Rollen formen.</div>
+          <div class="step"><span class="step-num">02.</span>Zuerst in Mehl, dann Ei, dann Semmelbrösel wenden.</div>
+          <div class="step"><span class="step-num">03.</span>In heißem Öl goldbraun frittieren.</div>
+          <div class="step"><span class="step-num">04.</span>Auf Küchenpapier abtropfen lassen und servieren.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TIPPS -->
+    <div class="category" id="tipps">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">💡 Tipps</span>
+        <h2 class="cat-title">Tipps</h2>
+      </div>
+
+      <div class="defense-block">
+        <h4>📝 Tipps</h4>
+        <ul>
+          <li>Die Masse muss gut gekühlt sein, sonst lassen sich die Kroketten schwer formen.</li>
+          <li>Doppelt panieren für extra Knusprigkeit.</li>
+          <li>Olivenöl eignet sich hervorragend zum Frittieren.</li>
+          <li>Perfekt als Tapas oder Vorspeise.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Seite erstellt von <a href="https://github.com/AimonKied" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline dotted">AimonKied</a></div>
+     <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Autor <a href="https://github.com/alexia-lozano28" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline dotted">Alexia Lozano</a></div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
+        // wiki.simonwied.com · <span id="siteVersion"></span>
+    </p>
+
+  </main>
+</div>
+
+</body>
+</html>
