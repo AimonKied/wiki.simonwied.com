@@ -1,5 +1,5 @@
 
-# wiki.simonwied.com
+# [wiki.simonwied.com](https://wiki.simonwied.com)
 
 A personal, open wiki for any topic — no restrictions on what you can write about. Whether it' cooking, programming, science, music or anything else, every subject has a place here.
 
