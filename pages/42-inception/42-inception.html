@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>42 Inception – wiki.simonwied.com</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css?v=1.5.3">
+<script src="../../version.js?v=1.5.3"></script>
+<script src="42-inception.js?v=1.5.3" defer></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="96x96" href="../../assets/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../../assets/web-app-manifest-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../../assets/web-app-manifest-512x512.png">
+<link rel="shortcut icon" href="../../assets/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png">
+<link rel="manifest" href="../../assets/site.webmanifest">
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">«</button>
+    <div class="sidebar-logo">
+      <a href="../../index.html"><img src="../../assets/logo_big.png" alt="Wiki." class="logo-img"></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Wiki</div>
+      <a href="../../index.html" class="nav-item">
+        <div class="dot" style="background:var(--accent)"></div> ← Startseite
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px">
+      <div class="nav-section-title">Auf dieser Seite</div>
+      <a href="#overview" class="nav-item active">
+        <div class="dot" style="background:#44ffcc"></div> Überblick
+      </a>
+      <a href="#docker" class="nav-item">
+        <div class="dot" style="background:#4488ff"></div> Docker Grundlagen
+      </a>
+      <a href="#services" class="nav-item">
+        <div class="dot" style="background:#aa44ff"></div> Die drei Dienste
+      </a>
+      <a href="#structure" class="nav-item">
+        <div class="dot" style="background:#ffaa00"></div> Projektstruktur
+      </a>
+      <a href="#files" class="nav-item">
+        <div class="dot" style="background:#ff8844"></div> Dateien erklärt
+      </a>
+      <a href="#flow" class="nav-item">
+        <div class="dot" style="background:#44ff88"></div> Zusammenspiel
+      </a>
+      <a href="#setup" class="nav-item">
+        <div class="dot" style="background:#ffdd44"></div> Einrichten & Starten
+      </a>
+      <a href="#faq" class="nav-item">
+        <div class="dot" style="background:#ff4466"></div> Häufige Fragen
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="logo-text">wiki.simonwied.com</div>
+    </div>
+  </nav>
+  <div class="sidebar-resize" id="sidebarResize"></div>
+
+  <main class="main">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+      <a href="../../index.html" class="breadcrumb-link">wiki.simonwied.com</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">42 Inception</span>
+    </div>
+
+    <!-- Page header -->
+    <div class="page-header" id="intro">
+      <span class="page-emoji">🐳</span>
+      <h1 class="page-title">42 Inception</h1>
+      <p class="page-subtitle">Kompletter Einsteigerguide — WordPress in Docker mit NGINX, PHP-FPM und MariaDB.</p>
+      <div class="page-meta">
+        <span class="tag">Docker</span>
+        <span class="tag">42 School</span>
+        <span class="tag">NGINX</span>
+        <span class="tag">WordPress</span>
+        <span class="tag">MariaDB</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-icon">ℹ️</span>
+      <div>Für alle, die noch nie von Docker gehört haben und nicht wissen, was hier passiert.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════
+         ÜBERBLICK
+    ══════════════════════════════════════════ -->
+    <div class="category" id="overview">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,255,204,0.12);color:#44ffcc;border:1px solid rgba(68,255,204,0.3)">🌐 Projekt</span>
+        <h2 class="cat-title">Was macht dieses Projekt?</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.1)">🗺️</div>
+          <span class="sub-title">Architektur-Überblick</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Dieses Projekt baut eine vollständige WordPress-Website – von Grund auf, mit echten Produktionskomponenten.
+            Alles läuft in <strong>Docker-Containern</strong> – isolierten Mini-Computern, die auf dem echten Computer laufen.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">text · Datenfluss</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>Browser  →  NGINX (Port 443, HTTPS)  →  WordPress (PHP)  →  MariaDB (Datenbank)</pre>
+          </div>
+          <div class="defense-block">
+            <h4>📋 Ablauf bei einem Seitenaufruf</h4>
+            <ul>
+              <li><strong>NGINX</strong> empfängt die Anfrage (verschlüsselt via HTTPS/SSL)</li>
+              <li>Leitet PHP-Anfragen weiter an <strong>WordPress</strong></li>
+              <li>WordPress liest/schreibt Daten in <strong>MariaDB</strong> (die Datenbank)</li>
+              <li>Die fertige HTML-Seite geht zurück zum Browser</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         DOCKER GRUNDLAGEN
+    ══════════════════════════════════════════ -->
+    <div class="category" id="docker">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🐳 Docker</span>
+        <h2 class="cat-title">Docker Grundlagen</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">💡</div>
+          <span class="sub-title">Die Idee in einem Satz</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Docker packt ein Programm <strong>zusammen mit allem, was es braucht</strong> (Betriebssystem-Bibliotheken, Konfiguration, Abhängigkeiten) in eine Box – den <strong>Container</strong>. Diese Box läuft überall gleich.
+          </p>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📖</div>
+          <span class="sub-title">Wichtige Begriffe</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <table class="info-table">
+            <tr><th>Begriff</th><th>Bedeutung</th><th>Analogie</th></tr>
+            <tr><td><strong>Image</strong></td><td>Bauplan / Vorlage für einen Container</td><td>Kuchenrezept</td></tr>
+            <tr><td><strong>Container</strong></td><td>Laufende Instanz eines Images</td><td>Der fertige Kuchen</td></tr>
+            <tr><td><strong>Dockerfile</strong></td><td>Anleitung zum Bauen eines Images</td><td>Das Rezept selbst</td></tr>
+            <tr><td><strong>Volume</strong></td><td>Ordner zwischen Container und Host geteilt</td><td>USB-Stick</td></tr>
+            <tr><td><strong>Network</strong></td><td>Virtuelles Netzwerk zwischen Containern</td><td>Privates WLAN</td></tr>
+            <tr><td><strong>docker-compose</strong></td><td>Tool, das mehrere Container zusammen verwaltet</td><td>Dirigent im Orchester</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🔒</div>
+          <span class="sub-title">Warum Container statt direkte Installation?</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>✅ Vorteile</h4>
+            <ul>
+              <li><strong>Isolation:</strong> MariaDB in seinem Container beeinflusst nicht NGINX in seinem</li>
+              <li><strong>Reproduzierbarkeit:</strong> Auf jedem Rechner dasselbe Ergebnis</li>
+              <li><strong>Sauberkeit:</strong> Kein Müll auf dem Host-System</li>
+              <li><strong>Neustart-Logik:</strong> Container können bei Fehler automatisch neu starten</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         DIE DREI DIENSTE
+    ══════════════════════════════════════════ -->
+    <div class="category" id="services">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(170,68,255,0.12);color:#aa44ff;border:1px solid rgba(170,68,255,0.3)">⚙️ Dienste</span>
+        <h2 class="cat-title">Die drei Dienste</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🚪</div>
+          <span class="sub-title">NGINX – Der Türsteher</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            NGINX ist ein <strong>Webserver</strong>. Er sitzt vorne und nimmt alle Anfragen aus dem Internet entgegen.
+          </p>
+          <div class="defense-block">
+            <h4>📋 Eigenschaften</h4>
+            <ul>
+              <li>Hört auf Port <strong>443</strong> (HTTPS – verschlüsselt)</li>
+              <li>Hat ein <strong>selbst-signiertes SSL-Zertifikat</strong> (damit HTTPS funktioniert)</li>
+              <li>PHP-Dateien (<code>*.php</code>) schickt er <strong>nicht selbst</strong> aus – delegiert an WordPress/PHP-FPM</li>
+              <li>Statische Dateien (Bilder, CSS, JS) liefert er direkt aus</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">📝</div>
+          <span class="sub-title">WordPress – Das CMS</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            WordPress ist das eigentliche <strong>Content-Management-System</strong> – die Website-Software.
+          </p>
+          <div class="defense-block">
+            <h4>📋 Eigenschaften</h4>
+            <ul>
+              <li>Läuft nicht als normaler Webserver, sondern als <strong>PHP-FPM</strong> (FastCGI Process Manager)</li>
+              <li>PHP-FPM hört auf Port <strong>9000</strong> – aber nur intern, nicht von außen erreichbar</li>
+              <li>Beim ersten Start lädt es WordPress herunter, installiert es und legt zwei Benutzer an</li>
+              <li>Speichert alle PHP-Dateien in einem geteilten Volume, das auch NGINX lesen kann</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.1)">🗄️</div>
+          <span class="sub-title">MariaDB – Die Datenbank</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            MariaDB ist eine <strong>relationale Datenbank</strong> (kompatibel zu MySQL).
+          </p>
+          <div class="defense-block">
+            <h4>📋 Eigenschaften</h4>
+            <ul>
+              <li>Hört auf Port <strong>3306</strong> – nur intern im Docker-Netzwerk</li>
+              <li>Speichert alle WordPress-Inhalte: Beiträge, Seiten, Benutzer, Einstellungen</li>
+              <li>Beim ersten Start legt es die Datenbank und den Benutzer an, dann startet es normal</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         PROJEKTSTRUKTUR
+    ══════════════════════════════════════════ -->
+    <div class="category" id="structure">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">📁 Struktur</span>
+        <h2 class="cat-title">Projektstruktur</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,170,0,0.1)">🗂️</div>
+          <span class="sub-title">Verzeichnisbaum</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">text · Projektstruktur</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>42-Inception/
+│
+├── .gitignore                      ← Git ignoriert .env und secrets/
+│
+├── secrets/                        ← Passwörter (NICHT in Git!)
+│   ├── db_root_password.txt        ← MariaDB root-Passwort
+│   ├── db_password.txt             ← Passwort für WordPress-Datenbankuser
+│   ├── wp_admin_password.txt       ← WordPress Admin-Passwort
+│   └── wp_user_password.txt        ← WordPress Editor-Passwort
+│
+└── srcs/                           ← Gesamter Quellcode
+    ├── .env                        ← Umgebungsvariablen (NICHT in Git!)
+    ├── .env.example                ← Vorlage für .env
+    ├── docker-compose.yml          ← Orchestriert alle Container
+    │
+    └── requirements/               ← Je ein Ordner pro Dienst
+        ├── nginx/
+        │   ├── Dockerfile          ← Bauanleitung für NGINX-Image
+        │   ├── .dockerignore
+        │   ├── conf/
+        │   │   └── nginx.conf      ← NGINX-Konfiguration
+        │   └── tools/
+        │       └── setup-nginx.sh  ← Startskript (generiert SSL-Zert)
+        │
+        ├── wordpress/
+        │   ├── Dockerfile          ← Bauanleitung für WordPress-Image
+        │   └── tools/
+        │       └── wp-setup.sh     ← Startskript (installiert WP)
+        │
+        └── mariadb/
+            ├── Dockerfile          ← Bauanleitung für MariaDB-Image
+            ├── .dockerignore
+            ├── conf/
+            │   └── 50-server.cnf  ← MariaDB-Konfiguration
+            └── tools/
+                └── init_db.sh     ← Startskript (initialisiert DB)</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         DATEIEN ERKLÄRT
+    ══════════════════════════════════════════ -->
+    <div class="category" id="files">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,136,68,0.12);color:#ff8844;border:1px solid rgba(255,136,68,0.3)">📄 Dateien</span>
+        <h2 class="cat-title">Jede Datei erklärt</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,136,68,0.1)">🎛️</div>
+          <span class="sub-title">docker-compose.yml – Die Schaltzentrale</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Hier wird definiert, wie alle drei Container gebaut, konfiguriert und verbunden werden.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">yaml · docker-compose.yml</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>services:
+  nginx:       <span class="hl-comment"># Dienst 1</span>
+  wordpress:   <span class="hl-comment"># Dienst 2</span>
+  mariadb:     <span class="hl-comment"># Dienst 3</span>
+
+networks:
+  inception:   <span class="hl-comment"># Gemeinsames internes Netzwerk</span>
+
+volumes:
+  wp_files:    <span class="hl-comment"># Geteilte WordPress-Dateien</span>
+  wp_database: <span class="hl-comment"># Datenbankdaten</span>
+
+secrets:       <span class="hl-comment"># Passwörter aus Dateien lesen</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>⚠️ Wichtig: depends_on</h4>
+            <ul>
+              <li>NGINX wartet auf WordPress</li>
+              <li>WordPress wartet auf MariaDB</li>
+              <li>→ Container starten in der richtigen Reihenfolge</li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>💾 Volumes auf dem Host</h4>
+            <ul>
+              <li><code>wp_files</code> → gemappt auf <code>/home/swied/data/wordpress</code></li>
+              <li><code>wp_database</code> → gemappt auf <code>/home/swied/data/mariadb</code></li>
+              <li>→ Daten überleben Container-Neustarts</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,136,68,0.1)">🔧</div>
+          <span class="sub-title">.env und .env.example</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Umgebungsvariablen – Konfiguration ohne Passwörter. <code>.env</code> ist in <code>.gitignore</code> – kommt nie in Git.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · .env</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>DOMAIN_NAME=swied.42.fr       <span class="hl-comment"># Domain der Website</span>
+MYSQL_DATABASE=wordpress      <span class="hl-comment"># Name der Datenbank</span>
+MYSQL_USER=wp_user            <span class="hl-comment"># DB-Benutzer für WordPress</span>
+WORDPRESS_TITLE=Inception     <span class="hl-comment"># Titel der Website</span>
+WORDPRESS_ADMIN_USER=user     <span class="hl-comment"># WordPress Admin-Benutzername</span>
+WORDPRESS_ADMIN_EMAIL=...     <span class="hl-comment"># Admin-E-Mail</span>
+WORDPRESS_USER=editor         <span class="hl-comment"># Zweiter Benutzer (Rolle: Editor)</span>
+WORDPRESS_USER_EMAIL=...      <span class="hl-comment"># Editor-E-Mail</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,136,68,0.1)">🔑</div>
+          <span class="sub-title">secrets/*.txt – Docker Secrets</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Passwörter werden als <strong>Docker Secrets</strong> verwaltet – nicht als Umgebungsvariablen.
+          </p>
+          <div class="defense-block">
+            <h4>🔐 Warum Secrets statt Env-Vars?</h4>
+            <ul>
+              <li>Umgebungsvariablen sind im Container-Prozess sichtbar (z.B. <code>env</code> Befehl)</li>
+              <li>Secrets werden als Dateien unter <code>/run/secrets/</code> eingehängt – sicherer</li>
+            </ul>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Passwort lesen</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>MYSQL_PASSWORD=$(<span class="hl-func">cat</span> /run/secrets/db_password)</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">📦</div>
+          <span class="sub-title">nginx/Dockerfile</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">dockerfile · nginx/Dockerfile</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">FROM</span> debian:bookworm            <span class="hl-comment"># Basis: minimales Debian Linux</span>
+<span class="hl-func">RUN</span> apt-get install nginx openssl  <span class="hl-comment"># Installiere NGINX und SSL-Tools</span>
+<span class="hl-func">COPY</span> conf/nginx.conf ...        <span class="hl-comment"># Kopiere Konfiguration ins Image</span>
+<span class="hl-func">COPY</span> tools/setup-nginx.sh ...   <span class="hl-comment"># Kopiere Startskript</span>
+<span class="hl-func">EXPOSE</span> 443                      <span class="hl-comment"># Dokumentiert: dieser Container nutzt Port 443</span>
+<span class="hl-func">ENTRYPOINT</span> ["/usr/local/bin/setup-nginx.sh"]  <span class="hl-comment"># Dieses Skript startet beim Container-Start</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">🔐</div>
+          <span class="sub-title">nginx/setup-nginx.sh</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · setup-nginx.sh</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-comment"># Generiert ein selbst-signiertes SSL-Zertifikat (beim ersten Start)</span>
+<span class="hl-func">openssl</span> req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout nginx.key -out nginx.crt \
+    -subj <span class="hl-str">"/CN=${DOMAIN_NAME}"</span>
+
+<span class="hl-comment"># Startet NGINX im Vordergrund (wichtig für Docker!)</span>
+<span class="hl-func">exec</span> nginx -g <span class="hl-str">"daemon off;"</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Warum daemon off?</h4>
+            <ul>
+              <li>Docker erwartet einen Prozess im <strong>Vordergrund</strong></li>
+              <li>Würde NGINX im Hintergrund laufen, denkt Docker: Container fertig → stoppt ihn</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,136,255,0.1)">⚙️</div>
+          <span class="sub-title">nginx/nginx.conf</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">nginx · nginx.conf</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>server {
+    listen 443 ssl;                    <span class="hl-comment"># Nur HTTPS, kein HTTP</span>
+    server_name swied.42.fr;
+
+    ssl_protocols TLSv1.2 TLSv1.3;    <span class="hl-comment"># Nur sichere SSL-Versionen</span>
+
+    root /var/www/html/wordpress;      <span class="hl-comment"># Hier liegen die WP-Dateien</span>
+
+    location ~ \.php$ {
+        fastcgi_pass wordpress:9000;   <span class="hl-comment"># PHP → weiter an WordPress-Container</span>
+    }
+}</pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Wie funktioniert wordpress:9000?</h4>
+            <ul>
+              <li>Beide Container sind im selben Docker-Netzwerk <code>inception</code></li>
+              <li>Docker löst den Hostnamen <code>wordpress</code> automatisch auf die Container-IP auf</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">📦</div>
+          <span class="sub-title">wordpress/Dockerfile</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Installiert alle benötigten PHP-Pakete und richtet PHP-FPM für TCP-Port 9000 ein.</p>
+          <div class="defense-block">
+            <h4>📦 Installierte Pakete</h4>
+            <ul>
+              <li><code>php8.2-fpm</code> – PHP-Prozessmanager</li>
+              <li><code>php8.2-mysql</code> – PHP kann mit MySQL/MariaDB reden</li>
+              <li><code>php8.2-gd, mbstring, xml, zip</code> – von WordPress benötigt</li>
+              <li><code>wp-cli</code> – Kommandozeilen-Tool um WordPress zu installieren/konfigurieren</li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Unix-Socket → TCP Port 9000</h4>
+            <ul>
+              <li>Standard PHP-FPM nutzt Unix-Socket (lokale Datei)</li>
+              <li>Zwischen Containern funktioniert nur TCP → daher Port 9000</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(170,68,255,0.1)">🚀</div>
+          <span class="sub-title">wordpress/wp-setup.sh</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Beim ersten Start (wenn <code>wp-config.php</code> noch nicht existiert):
+          </p>
+          <div class="defense-block">
+            <h4>📋 Ablauf</h4>
+            <ul>
+              <li><strong>1.</strong> Wartet bis MariaDB erreichbar ist (Port 3306)</li>
+              <li><strong>2.</strong> Lädt WordPress herunter via <code>wp core download</code></li>
+              <li><strong>3.</strong> Erstellt <code>wp-config.php</code> mit Datenbankverbindungsdaten</li>
+              <li><strong>4.</strong> Installiert WordPress (legt Admin-Account an)</li>
+              <li><strong>5.</strong> Erstellt zweiten Benutzer mit Editor-Rolle</li>
+              <li><strong>6.</strong> Setzt Dateiberechtigungen auf <code>www-data</code></li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>⚡ Folgestart</h4>
+            <ul>
+              <li><code>wp-config.php</code> existiert bereits → überspringt alles → startet direkt PHP-FPM</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.1)">🗄️</div>
+          <span class="sub-title">mariadb/50-server.cnf</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">ini · 50-server.cnf</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>bind-address = 0.0.0.0   <span class="hl-comment"># Hört auf alle Netzwerkinterfaces (nicht nur localhost)</span>
+port = 3306
+datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Warum bind-address = 0.0.0.0?</h4>
+            <ul>
+              <li>Standard: MariaDB hört nur auf <code>localhost</code> (127.0.0.1)</li>
+              <li>WordPress läuft in einem anderen Container → andere IP</li>
+              <li><code>0.0.0.0</code> → hört auf allen Interfaces → WordPress kann sich verbinden</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,204,0.1)">🔄</div>
+          <span class="sub-title">mariadb/init_db.sh</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Beim ersten Start (Datenverzeichnis leer):</p>
+          <div class="defense-block">
+            <h4>📋 Ablauf</h4>
+            <ul>
+              <li><strong>1.</strong> Initialisiert das MySQL-Datenverzeichnis (<code>mysql_install_db</code>)</li>
+              <li><strong>2.</strong> Startet <strong>temporären MariaDB-Server</strong> ohne Netzwerk (nur für Setup)</li>
+              <li><strong>3.</strong> Führt Setup-SQL aus: root-Passwort setzen, DB erstellen, User erstellen, Rechte vergeben</li>
+              <li><strong>4.</strong> Fährt temporären Server <strong>herunter</strong></li>
+              <li><strong>5.</strong> Startet MariaDB <strong>normal</strong> mit Netzwerk</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         ZUSAMMENSPIEL
+    ══════════════════════════════════════════ -->
+    <div class="category" id="flow">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(68,255,136,0.12);color:#44ff88;border:1px solid rgba(68,255,136,0.3)">🔗 Flow</span>
+        <h2 class="cat-title">Wie die Teile zusammenarbeiten</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,136,0.1)">🗺️</div>
+          <span class="sub-title">Netzwerk-Diagramm</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">text · Docker-Netzwerk: inception</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>┌─────────────────────────────────────────────────────────┐
+│                   Docker-Netzwerk: inception             │
+│                                                          │
+│  ┌──────────┐     PHP-Request     ┌───────────────────┐  │
+│  │  NGINX   │ ──────────────────► │    WordPress      │  │
+│  │ Port 443 │                     │  (PHP-FPM :9000)  │  │
+│  └──────────┘                     └─────────┬─────────┘  │
+│       ▲                                     │            │
+│       │                              SQL-Queries         │
+│  Browser                                    ▼            │
+│  (HTTPS)                          ┌───────────────────┐  │
+│                                   │     MariaDB       │  │
+│                                   │    Port 3306      │  │
+│                                   └───────────────────┘  │
+│                                                          │
+│  Volumes (auf dem Host gespeichert):                     │
+│  wp_files    → /home/swied/data/wordpress                │
+│  wp_database → /home/swied/data/mariadb                  │
+└─────────────────────────────────────────────────────────┘</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(68,255,136,0.1)">🔄</div>
+          <span class="sub-title">Datenfluss bei einem Seitenaufruf</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>📋 Schritt für Schritt</h4>
+            <ul>
+              <li><strong>1.</strong> Browser → <code>https://swied.42.fr</code> → NGINX Port 443</li>
+              <li><strong>2.</strong> NGINX prüft: ist es eine <code>.php</code>-Datei? → Ja</li>
+              <li><strong>3.</strong> NGINX schickt Anfrage an <code>wordpress:9000</code> (FastCGI)</li>
+              <li><strong>4.</strong> PHP-FPM verarbeitet die PHP-Datei</li>
+              <li><strong>5.</strong> WordPress-Code fragt MariaDB: "Gib mir Beitrag #5"</li>
+              <li><strong>6.</strong> MariaDB antwortet mit den Daten</li>
+              <li><strong>7.</strong> WordPress baut HTML zusammen</li>
+              <li><strong>8.</strong> HTML geht zurück: WordPress → NGINX → Browser</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         EINRICHTEN & STARTEN
+    ══════════════════════════════════════════ -->
+    <div class="category" id="setup">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,221,68,0.12);color:#ffdd44;border:1px solid rgba(255,221,68,0.3)">🚀 Setup</span>
+        <h2 class="cat-title">Einrichten und Starten</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">✅</div>
+          <span class="sub-title">Voraussetzungen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>📋 Benötigt</h4>
+            <ul>
+              <li>Docker und Docker Compose installiert</li>
+              <li><code>/etc/hosts</code> enthält: <code>127.0.0.1 swied.42.fr</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">1️⃣</div>
+          <span class="sub-title">Schritt 1: Datenverzeichnisse anlegen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Schritt 1</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">mkdir</span> -p /home/swied/data/wordpress
+<span class="hl-func">mkdir</span> -p /home/swied/data/mariadb</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">2️⃣</div>
+          <span class="sub-title">Schritt 2: .env-Datei erstellen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Schritt 2</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">cp</span> srcs/.env.example srcs/.env
+<span class="hl-comment"># srcs/.env nach Bedarf anpassen</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">3️⃣</div>
+          <span class="sub-title">Schritt 3: Passwortdateien anlegen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Schritt 3</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">mkdir</span> -p secrets
+<span class="hl-func">echo</span> <span class="hl-str">"sicheres_root_passwort"</span>   &gt; secrets/db_root_password.txt
+<span class="hl-func">echo</span> <span class="hl-str">"sicheres_wp_db_passwort"</span>  &gt; secrets/db_password.txt
+<span class="hl-func">echo</span> <span class="hl-str">"sicheres_admin_passwort"</span>  &gt; secrets/wp_admin_password.txt
+<span class="hl-func">echo</span> <span class="hl-str">"sicheres_editor_passwort"</span> &gt; secrets/wp_user_password.txt</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">4️⃣</div>
+          <span class="sub-title">Schritt 4: Starten</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Schritt 4</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">cd</span> srcs
+<span class="hl-func">docker</span> compose up --build</pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 --build Flag</h4>
+            <ul>
+              <li>Zwingt Docker, alle Images neu zu bauen</li>
+              <li>Beim ersten Mal zwingend nötig</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">5️⃣</div>
+          <span class="sub-title">Schritt 5: Aufrufen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>🌐 URLs</h4>
+            <ul>
+              <li>Website: <code>https://swied.42.fr</code></li>
+              <li>WordPress-Admin: <code>https://swied.42.fr/wp-admin</code></li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>⚠️ SSL-Warnung im Browser</h4>
+            <ul>
+              <li>Browser warnt vor dem Zertifikat (selbst-signiert)</li>
+              <li>Einfach "Weiter" / "Trotzdem fortfahren" klicken</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,221,68,0.1)">🛠️</div>
+          <span class="sub-title">Nützliche Befehle</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · docker compose Befehle</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-comment"># Container-Status prüfen</span>
+<span class="hl-func">docker</span> compose ps
+
+<span class="hl-comment"># Logs anschauen</span>
+<span class="hl-func">docker</span> compose logs -f          <span class="hl-comment"># alle</span>
+<span class="hl-func">docker</span> compose logs -f nginx     <span class="hl-comment"># nur NGINX</span>
+<span class="hl-func">docker</span> compose logs -f wordpress <span class="hl-comment"># nur WordPress</span>
+<span class="hl-func">docker</span> compose logs -f mariadb   <span class="hl-comment"># nur MariaDB</span>
+
+<span class="hl-comment"># Container stoppen</span>
+<span class="hl-func">docker</span> compose down
+
+<span class="hl-comment"># Container stoppen + Volumes löschen (ALLES zurücksetzen!)</span>
+<span class="hl-danger">docker compose down -v</span>
+
+<span class="hl-comment"># In laufenden Container einloggen</span>
+<span class="hl-func">docker</span> exec -it nginx bash
+<span class="hl-func">docker</span> exec -it wordpress bash
+<span class="hl-func">docker</span> exec -it mariadb bash</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         HÄUFIGE FRAGEN
+    ══════════════════════════════════════════ -->
+    <div class="category" id="faq">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">❓ FAQ</span>
+        <h2 class="cat-title">Häufige Fragen</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🚫</div>
+          <span class="sub-title">"Container startet nicht"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Diagnose</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">docker</span> compose logs &lt;dienstname&gt;</pre>
+          </div>
+          <p class="sub-desc">Zeigt den genauen Fehler im Container-Log.</p>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🌐</div>
+          <span class="sub-title">"WordPress-Seite lädt nicht"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>🔍 Checkliste</h4>
+            <ul>
+              <li>Alle drei Container laufen? → <code>docker compose ps</code></li>
+              <li><code>/etc/hosts</code> hat Eintrag für <code>swied.42.fr</code>?</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🗄️</div>
+          <span class="sub-title">"Datenbank-Fehler in WordPress"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            MariaDB eventuell noch nicht fertig beim WordPress-Start. Das <code>wp-setup.sh</code> wartet zwar, aber Logs prüfen:
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · MariaDB Logs</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">docker</span> compose logs mariadb</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔄</div>
+          <span class="sub-title">"Ich will alles zurücksetzen"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Komplett-Reset</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">docker compose down -v</span>
+<span class="hl-danger">sudo rm -rf /home/swied/data/wordpress/*</span>
+<span class="hl-danger">sudo rm -rf /home/swied/data/mariadb/*</span>
+<span class="hl-func">docker</span> compose up --build</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">📦</div>
+          <span class="sub-title">"Was ist der Unterschied zwischen Image und Container?"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>💡 Erklärung</h4>
+            <ul>
+              <li><strong>Image</strong> = gespeicherter Bauplan (auf Festplatte)</li>
+              <li><strong>Container</strong> = laufende Instanz davon (im RAM)</li>
+              <li>Aus einem Image können viele Container starten</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔒</div>
+          <span class="sub-title">"Warum kein HTTP, nur HTTPS?"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Das ist Anforderung des Projekts. NGINX hört nur auf Port 443 (HTTPS), nicht auf Port 80 (HTTP).
+          </p>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💾</div>
+          <span class="sub-title">"Wo werden WordPress-Dateien gespeichert?"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Im Volume <code>wp_files</code>, das auf <code>/home/swied/data/wordpress</code> auf dem Host zeigt. Auch wenn der Container gelöscht wird, bleiben die Daten dort erhalten.
+          </p>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">🔑</div>
+          <span class="sub-title">"Warum Passwörter in .txt-Dateien statt in .env?"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>💡 Erklärung</h4>
+            <ul>
+              <li>Docker Secrets sind sicherer – werden als gemountete Dateien unter <code>/run/secrets/</code> eingebunden</li>
+              <li>Env-Vars werden nicht als Umgebungsvariablen exponiert</li>
+              <li><code>.env</code> landet schneller versehentlich in Git als separate Secret-Dateien</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
+      // wiki.simonwied.com · 42 Inception · <span id="siteVersion"></span>
+    </p>
+  </main>
+</div>
+
+</body>
+</html>
