@@ -45,6 +45,9 @@
       <a href="#services" class="nav-item">
         <div class="dot" style="background:#aa44ff"></div> Die drei Dienste
       </a>
+      <a href="#rules" class="nav-item">
+        <div class="dot" style="background:#ff4422"></div> Regeln &amp; Verbote
+      </a>
       <a href="#structure" class="nav-item">
         <div class="dot" style="background:#ffaa00"></div> Projektstruktur
       </a>
@@ -53,6 +56,9 @@
       </a>
       <a href="#flow" class="nav-item">
         <div class="dot" style="background:#44ff88"></div> Zusammenspiel
+      </a>
+      <a href="#docs" class="nav-item">
+        <div class="dot" style="background:#22ddff"></div> README &amp; Docs
       </a>
       <a href="#setup" class="nav-item">
         <div class="dot" style="background:#ffdd44"></div> Einrichten & Starten
@@ -277,6 +283,229 @@
     </div>
 
     <!-- ══════════════════════════════════════════
+         REGELN & VERBOTE
+    ══════════════════════════════════════════ -->
+    <div class="category" id="rules">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(255,68,34,0.12);color:#ff4422;border:1px solid rgba(255,68,34,0.3)">⚠️ Regeln</span>
+        <h2 class="cat-title">Pflichtregeln &amp; Verbote</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">🔄</div>
+          <span class="sub-title">Container müssen bei Absturz neu starten</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Pflicht: Jeder Container braucht eine Restart-Policy in <code>docker-compose.yml</code>.</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">yaml · docker-compose.yml</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>services:
+  nginx:
+    restart: always    <span class="hl-comment"># Neustart bei Absturz</span>
+  wordpress:
+    restart: always
+  mariadb:
+    restart: always</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">🚫</div>
+          <span class="sub-title">Verbotene Entrypoint-Techniken</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Ein Container ist <strong>keine VM</strong>. Hacky Patches um ihn am Laufen zu halten sind verboten:
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Verboten ✗</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">tail -f /dev/null</span>              <span class="hl-comment"># verboten</span>
+<span class="hl-danger">sleep infinity</span>                 <span class="hl-comment"># verboten</span>
+<span class="hl-danger">while true; do sleep 1; done</span>  <span class="hl-comment"># verboten</span>
+<span class="hl-danger">bash</span>                           <span class="hl-comment"># verboten als Entrypoint</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>✅ Richtig: Prozess im Vordergrund starten</h4>
+            <ul>
+              <li>NGINX: <code>exec nginx -g "daemon off;"</code></li>
+              <li>PHP-FPM: <code>exec php-fpmX.X -F</code> (<code>-F</code> = Foreground)</li>
+              <li>MariaDB: <code>exec mysqld_safe</code> oder <code>exec mysqld</code></li>
+              <li>Lies: PID 1 best practices für Dockerfiles</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">🌐</div>
+          <span class="sub-title">Verbotene Netzwerk-Optionen</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">yaml · Verboten ✗</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">network: host</span>           <span class="hl-comment"># verboten</span>
+<span class="hl-danger">--link other_container</span>  <span class="hl-comment"># verboten</span>
+<span class="hl-danger">links:</span>                  <span class="hl-comment"># verboten</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>✅ Richtig: Eigenes Docker-Netzwerk</h4>
+            <ul>
+              <li>Ein <code>networks:</code>-Block muss in <code>docker-compose.yml</code> definiert sein</li>
+              <li>Alle Container hängen im selben selbst definierten Netzwerk (z.B. <code>inception</code>)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">👤</div>
+          <span class="sub-title">WordPress Admin-Benutzername – Einschränkung</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Der Admin-Benutzername darf <strong>keines</strong> dieser Wörter enthalten:
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">bash · Verboten ✗</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">admin</span>
+<span class="hl-danger">Admin</span>
+<span class="hl-danger">administrator</span>
+<span class="hl-danger">Administrator</span>
+<span class="hl-danger">admin-123</span>   <span class="hl-comment"># oder jede Kombination mit "admin"/"administrator"</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>✅ Erlaubt</h4>
+            <ul>
+              <li><code>user</code>, <code>user</code>, <code>wpmaster</code> – alles ohne "admin" / "administrator" im Namen</li>
+              <li>Im <code>.env</code>: <code>WORDPRESS_ADMIN_USER=user</code> → kein "admin" → ok</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">🏷️</div>
+          <span class="sub-title">latest-Tag verboten &amp; Debian/Alpine Version</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">dockerfile · Verboten ✗</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">FROM debian:latest</span>   <span class="hl-comment"># verboten</span>
+<span class="hl-danger">FROM alpine:latest</span>   <span class="hl-comment"># verboten</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">dockerfile · Richtig ✓</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-func">FROM</span> debian:bookworm  <span class="hl-comment"># konkrete Version</span>
+<span class="hl-func">FROM</span> alpine:3.19      <span class="hl-comment"># konkrete Version</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Welche Version?</h4>
+            <ul>
+              <li>Pflicht: <strong>vorletzte stabile</strong> Version von Alpine oder Debian (penultimate stable)</li>
+              <li>Nur Alpine oder Debian – keine anderen Basis-Images erlaubt</li>
+              <li>Keine fertigen Images aus DockerHub (kein <code>FROM wordpress</code>, <code>FROM nginx</code> etc.)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">💾</div>
+          <span class="sub-title">Bind Mounts verboten – nur Named Volumes</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Für die zwei persistenten Speicher (WordPress-Dateien und Datenbank) sind ausschließlich <strong>Named Volumes</strong> erlaubt. Bind Mounts sind <strong>verboten</strong>.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">yaml · Verboten ✗</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre><span class="hl-danger">volumes:
+  - /home/user/data/wordpress:/var/www/html  # Bind Mount → verboten
+  - /home/user/data/mariadb:/var/lib/mysql   # Bind Mount → verboten</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">yaml · Richtig ✓</span>
+              <div class="code-dots"><span></span><span></span><span></span></div>
+            </div>
+            <pre>volumes:
+  <span class="hl-func">wp_files:</span>             <span class="hl-comment"># Named Volume</span>
+  <span class="hl-func">wp_database:</span>          <span class="hl-comment"># Named Volume</span></pre>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Datenspeicherort</h4>
+            <ul>
+              <li>Beide Named Volumes müssen ihre Daten unter <code>/home/login/data</code> auf dem Host speichern</li>
+              <li>Konfigurierbar über <code>driver_opts</code> im <code>volumes:</code>-Block</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,34,0.1)">🔒</div>
+          <span class="sub-title">Keine Passwörter in Dockerfiles oder Git</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <div class="defense-block">
+            <h4>❌ Sofortiger Projektdurchfall</h4>
+            <ul>
+              <li>Credentials, API-Keys oder Passwörter im Git-Repository</li>
+              <li>Passwörter hardcoded in Dockerfiles</li>
+              <li><code>.env</code>-Datei in Git eingecheckt</li>
+              <li>Secrets-Dateien in Git eingecheckt</li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>✅ Richtig</h4>
+            <ul>
+              <li>Passwörter in <code>secrets/*.txt</code> (Docker Secrets)</li>
+              <li><code>secrets/</code> und <code>srcs/.env</code> in <code>.gitignore</code></li>
+              <li>Im Dockerfile nur Env-Var-Referenzen, nie Klartextwerte</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
          PROJEKTSTRUKTUR
     ══════════════════════════════════════════ -->
     <div class="category" id="structure">
@@ -301,6 +530,7 @@
             <pre>42-Inception/
 │
 ├── .gitignore                      ← Git ignoriert .env und secrets/
+├── Makefile                        ← Baut und startet alles via docker compose
 │
 ├── secrets/                        ← Passwörter (NICHT in Git!)
 │   ├── db_root_password.txt        ← MariaDB root-Passwort
@@ -389,8 +619,8 @@ secrets:       <span class="hl-comment"># Passwörter aus Dateien lesen</span></
           <div class="defense-block">
             <h4>💾 Volumes auf dem Host</h4>
             <ul>
-              <li><code>wp_files</code> → gemappt auf <code>/home/swied/data/wordpress</code></li>
-              <li><code>wp_database</code> → gemappt auf <code>/home/swied/data/mariadb</code></li>
+              <li><code>wp_files</code> → gemappt auf <code>/home/user/data/wordpress</code></li>
+              <li><code>wp_database</code> → gemappt auf <code>/home/user/data/mariadb</code></li>
               <li>→ Daten überleben Container-Neustarts</li>
             </ul>
           </div>
@@ -412,7 +642,7 @@ secrets:       <span class="hl-comment"># Passwörter aus Dateien lesen</span></
               <span class="code-lang">bash · .env</span>
               <div class="code-dots"><span></span><span></span><span></span></div>
             </div>
-            <pre>DOMAIN_NAME=swied.42.fr       <span class="hl-comment"># Domain der Website</span>
+            <pre>DOMAIN_NAME=user.42.fr       <span class="hl-comment"># Domain der Website</span>
 MYSQL_DATABASE=wordpress      <span class="hl-comment"># Name der Datenbank</span>
 MYSQL_USER=wp_user            <span class="hl-comment"># DB-Benutzer für WordPress</span>
 WORDPRESS_TITLE=Inception     <span class="hl-comment"># Titel der Website</span>
@@ -517,7 +747,7 @@ WORDPRESS_USER_EMAIL=...      <span class="hl-comment"># Editor-E-Mail</span></p
             </div>
             <pre>server {
     listen 443 ssl;                    <span class="hl-comment"># Nur HTTPS, kein HTTP</span>
-    server_name swied.42.fr;
+    server_name user.42.fr;
 
     ssl_protocols TLSv1.2 TLSv1.3;    <span class="hl-comment"># Nur sichere SSL-Versionen</span>
 
@@ -682,8 +912,8 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
 │                                   └───────────────────┘  │
 │                                                          │
 │  Volumes (auf dem Host gespeichert):                     │
-│  wp_files    → /home/swied/data/wordpress                │
-│  wp_database → /home/swied/data/mariadb                  │
+│  wp_files    → /home/user/data/wordpress                │
+│  wp_database → /home/user/data/mariadb                  │
 └─────────────────────────────────────────────────────────┘</pre>
           </div>
         </div>
@@ -699,7 +929,7 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
           <div class="defense-block">
             <h4>📋 Schritt für Schritt</h4>
             <ul>
-              <li><strong>1.</strong> Browser → <code>https://swied.42.fr</code> → NGINX Port 443</li>
+              <li><strong>1.</strong> Browser → <code>https://user.42.fr</code> → NGINX Port 443</li>
               <li><strong>2.</strong> NGINX prüft: ist es eine <code>.php</code>-Datei? → Ja</li>
               <li><strong>3.</strong> NGINX schickt Anfrage an <code>wordpress:9000</code> (FastCGI)</li>
               <li><strong>4.</strong> PHP-FPM verarbeitet die PHP-Datei</li>
@@ -707,6 +937,94 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
               <li><strong>6.</strong> MariaDB antwortet mit den Daten</li>
               <li><strong>7.</strong> WordPress baut HTML zusammen</li>
               <li><strong>8.</strong> HTML geht zurück: WordPress → NGINX → Browser</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         README & DOKUMENTATION
+    ══════════════════════════════════════════ -->
+    <div class="category" id="docs">
+      <div class="category-header">
+        <span class="category-badge" style="background:rgba(34,221,255,0.12);color:#22ddff;border:1px solid rgba(34,221,255,0.3)">📝 Docs</span>
+        <h2 class="cat-title">README &amp; Pflichtdokumente</h2>
+        <div class="cat-line"></div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(34,221,255,0.1)">📄</div>
+          <span class="sub-title">README.md – Pflichtinhalt</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Eine <code>README.md</code> an der Root des Git-Repos ist Pflicht. Sprache: <strong>Englisch</strong>.</p>
+          <div class="defense-block">
+            <h4>📋 Pflichtabschnitte</h4>
+            <ul>
+              <li><strong>Erste Zeile</strong> (kursiv): <em>This project has been created as part of the 42 curriculum by &lt;login&gt;.</em></li>
+              <li><strong>Description</strong> – Ziel und Überblick des Projekts</li>
+              <li><strong>Instructions</strong> – Kompilierung, Installation, Ausführung</li>
+              <li><strong>Resources</strong> – Dokumentationen, Artikel, Tutorials <em>und</em> Beschreibung des KI-Einsatzes (für welche Aufgaben KI genutzt wurde)</li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>📋 Pflicht: Project description-Abschnitt</h4>
+            <p style="margin:4px 0 8px">Muss folgende Vergleiche erklären:</p>
+            <ul>
+              <li>Virtual Machines vs. Docker</li>
+              <li>Secrets vs. Environment Variables</li>
+              <li>Docker Network vs. Host Network</li>
+              <li>Docker Volumes vs. Bind Mounts</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(34,221,255,0.1)">👤</div>
+          <span class="sub-title">USER_DOC.md – Nutzerdokumentation</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Muss im Root des Repositories liegen (<code>USER_DOC.md</code>). Erklärt einem <strong>Endnutzer oder Administrator</strong> alles Nötige – ohne technisches Vorwissen.</p>
+          <div class="defense-block">
+            <h4>📋 Inhalt</h4>
+            <ul>
+              <li>Welche Services bietet der Stack?</li>
+              <li>Wie wird das Projekt gestartet und gestoppt?</li>
+              <li>Wie erreicht man die Website und das Admin-Panel?</li>
+              <li>Wo sind die Credentials und wie verwaltet man sie?</li>
+              <li>Wie prüft man, ob die Services korrekt laufen?</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(34,221,255,0.1)">🛠️</div>
+          <span class="sub-title">DEV_DOC.md – Entwicklerdokumentation</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">Muss im Root des Repositories liegen (<code>DEV_DOC.md</code>). Erklärt einem <strong>Entwickler</strong> wie er das Projekt von Grund auf aufsetzen kann.</p>
+          <div class="defense-block">
+            <h4>📋 Inhalt</h4>
+            <ul>
+              <li>Umgebung von Scratch aufsetzen (Voraussetzungen, Konfigurationsdateien, Secrets)</li>
+              <li>Projekt mit Makefile und Docker Compose bauen und starten</li>
+              <li>Relevante Befehle für Container- und Volume-Verwaltung</li>
+              <li>Wo werden die Projektdaten gespeichert und wie persistieren sie?</li>
+            </ul>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Format</h4>
+            <ul>
+              <li>Beide Dateien müssen im <strong>Markdown-Format</strong> (<code>.md</code>) geschrieben sein</li>
             </ul>
           </div>
         </div>
@@ -734,7 +1052,7 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
             <h4>📋 Benötigt</h4>
             <ul>
               <li>Docker und Docker Compose installiert</li>
-              <li><code>/etc/hosts</code> enthält: <code>127.0.0.1 swied.42.fr</code></li>
+              <li><code>/etc/hosts</code> enthält: <code>127.0.0.1 user.42.fr</code></li>
             </ul>
           </div>
         </div>
@@ -752,8 +1070,8 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
               <span class="code-lang">bash · Schritt 1</span>
               <div class="code-dots"><span></span><span></span><span></span></div>
             </div>
-            <pre><span class="hl-func">mkdir</span> -p /home/swied/data/wordpress
-<span class="hl-func">mkdir</span> -p /home/swied/data/mariadb</pre>
+            <pre><span class="hl-func">mkdir</span> -p /home/user/data/wordpress
+<span class="hl-func">mkdir</span> -p /home/user/data/mariadb</pre>
           </div>
         </div>
       </div>
@@ -832,8 +1150,8 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
           <div class="defense-block">
             <h4>🌐 URLs</h4>
             <ul>
-              <li>Website: <code>https://swied.42.fr</code></li>
-              <li>WordPress-Admin: <code>https://swied.42.fr/wp-admin</code></li>
+              <li>Website: <code>https://user.42.fr</code></li>
+              <li>WordPress-Admin: <code>https://user.42.fr/wp-admin</code></li>
             </ul>
           </div>
           <div class="defense-block">
@@ -921,7 +1239,7 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
             <h4>🔍 Checkliste</h4>
             <ul>
               <li>Alle drei Container laufen? → <code>docker compose ps</code></li>
-              <li><code>/etc/hosts</code> hat Eintrag für <code>swied.42.fr</code>?</li>
+              <li><code>/etc/hosts</code> hat Eintrag für <code>user.42.fr</code>?</li>
             </ul>
           </div>
         </div>
@@ -960,8 +1278,8 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
               <div class="code-dots"><span></span><span></span><span></span></div>
             </div>
             <pre><span class="hl-danger">docker compose down -v</span>
-<span class="hl-danger">sudo rm -rf /home/swied/data/wordpress/*</span>
-<span class="hl-danger">sudo rm -rf /home/swied/data/mariadb/*</span>
+<span class="hl-danger">sudo rm -rf /home/user/data/wordpress/*</span>
+<span class="hl-danger">sudo rm -rf /home/user/data/mariadb/*</span>
 <span class="hl-func">docker</span> compose up --build</pre>
           </div>
         </div>
@@ -1006,8 +1324,80 @@ datadir = /var/lib/mysql  <span class="hl-comment"># Wo Daten gespeichert werden
         </div>
         <div class="sub-content">
           <p class="sub-desc">
-            Im Volume <code>wp_files</code>, das auf <code>/home/swied/data/wordpress</code> auf dem Host zeigt. Auch wenn der Container gelöscht wird, bleiben die Daten dort erhalten.
+            Im Volume <code>wp_files</code>, das auf <code>/home/user/data/wordpress</code> auf dem Host zeigt. Auch wenn der Container gelöscht wird, bleiben die Daten dort erhalten.
           </p>
+        </div>
+      </div>
+
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,68,102,0.1)">💾</div>
+          <span class="sub-title">"Was ist der Unterschied zwischen Bind Mount und Named Volume?"</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <table class="info-table">
+            <tr><th></th><th>Bind Mount</th><th>Named Volume</th></tr>
+            <tr><td><strong>Definition</strong></td><td>Direkter Pfad vom Host ins Container</td><td>Docker verwaltet den Speicherort</td></tr>
+            <tr><td><strong>Syntax</strong></td><td><code>/host/pfad:/container/pfad</code></td><td><code>volume_name:/container/pfad</code></td></tr>
+            <tr><td><strong>Speicherort</strong></td><td>Beliebiger Host-Pfad</td><td><code>/var/lib/docker/volumes/…</code> (oder custom)</td></tr>
+            <tr><td><strong>In Inception</strong></td><td><span class="hl-danger">Verboten</span></td><td><span style="color:#44ffcc">Pflicht</span></td></tr>
+          </table>
+          <div class="defense-block">
+            <h4>🔍 Wie funktioniert ein Bind Mount?</h4>
+            <ul>
+              <li>Du gibst einen <strong>konkreten Pfad auf dem Host</strong> an – z.B. <code>/home/user/data/wordpress</code></li>
+              <li>Der Kernel hängt diesen Ordner direkt in den Container ein (Linux-<code>mount --bind</code>)</li>
+              <li>Container und Host sehen <strong>dieselben Dateien in Echtzeit</strong> – kein Kopieren</li>
+              <li>Der Pfad muss auf dem Host existieren, sonst legt Docker ihn als leeren Ordner an</li>
+            </ul>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header">
+                <span class="code-lang">yaml · Bind Mount Beispiel</span>
+                <div class="code-dots"><span></span><span></span><span></span></div>
+              </div>
+              <pre>services:
+  wordpress:
+    volumes:
+      <span class="hl-danger">- /home/user/data/wordpress:/var/www/html</span>  <span class="hl-comment"># ← Bind Mount</span></pre>
+            </div>
+          </div>
+          <div class="defense-block">
+            <h4>🔍 Wie funktioniert ein Named Volume?</h4>
+            <ul>
+              <li>Docker legt einen <strong>eigenen Speicherbereich</strong> an – standardmäßig unter <code>/var/lib/docker/volumes/&lt;name&gt;/_data</code></li>
+              <li>Im <code>volumes:</code>-Block des Compose-Files wird das Volume <strong>deklariert</strong></li>
+              <li>Mit <code>driver_opts</code> kann der Host-Pfad auf <code>/home/login/data/…</code> gesetzt werden (Subject-Pflicht)</li>
+              <li>Docker kennt das Volume: <code>docker volume ls</code>, <code>docker volume inspect</code></li>
+              <li>Bleibt erhalten auch wenn alle Container gelöscht werden – erst <code>docker volume rm</code> löscht es</li>
+            </ul>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header">
+                <span class="code-lang">yaml · Named Volume mit custom Pfad</span>
+                <div class="code-dots"><span></span><span></span><span></span></div>
+              </div>
+              <pre>services:
+  wordpress:
+    volumes:
+      <span class="hl-func">- wp_files:/var/www/html</span>         <span class="hl-comment"># ← Named Volume</span>
+
+volumes:
+  wp_files:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/user/data/wordpress  <span class="hl-comment"># Speicherort auf Host</span></pre>
+            </div>
+          </div>
+          <div class="defense-block">
+            <h4>💡 Warum Named Volumes in Inception?</h4>
+            <ul>
+              <li>Named Volumes sind portabler – Docker kennt und verwaltet sie (<code>docker volume ls</code>)</li>
+              <li>Bind Mounts hängen direkt am Host-Dateisystem – weniger isoliert</li>
+              <li>Subject-Pflicht: Daten unter <code>/home/login/data</code> via <code>driver_opts</code> konfiguriert</li>
+            </ul>
+          </div>
         </div>
       </div>
 
