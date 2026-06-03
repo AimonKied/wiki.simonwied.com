@@ -134,6 +134,36 @@ h4 {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 8px 8px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  user-select: none;
+}
+
+.nav-section + .nav-section .nav-section-title {
+  cursor: pointer;
+  border-radius: 5px;
+  transition: color 0.15s;
+}
+
+.nav-section + .nav-section .nav-section-title:hover {
+  color: var(--text);
+}
+
+.nav-cat-arrow {
+  font-size: 10px;
+  opacity: 0.5;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.nav-cat-collapsed .nav-cat-arrow {
+  transform: rotate(-90deg);
+}
+
+.nav-cat-collapsed .nav-item {
+  display: none;
 }
 
 .nav-item {
