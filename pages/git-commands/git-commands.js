@@ -4,40 +4,49 @@ function gtag() { dataLayer.push(arguments); }
 gtag('js', new Date());
 gtag('config', 'G-G07DY445N4');
 
-function toggle(header) {
-  const content = header.nextElementSibling;
-  const arrow = header.querySelector('.sub-arrow');
-  if (content) content.classList.toggle('open');
-  if (arrow) arrow.classList.toggle('open');
+// ─── TOC: highlight current section on scroll ────────────
+function updateTOC() {
+  const tocLinks = document.querySelectorAll('.toc-right a');
+  if (!tocLinks.length) return;
+
+  const anchors = Array.from(
+    document.querySelectorAll('.page-section, .cmd-block')
+  ).filter(el => el.id);
+
+  const scrollY = window.scrollY + 120;
+  let activeId = anchors[0]?.id ?? null;
+
+  for (const el of anchors) {
+    if (el.offsetTop <= scrollY) activeId = el.id;
+  }
+
+  tocLinks.forEach(a => {
+    a.classList.toggle('toc-active', a.getAttribute('href') === '#' + activeId);
+  });
 }
 
-// Smooth scroll + aktive Nav-Markierung
+window.addEventListener('scroll', updateTOC, { passive: true });
+updateTOC();
+
+// ─── Smooth scroll on TOC + nav links ────────────────────
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (!target) return;
     e.preventDefault();
-    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    a.classList.add('active');
+    target.scrollIntoView({ behavior: 'smooth' });
   });
 });
-
-// Sub-header click listeners
-document.querySelectorAll('.sub-header').forEach(h => {
-  h.addEventListener('click', () => toggle(h));
-});
-
-// Alle Einträge öffnen — git-commands ist eine Referenz-Seite
-document.querySelectorAll('.sub-header').forEach(h => toggle(h));
 
 // ─── Sidebar Toggle & Resize ─────────────────────────────
 (function () {
   const sidebar = document.getElementById('sidebar');
-  const toggle = document.getElementById('sidebarToggle');
-  const handle = document.getElementById('sidebarResize');
+  const toggle  = document.getElementById('sidebarToggle');
+  const handle  = document.getElementById('sidebarResize');
   if (!sidebar || !toggle) return;
 
   const STORAGE_KEY = 'sidebar-collapsed';
-  const WIDTH_KEY = 'sidebar-width';
+  const WIDTH_KEY   = 'sidebar-width';
   const MIN_W = 180;
   const MAX_W = 480;
 
@@ -57,21 +66,22 @@ document.querySelectorAll('.sub-header').forEach(h => toggle(h));
 
   if (!handle) return;
   let dragging = false;
-  handle.addEventListener('mousedown', function (e) {
+
+  handle.addEventListener('mousedown', e => {
     e.preventDefault();
     dragging = true;
     handle.classList.add('active');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   });
-  document.addEventListener('mousemove', function (e) {
+
+  document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    let w = e.clientX;
-    if (w < MIN_W) w = MIN_W;
-    if (w > MAX_W) w = MAX_W;
+    let w = Math.min(Math.max(e.clientX, MIN_W), MAX_W);
     sidebar.style.width = w + 'px';
   });
-  document.addEventListener('mouseup', function () {
+
+  document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
     handle.classList.remove('active');

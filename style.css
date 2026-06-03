@@ -643,3 +643,96 @@ pre {
   .page-title { font-size: 28px; }
 }
 
+/* ─── Right TOC ──────────────────────────────────────────── */
+.toc-right {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 60px 16px 60px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.toc-right::-webkit-scrollbar { display: none; }
+
+.toc-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  padding: 8px 8px 12px;
+}
+
+.toc-h2 {
+  display: block;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 5px;
+  margin-top: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.toc-h3 {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 3px 8px 3px 18px;
+  border-radius: 4px;
+  line-height: 1.5;
+  transition: color 0.15s;
+}
+
+.toc-h2:hover { color: var(--accent); }
+.toc-h3:hover { color: var(--text); }
+.toc-h2.toc-active { color: var(--accent); background: rgba(0,153,85,0.08); }
+.toc-h3.toc-active { color: var(--text); }
+
+@media (max-width: 1180px) { .toc-right { display: none; } }
+
+/* ─── Flat page sections (git-commands style) ───────────── */
+.page-section {
+  margin-bottom: 64px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+}
+
+.cmd-block {
+  padding-bottom: 40px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cmd-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.cmd-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  scroll-margin-top: 32px;
+}
+

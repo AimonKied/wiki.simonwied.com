@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Git Commands – wiki.simonwied.com</title>
-<!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-G07DY445N4"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../style.css?v=1.6.0">
@@ -21,53 +20,26 @@
 <body>
 
 <div class="layout">
+
+  <!-- ── SIDEBAR ── -->
   <nav class="sidebar" id="sidebar">
     <button class="sidebar-toggle" id="sidebarToggle">«</button>
     <div class="sidebar-logo">
       <a href="../../index.html"><img src="../../assets/logo_big.png" alt="Wiki." class="logo-img"></a>
     </div>
-
     <div class="nav-section">
       <div class="nav-section-title">Wiki</div>
       <a href="../../index.html" class="nav-item">
         <div class="dot" style="background:var(--accent)"></div> ← Startseite
       </a>
     </div>
-
-    <div class="nav-section" style="margin-top:4px">
-      <div class="nav-section-title">Auf dieser Seite</div>
-      <a href="#basics" class="nav-item active">
-        <div class="dot" style="background:#f05033"></div> Basics
-      </a>
-      <a href="#branching" class="nav-item">
-        <div class="dot" style="background:#4488ff"></div> Branching
-      </a>
-      <a href="#remote" class="nav-item">
-        <div class="dot" style="background:#44cc88"></div> Remote
-      </a>
-      <a href="#history" class="nav-item">
-        <div class="dot" style="background:#ffaa00"></div> History & Log
-      </a>
-      <a href="#undoing" class="nav-item">
-        <div class="dot" style="background:#ff4466"></div> Undoing
-      </a>
-      <a href="#stash" class="nav-item">
-        <div class="dot" style="background:#aa44ff"></div> Stash
-      </a>
-      <a href="#advanced" class="nav-item">
-        <div class="dot" style="background:#44ffcc"></div> Advanced
-      </a>
-      <a href="#usecases" class="nav-item">
-        <div class="dot" style="background:#ffcc44"></div> Use Cases
-      </a>
-    </div>
-
     <div class="sidebar-bottom">
       <div class="logo-text">wiki.simonwied.com</div>
     </div>
   </nav>
   <div class="sidebar-resize" id="sidebarResize"></div>
 
+  <!-- ── MAIN ── -->
   <main class="main">
     <div class="breadcrumb">
       <a href="../../index.html" class="breadcrumb-link">wiki.simonwied.com</a>
@@ -75,12 +47,12 @@
       <span class="breadcrumb-current">Git Commands</span>
     </div>
 
-    <div class="page-header" id="intro">
+    <div class="page-header" id="top">
       <span class="page-emoji">🐙</span>
       <h1 class="page-title">Git Commands</h1>
       <p class="page-subtitle">
         Die wichtigsten Git-Befehle — mit Erklärung und Beispielen.<br>
-        Von Basics bis zu fortgeschrittenen Workflows.
+        Von Basics bis zu professionellen Workflows.
       </p>
       <div class="page-meta">
         <span class="tag">Referenz</span>
@@ -94,25 +66,17 @@
     <!-- ══════════════════════════════════════════
          1. BASICS
     ══════════════════════════════════════════ -->
-    <div class="category" id="basics">
-      <div class="category-header">
+    <section class="page-section" id="basics">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(240,80,51,0.12);color:#f05033;border:1px solid rgba(240,80,51,0.3)">📦 Basics</span>
         <h2 class="cat-title">Basics — Setup & Staging</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- git init / clone -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(240,80,51,0.08)">🚀</div>
-          <span class="sub-title">init & clone — Repository anlegen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Neues Repository erstellen oder ein bestehendes klonen.
-          </p>
-          <pre><span class="hl-comment"># Neues Repo im aktuellen Ordner initialisieren</span>
+      <div class="cmd-block" id="basics-init">
+        <h3 class="cmd-heading"><span>🚀</span> init & clone — Repository anlegen</h3>
+        <p class="sub-desc">Neues Repository erstellen oder ein bestehendes klonen.</p>
+        <pre><span class="hl-comment"># Neues Repo im aktuellen Ordner initialisieren</span>
 <span class="hl-func">git</span> init
 
 <span class="hl-comment"># Repo aus einer URL klonen</span>
@@ -121,23 +85,14 @@
 <span class="hl-comment"># In eigenen Ordner klonen</span>
 <span class="hl-func">git</span> clone <span class="hl-var">https://github.com/user/repo.git</span> <span class="hl-var">mein-ordner</span>
 
-<span class="hl-comment"># Nur neuesten Commit klonen (shallow clone — schneller)</span>
+<span class="hl-comment"># Nur neuesten Commit klonen (shallow — schneller)</span>
 <span class="hl-func">git</span> clone --depth <span class="hl-num">1</span> <span class="hl-var">https://github.com/user/repo.git</span></pre>
-        </div>
       </div>
 
-      <!-- add & commit -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(240,80,51,0.08)">✅</div>
-          <span class="sub-title">add & commit — Änderungen speichern</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Dateien zum Staging-Bereich hinzufügen und committen.
-          </p>
-          <pre><span class="hl-comment"># Einzelne Datei stagen</span>
+      <div class="cmd-block" id="basics-add">
+        <h3 class="cmd-heading"><span>✅</span> add & commit — Änderungen speichern</h3>
+        <p class="sub-desc">Dateien zum Staging-Bereich hinzufügen und committen.</p>
+        <pre><span class="hl-comment"># Einzelne Datei stagen</span>
 <span class="hl-func">git</span> add <span class="hl-var">datei.txt</span>
 
 <span class="hl-comment"># Alle geänderten Dateien stagen</span>
@@ -151,21 +106,12 @@
 
 <span class="hl-comment"># Stagen + Committen in einem Schritt (nur bereits getrackte Dateien)</span>
 <span class="hl-func">git</span> commit -am <span class="hl-str">"fix: bug behoben"</span></pre>
-        </div>
       </div>
 
-      <!-- status & diff -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(240,80,51,0.08)">🔎</div>
-          <span class="sub-title">status & diff — Änderungen einsehen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Aktuellen Stand des Repos und konkrete Änderungen anzeigen.
-          </p>
-          <pre><span class="hl-comment"># Überblick über geänderte Dateien</span>
+      <div class="cmd-block" id="basics-status">
+        <h3 class="cmd-heading"><span>🔎</span> status & diff — Änderungen einsehen</h3>
+        <p class="sub-desc">Aktuellen Stand des Repos und konkrete Änderungen anzeigen.</p>
+        <pre><span class="hl-comment"># Überblick über geänderte Dateien</span>
 <span class="hl-func">git</span> status
 
 <span class="hl-comment"># Alle unstaged Änderungen zeigen</span>
@@ -176,49 +122,36 @@
 
 <span class="hl-comment"># Unterschied zu einem bestimmten Commit</span>
 <span class="hl-func">git</span> diff <span class="hl-var">abc1234</span></pre>
-          <table class="info-table">
-            <tr><th>Befehl</th><th>Zeigt</th></tr>
-            <tr><td>git status</td><td>Geänderte, gestagete, ungetrackte Dateien</td></tr>
-            <tr><td>git diff</td><td>Unstaged Änderungen (Arbeitsverzeichnis vs. Index)</td></tr>
-            <tr><td>git diff --staged</td><td>Staged Änderungen (Index vs. letzter Commit)</td></tr>
-            <tr><td>git diff HEAD</td><td>Alle Änderungen seit letztem Commit</td></tr>
-          </table>
-        </div>
+        <table class="info-table">
+          <tr><th>Befehl</th><th>Zeigt</th></tr>
+          <tr><td>git status</td><td>Geänderte, gestagete, ungetrackte Dateien</td></tr>
+          <tr><td>git diff</td><td>Unstaged Änderungen (Arbeitsverzeichnis vs. Index)</td></tr>
+          <tr><td>git diff --staged</td><td>Staged Änderungen (Index vs. letzter Commit)</td></tr>
+          <tr><td>git diff HEAD</td><td>Alle Änderungen seit letztem Commit</td></tr>
+        </table>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          2. BRANCHING
     ══════════════════════════════════════════ -->
-    <div class="category" id="branching">
-      <div class="category-header">
+    <section class="page-section" id="branching">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(68,136,255,0.12);color:#4488ff;border:1px solid rgba(68,136,255,0.3)">🌿 Branches</span>
         <h2 class="cat-title">Branching & Merging</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- branch -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,136,255,0.08)">🌿</div>
-          <span class="sub-title">branch & checkout — Branches verwalten</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Branches erstellen, wechseln und löschen.
-          </p>
-          <pre><span class="hl-comment"># Alle lokalen Branches anzeigen</span>
+      <div class="cmd-block" id="branching-branch">
+        <h3 class="cmd-heading"><span>🌿</span> branch & checkout — Branches verwalten</h3>
+        <p class="sub-desc">Branches erstellen, wechseln und löschen.</p>
+        <pre><span class="hl-comment"># Alle lokalen Branches anzeigen</span>
 <span class="hl-func">git</span> branch
 
 <span class="hl-comment"># Neuen Branch erstellen</span>
 <span class="hl-func">git</span> branch <span class="hl-var">feature/login</span>
 
-<span class="hl-comment"># Branch wechseln</span>
-<span class="hl-func">git</span> checkout <span class="hl-var">feature/login</span>
-
-<span class="hl-comment"># Branch erstellen und direkt wechseln (kurzform)</span>
+<span class="hl-comment"># Branch erstellen und direkt wechseln</span>
 <span class="hl-func">git</span> checkout -b <span class="hl-var">feature/login</span>
 
 <span class="hl-comment"># Moderne Alternative mit switch</span>
@@ -232,25 +165,16 @@
 
 <span class="hl-comment"># Branch erzwungen löschen</span>
 <span class="hl-func">git</span> branch -D <span class="hl-var">feature/login</span></pre>
-        </div>
       </div>
 
-      <!-- merge & rebase -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,136,255,0.08)">🔀</div>
-          <span class="sub-title">merge & rebase — Branches zusammenführen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Merge fügt Branches zusammen und behält die History. Rebase schreibt die Commit-History neu — saubere lineare History, aber nie auf public Branches anwenden.
-          </p>
-          <pre><span class="hl-comment"># feature/login in main mergen (erst in main wechseln)</span>
+      <div class="cmd-block" id="branching-merge">
+        <h3 class="cmd-heading"><span>🔀</span> merge & rebase — Branches zusammenführen</h3>
+        <p class="sub-desc">Merge fügt Branches zusammen und behält die History. Rebase schreibt die Commit-History neu — saubere lineare History, aber nie auf public Branches anwenden.</p>
+        <pre><span class="hl-comment"># feature/login in main mergen (erst in main wechseln)</span>
 <span class="hl-func">git</span> checkout main
 <span class="hl-func">git</span> merge <span class="hl-var">feature/login</span>
 
-<span class="hl-comment"># Merge ohne Fast-Forward (immer einen Merge-Commit erstellen)</span>
+<span class="hl-comment"># Merge ohne Fast-Forward (immer Merge-Commit erstellen)</span>
 <span class="hl-func">git</span> merge --no-ff <span class="hl-var">feature/login</span>
 
 <span class="hl-comment"># Rebase: Commits von feature auf main aufsetzen</span>
@@ -259,41 +183,31 @@
 
 <span class="hl-comment"># Interaktiver Rebase: letzte 3 Commits bearbeiten</span>
 <span class="hl-func">git</span> rebase -i HEAD~<span class="hl-num">3</span></pre>
-          <div class="defense-block">
-            <h4>⚠️ Merge vs. Rebase</h4>
-            <ul>
-              <li><strong>Merge</strong> — History bleibt erhalten, Merge-Commit entsteht. Für Feature-Branches empfohlen.</li>
-              <li><strong>Rebase</strong> — Lineare History, keine Merge-Commits. Nur auf lokalen / privaten Branches anwenden.</li>
-              <li>Nie <code>git rebase</code> auf Branches anwenden, die andere bereits gepullt haben.</li>
-            </ul>
-          </div>
+        <div class="defense-block">
+          <h4>⚠️ Merge vs. Rebase</h4>
+          <ul>
+            <li><strong>Merge</strong> — History bleibt erhalten, Merge-Commit entsteht. Für Feature-Branches empfohlen.</li>
+            <li><strong>Rebase</strong> — Lineare History, keine Merge-Commits. Nur auf lokalen / privaten Branches anwenden.</li>
+            <li>Nie <code>git rebase</code> auf Branches anwenden, die andere bereits gepullt haben.</li>
+          </ul>
         </div>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          3. REMOTE
     ══════════════════════════════════════════ -->
-    <div class="category" id="remote">
-      <div class="category-header">
+    <section class="page-section" id="remote">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(68,204,136,0.12);color:#44cc88;border:1px solid rgba(68,204,136,0.3)">☁️ Remote</span>
         <h2 class="cat-title">Remote — Push, Pull & Fetch</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- remote verwalten -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,204,136,0.08)">🔗</div>
-          <span class="sub-title">remote — Remote-Verbindungen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Remote-Repos verwalten (GitHub, GitLab, etc.).
-          </p>
-          <pre><span class="hl-comment"># Alle remotes anzeigen</span>
+      <div class="cmd-block" id="remote-manage">
+        <h3 class="cmd-heading"><span>🔗</span> remote — Remote-Verbindungen</h3>
+        <p class="sub-desc">Remote-Repos verwalten (GitHub, GitLab, etc.).</p>
+        <pre><span class="hl-comment"># Alle remotes anzeigen</span>
 <span class="hl-func">git</span> remote -v
 
 <span class="hl-comment"># Remote hinzufügen</span>
@@ -304,21 +218,12 @@
 
 <span class="hl-comment"># Remote entfernen</span>
 <span class="hl-func">git</span> remote remove <span class="hl-var">origin</span></pre>
-        </div>
       </div>
 
-      <!-- push & pull -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,204,136,0.08)">⬆️</div>
-          <span class="sub-title">push & pull — Synchronisieren</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Commits hochladen und Änderungen herunterladen.
-          </p>
-          <pre><span class="hl-comment"># Aktuellen Branch pushen</span>
+      <div class="cmd-block" id="remote-sync">
+        <h3 class="cmd-heading"><span>⬆️</span> push & pull — Synchronisieren</h3>
+        <p class="sub-desc">Commits hochladen und Änderungen herunterladen.</p>
+        <pre><span class="hl-comment"># Aktuellen Branch pushen</span>
 <span class="hl-func">git</span> push
 
 <span class="hl-comment"># Branch zum ersten Mal pushen + Upstream setzen</span>
@@ -330,43 +235,34 @@
 <span class="hl-comment"># Holen + Rebase statt Merge (sauberere History)</span>
 <span class="hl-func">git</span> pull --rebase
 
-<span class="hl-comment"># Nur holen, nicht mergen (fetch)</span>
+<span class="hl-comment"># Nur holen, nicht mergen</span>
 <span class="hl-func">git</span> fetch origin
 
 <span class="hl-comment"># Remote Branch löschen</span>
 <span class="hl-func">git</span> push origin --delete <span class="hl-var">feature/login</span></pre>
-          <table class="info-table">
-            <tr><th>Befehl</th><th>Was passiert</th></tr>
-            <tr><td>git fetch</td><td>Holt Änderungen, merged NICHT — nur lokale Remote-Tracking-Refs updaten</td></tr>
-            <tr><td>git pull</td><td>fetch + merge in einem Schritt</td></tr>
-            <tr><td>git pull --rebase</td><td>fetch + rebase — lineare History</td></tr>
-          </table>
-        </div>
+        <table class="info-table">
+          <tr><th>Befehl</th><th>Was passiert</th></tr>
+          <tr><td>git fetch</td><td>Holt Änderungen, merged NICHT — nur Remote-Tracking-Refs updaten</td></tr>
+          <tr><td>git pull</td><td>fetch + merge in einem Schritt</td></tr>
+          <tr><td>git pull --rebase</td><td>fetch + rebase — lineare History</td></tr>
+        </table>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
-         4. HISTORY & LOG
+         4. HISTORY
     ══════════════════════════════════════════ -->
-    <div class="category" id="history">
-      <div class="category-header">
+    <section class="page-section" id="history">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(255,170,0,0.12);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">📜 History</span>
         <h2 class="cat-title">History & Log</h2>
         <div class="cat-line"></div>
       </div>
 
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,170,0,0.08)">📜</div>
-          <span class="sub-title">log & show — Commit-History</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Commit-Historie durchsuchen und einzelne Commits inspizieren.
-          </p>
-          <pre><span class="hl-comment"># Commit-History anzeigen</span>
+      <div class="cmd-block" id="history-log">
+        <h3 class="cmd-heading"><span>📜</span> log & show — Commit-History</h3>
+        <p class="sub-desc">Commit-Historie durchsuchen und einzelne Commits inspizieren.</p>
+        <pre><span class="hl-comment"># Commit-History anzeigen</span>
 <span class="hl-func">git</span> log
 
 <span class="hl-comment"># Kompakt: eine Zeile pro Commit</span>
@@ -389,32 +285,23 @@
 
 <span class="hl-comment"># Wer hat welche Zeile zuletzt geändert?</span>
 <span class="hl-func">git</span> blame <span class="hl-var">datei.txt</span></pre>
-        </div>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          5. UNDOING
     ══════════════════════════════════════════ -->
-    <div class="category" id="undoing">
-      <div class="category-header">
+    <section class="page-section" id="undoing">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(255,68,102,0.12);color:#ff4466;border:1px solid rgba(255,68,102,0.3)">↩️ Undoing</span>
         <h2 class="cat-title">Undoing — Änderungen rückgängig machen</h2>
         <div class="cat-line"></div>
       </div>
 
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,68,102,0.08)">↩️</div>
-          <span class="sub-title">revert, reset & restore</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Commits oder Änderungen rückgängig machen — je nach Situation die richtige Methode wählen.
-          </p>
-          <pre><span class="hl-comment"># Einzelne Datei auf letzten Commit zurücksetzen</span>
+      <div class="cmd-block" id="undoing-revert">
+        <h3 class="cmd-heading"><span>↩️</span> revert, reset & restore</h3>
+        <p class="sub-desc">Commits oder Änderungen rückgängig machen — je nach Situation die richtige Methode wählen.</p>
+        <pre><span class="hl-comment"># Einzelne Datei auf letzten Commit zurücksetzen</span>
 <span class="hl-func">git</span> restore <span class="hl-var">datei.txt</span>
 
 <span class="hl-comment"># Datei aus Staging entfernen (unstage)</span>
@@ -431,46 +318,37 @@
 
 <span class="hl-comment"># Letzten Commit-Message ändern (nur wenn noch nicht gepusht)</span>
 <span class="hl-func">git</span> commit --amend -m <span class="hl-str">"korrigierte Nachricht"</span></pre>
-          <div class="defense-block">
-            <h4>⚠️ reset --hard ist destruktiv</h4>
-            <ul>
-              <li><strong>git revert</strong> — sicher, erstellt neuen Commit. Für pushed Commits.</li>
-              <li><strong>git reset</strong> — Commits aus History entfernen. Nur für lokale, ungepushte Commits.</li>
-              <li><strong>git reset --hard</strong> — löscht Änderungen unwiderruflich. Backup vorher!</li>
-            </ul>
-          </div>
-          <table class="info-table">
-            <tr><th>Befehl</th><th>Staging</th><th>Arbeitsverzeichnis</th><th>History</th></tr>
-            <tr><td>reset --soft HEAD~1</td><td>behält staged</td><td>unverändert</td><td>Commit weg</td></tr>
-            <tr><td>reset HEAD~1</td><td>unstaged</td><td>Änderungen bleiben</td><td>Commit weg</td></tr>
-            <tr><td>reset --hard HEAD~1</td><td>geleert</td><td>Änderungen weg</td><td>Commit weg</td></tr>
-          </table>
+        <div class="defense-block">
+          <h4>⚠️ reset --hard ist destruktiv</h4>
+          <ul>
+            <li><strong>git revert</strong> — sicher, erstellt neuen Commit. Für pushed Commits.</li>
+            <li><strong>git reset</strong> — Commits aus History entfernen. Nur für lokale, ungepushte Commits.</li>
+            <li><strong>git reset --hard</strong> — löscht Änderungen unwiderruflich. Backup vorher!</li>
+          </ul>
         </div>
+        <table class="info-table">
+          <tr><th>Befehl</th><th>Staging</th><th>Arbeitsverzeichnis</th><th>History</th></tr>
+          <tr><td>reset --soft HEAD~1</td><td>behält staged</td><td>unverändert</td><td>Commit weg</td></tr>
+          <tr><td>reset HEAD~1</td><td>unstaged</td><td>Änderungen bleiben</td><td>Commit weg</td></tr>
+          <tr><td>reset --hard HEAD~1</td><td>geleert</td><td>Änderungen weg</td><td>Commit weg</td></tr>
+        </table>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          6. STASH
     ══════════════════════════════════════════ -->
-    <div class="category" id="stash">
-      <div class="category-header">
+    <section class="page-section" id="stash">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(170,68,255,0.12);color:#aa44ff;border:1px solid rgba(170,68,255,0.3)">📦 Stash</span>
         <h2 class="cat-title">Stash — Änderungen zwischenspeichern</h2>
         <div class="cat-line"></div>
       </div>
 
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(170,68,255,0.08)">📦</div>
-          <span class="sub-title">stash — Temporär weglegen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Unfertige Änderungen temporär wegpacken, um den Branch zu wechseln oder etwas anderes zu erledigen.
-          </p>
-          <pre><span class="hl-comment"># Aktuelle Änderungen stashen</span>
+      <div class="cmd-block" id="stash-usage">
+        <h3 class="cmd-heading"><span>📦</span> stash — Temporär weglegen</h3>
+        <p class="sub-desc">Unfertige Änderungen temporär wegpacken, um den Branch zu wechseln oder etwas anderes zu erledigen.</p>
+        <pre><span class="hl-comment"># Aktuelle Änderungen stashen</span>
 <span class="hl-func">git</span> stash
 
 <span class="hl-comment"># Mit Beschreibung stashen</span>
@@ -490,33 +368,23 @@
 
 <span class="hl-comment"># Alle Stashes löschen</span>
 <span class="hl-func">git</span> stash clear</pre>
-        </div>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          7. ADVANCED
     ══════════════════════════════════════════ -->
-    <div class="category" id="advanced">
-      <div class="category-header">
+    <section class="page-section" id="advanced">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(68,255,204,0.12);color:#44ffcc;border:1px solid rgba(68,255,204,0.3)">⚡ Advanced</span>
         <h2 class="cat-title">Advanced — Fortgeschrittene Befehle</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- cherry-pick -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🍒</div>
-          <span class="sub-title">cherry-pick — Einzelne Commits übernehmen</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Einen einzelnen Commit aus einem anderen Branch in den aktuellen Branch übernehmen.
-          </p>
-          <pre><span class="hl-comment"># Einzelnen Commit in aktuellen Branch holen</span>
+      <div class="cmd-block" id="advanced-cherry">
+        <h3 class="cmd-heading"><span>🍒</span> cherry-pick — Einzelne Commits übernehmen</h3>
+        <p class="sub-desc">Einen einzelnen Commit aus einem anderen Branch in den aktuellen Branch übernehmen.</p>
+        <pre><span class="hl-comment"># Einzelnen Commit in aktuellen Branch holen</span>
 <span class="hl-func">git</span> cherry-pick <span class="hl-var">abc1234</span>
 
 <span class="hl-comment"># Mehrere Commits (Range)</span>
@@ -524,25 +392,13 @@
 
 <span class="hl-comment"># Cherry-pick ohne direkt zu committen (nur stagen)</span>
 <span class="hl-func">git</span> cherry-pick -n <span class="hl-var">abc1234</span></pre>
-        </div>
       </div>
 
-      <!-- tag -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">🏷️</div>
-          <span class="sub-title">tag — Versionen markieren</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Commits mit einem Tag markieren — typisch für Releases (v1.0.0, v2.3.1).
-          </p>
-          <pre><span class="hl-comment"># Alle Tags anzeigen</span>
+      <div class="cmd-block" id="advanced-tag">
+        <h3 class="cmd-heading"><span>🏷️</span> tag — Versionen markieren</h3>
+        <p class="sub-desc">Commits mit einem Tag markieren — typisch für Releases (v1.0.0, v2.3.1).</p>
+        <pre><span class="hl-comment"># Alle Tags anzeigen</span>
 <span class="hl-func">git</span> tag
-
-<span class="hl-comment"># Lightweight Tag erstellen</span>
-<span class="hl-func">git</span> tag <span class="hl-var">v1.0.0</span>
 
 <span class="hl-comment"># Annotated Tag mit Nachricht (empfohlen für Releases)</span>
 <span class="hl-func">git</span> tag -a <span class="hl-var">v1.0.0</span> -m <span class="hl-str">"Release v1.0.0"</span>
@@ -553,258 +409,174 @@
 <span class="hl-comment"># Tag löschen (lokal + remote)</span>
 <span class="hl-func">git</span> tag -d <span class="hl-var">v1.0.0</span>
 <span class="hl-func">git</span> push origin --delete <span class="hl-var">v1.0.0</span></pre>
-        </div>
       </div>
 
-      <!-- config -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(68,255,204,0.08)">⚙️</div>
-          <span class="sub-title">config — Git konfigurieren</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Git global oder pro-Repo konfigurieren.
-          </p>
-          <pre><span class="hl-comment"># Name und E-Mail setzen (global)</span>
+      <div class="cmd-block" id="advanced-config">
+        <h3 class="cmd-heading"><span>⚙️</span> config — Git konfigurieren</h3>
+        <p class="sub-desc">Git global oder pro-Repo konfigurieren.</p>
+        <pre><span class="hl-comment"># Name und E-Mail setzen (global)</span>
 <span class="hl-func">git</span> config --global user.name <span class="hl-str">"Simon Wied"</span>
 <span class="hl-func">git</span> config --global user.email <span class="hl-str">"simon@example.com"</span>
 
 <span class="hl-comment"># Standard-Editor setzen</span>
 <span class="hl-func">git</span> config --global core.editor <span class="hl-str">"code --wait"</span>
 
-<span class="hl-comment"># Alle globalen Einstellungen anzeigen</span>
-<span class="hl-func">git</span> config --global --list
-
 <span class="hl-comment"># Aliases definieren</span>
 <span class="hl-func">git</span> config --global alias.st status
 <span class="hl-func">git</span> config --global alias.co checkout
 <span class="hl-func">git</span> config --global alias.lg <span class="hl-str">"log --oneline --graph --all"</span></pre>
-          <table class="info-table">
-            <tr><th>Alias</th><th>Kurzform für</th></tr>
-            <tr><td>git st</td><td>git status</td></tr>
-            <tr><td>git co</td><td>git checkout</td></tr>
-            <tr><td>git lg</td><td>git log --oneline --graph --all</td></tr>
-          </table>
-        </div>
+        <table class="info-table">
+          <tr><th>Alias</th><th>Kurzform für</th></tr>
+          <tr><td>git st</td><td>git status</td></tr>
+          <tr><td>git co</td><td>git checkout</td></tr>
+          <tr><td>git lg</td><td>git log --oneline --graph --all</td></tr>
+        </table>
       </div>
-
-    </div>
+    </section>
 
     <!-- ══════════════════════════════════════════
          8. USE CASES
     ══════════════════════════════════════════ -->
-    <div class="category" id="usecases">
-      <div class="category-header">
+    <section class="page-section" id="usecases">
+      <div class="section-header-row">
         <span class="category-badge" style="background:rgba(255,204,68,0.12);color:#ffcc44;border:1px solid rgba(255,204,68,0.3)">🏢 Use Cases</span>
         <h2 class="cat-title">Use Cases — Professionelle Workflows</h2>
         <div class="cat-line"></div>
       </div>
 
-      <!-- Feature Branch Workflow -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">🌿</div>
-          <span class="sub-title">Feature Branch Workflow</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-feature">
+        <h3 class="cmd-heading"><span>🌿</span> Feature Branch Workflow</h3>
+        <p class="sub-desc">Standard-Workflow in fast jedem Team: jedes Feature bekommt einen eigenen Branch. main bleibt immer stabil und deploybar.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Von main aus neuen Feature-Branch erstellen.</div>
+          <div class="step"><span class="step-num">02.</span>Feature entwickeln, regelmäßig committen.</div>
+          <div class="step"><span class="step-num">03.</span>Pull Request öffnen, Code Review abwarten.</div>
+          <div class="step"><span class="step-num">04.</span>Nach Approval in main mergen.</div>
+          <div class="step"><span class="step-num">05.</span>Feature-Branch löschen.</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Standard-Workflow in fast jedem Team: jedes Feature bekommt einen eigenen Branch. main bleibt immer stabil und deploybar.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>Von main aus neuen Feature-Branch erstellen.</div>
-            <div class="step"><span class="step-num">02.</span>Feature entwickeln, regelmäßig committen.</div>
-            <div class="step"><span class="step-num">03.</span>Pull Request öffnen, Code Review abwarten.</div>
-            <div class="step"><span class="step-num">04.</span>Nach Approval in main mergen.</div>
-            <div class="step"><span class="step-num">05.</span>Feature-Branch löschen.</div>
-          </div>
-          <pre><span class="hl-comment"># 1. Aktuellen main holen</span>
-<span class="hl-func">git</span> checkout main
-<span class="hl-func">git</span> pull
+        <pre><span class="hl-comment"># 1. Aktuellen main holen</span>
+<span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> pull
 
 <span class="hl-comment"># 2. Feature-Branch erstellen</span>
 <span class="hl-func">git</span> checkout -b <span class="hl-var">feature/user-auth</span>
 
 <span class="hl-comment"># 3. Entwickeln & committen</span>
-<span class="hl-func">git</span> add .
-<span class="hl-func">git</span> commit -m <span class="hl-str">"feat: add JWT authentication"</span>
+<span class="hl-func">git</span> add . && <span class="hl-func">git</span> commit -m <span class="hl-str">"feat: add JWT authentication"</span>
 
 <span class="hl-comment"># 4. Branch pushen + Pull Request öffnen</span>
 <span class="hl-func">git</span> push -u origin <span class="hl-var">feature/user-auth</span>
 
-<span class="hl-comment"># 5. Nach Merge: aufräumen</span>
-<span class="hl-func">git</span> checkout main
-<span class="hl-func">git</span> pull
+<span class="hl-comment"># 5. Nach Merge aufräumen</span>
+<span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> pull
 <span class="hl-func">git</span> branch -d <span class="hl-var">feature/user-auth</span></pre>
-        </div>
       </div>
 
-      <!-- Hotfix -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">🚨</div>
-          <span class="sub-title">Hotfix — Produktionsbug schnell fixen</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-hotfix">
+        <h3 class="cmd-heading"><span>🚨</span> Hotfix — Produktionsbug schnell fixen</h3>
+        <p class="sub-desc">Kritischer Bug in Produktion — direkt vom main-Branch aus fixen, ohne laufende Features zu stören.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Laufende Arbeit stashen.</div>
+          <div class="step"><span class="step-num">02.</span>Hotfix-Branch direkt von main anlegen.</div>
+          <div class="step"><span class="step-num">03.</span>Fix committen, in main mergen und taggen.</div>
+          <div class="step"><span class="step-num">04.</span>Stash zurück, weiterarbeiten.</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Kritischer Bug in Produktion — direkt vom main-Branch aus fixen, ohne laufende Features zu stören.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>Laufende Arbeit stashen.</div>
-            <div class="step"><span class="step-num">02.</span>Hotfix-Branch direkt von main anlegen.</div>
-            <div class="step"><span class="step-num">03.</span>Fix committen, in main mergen.</div>
-            <div class="step"><span class="step-num">04.</span>Stash zurück, weiterarbeiten.</div>
-          </div>
-          <pre><span class="hl-comment"># 1. Laufende Arbeit sichern</span>
+        <pre><span class="hl-comment"># 1. Laufende Arbeit sichern</span>
 <span class="hl-func">git</span> stash push -m <span class="hl-str">"WIP: neue-feature"</span>
 
 <span class="hl-comment"># 2. Hotfix-Branch von main</span>
-<span class="hl-func">git</span> checkout main
-<span class="hl-func">git</span> pull
+<span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> pull
 <span class="hl-func">git</span> checkout -b <span class="hl-var">hotfix/login-crash</span>
 
-<span class="hl-comment"># 3. Fix committen</span>
+<span class="hl-comment"># 3. Fix committen + mergen + taggen</span>
 <span class="hl-func">git</span> commit -am <span class="hl-str">"fix: prevent null pointer on login"</span>
-
-<span class="hl-comment"># 4. In main mergen + pushen</span>
-<span class="hl-func">git</span> checkout main
-<span class="hl-func">git</span> merge --no-ff <span class="hl-var">hotfix/login-crash</span>
-<span class="hl-func">git</span> push
+<span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> merge --no-ff <span class="hl-var">hotfix/login-crash</span>
 <span class="hl-func">git</span> tag -a <span class="hl-var">v1.2.1</span> -m <span class="hl-str">"Hotfix: login crash"</span>
-<span class="hl-func">git</span> push origin --tags
+<span class="hl-func">git</span> push && <span class="hl-func">git</span> push origin --tags
 
-<span class="hl-comment"># 5. Weiterarbeiten</span>
-<span class="hl-func">git</span> checkout <span class="hl-var">feature/neue-feature</span>
-<span class="hl-func">git</span> stash pop</pre>
-        </div>
+<span class="hl-comment"># 4. Weiterarbeiten</span>
+<span class="hl-func">git</span> checkout <span class="hl-var">feature/neue-feature</span> && <span class="hl-func">git</span> stash pop</pre>
       </div>
 
-      <!-- Rebase vor PR -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">🧹</div>
-          <span class="sub-title">Branch aufräumen vor Pull Request</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-cleanup">
+        <h3 class="cmd-heading"><span>🧹</span> Branch aufräumen vor Pull Request</h3>
+        <p class="sub-desc">Vor einem PR die Commits squashen und den Branch auf den aktuellen main rebasen — saubere History für Reviewer.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>main pullen.</div>
+          <div class="step"><span class="step-num">02.</span>Feature-Branch auf aktuellen main rebasen.</div>
+          <div class="step"><span class="step-num">03.</span>Commits interaktiv squashen.</div>
+          <div class="step"><span class="step-num">04.</span>Branch force-pushen (da History neu geschrieben).</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Vor einem PR die Commits squashen (zu einem zusammenfassen) und den Branch auf den aktuellen main rebasen — saubere History für Reviewer.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>main pullen.</div>
-            <div class="step"><span class="step-num">02.</span>Feature-Branch auf aktuellen main rebasen.</div>
-            <div class="step"><span class="step-num">03.</span>Commits interaktiv squashen.</div>
-            <div class="step"><span class="step-num">04.</span>Branch force-pushen (da History neu geschrieben).</div>
-          </div>
-          <pre><span class="hl-comment"># 1. main aktualisieren</span>
+        <pre><span class="hl-comment"># 1. main aktualisieren + Branch rebasen</span>
 <span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> pull
-
-<span class="hl-comment"># 2. Feature-Branch auf main rebasen</span>
 <span class="hl-func">git</span> checkout <span class="hl-var">feature/user-auth</span>
 <span class="hl-func">git</span> rebase main
 
-<span class="hl-comment"># 3. Letzte 4 Commits zu einem zusammenfassen</span>
+<span class="hl-comment"># 2. Letzte 4 Commits zu einem zusammenfassen</span>
 <span class="hl-func">git</span> rebase -i HEAD~<span class="hl-num">4</span>
 <span class="hl-comment"># Im Editor: pick für ersten, squash (s) für alle weiteren</span>
 
-<span class="hl-comment"># 4. Force-push (nötig weil History neu geschrieben)</span>
+<span class="hl-comment"># 3. Force-push (nötig weil History neu geschrieben)</span>
 <span class="hl-func">git</span> push --force-with-lease</pre>
-          <div class="defense-block">
-            <h4>💡 --force-with-lease statt --force</h4>
-            <ul>
-              <li><code>--force</code> überschreibt blind — gefährlich wenn jemand anderes gepusht hat.</li>
-              <li><code>--force-with-lease</code> bricht ab wenn remote neuer ist als erwartet. Immer bevorzugen.</li>
-            </ul>
-          </div>
+        <div class="defense-block">
+          <h4>💡 --force-with-lease statt --force</h4>
+          <ul>
+            <li><code>--force</code> überschreibt blind — gefährlich wenn jemand anderes gepusht hat.</li>
+            <li><code>--force-with-lease</code> bricht ab wenn remote neuer ist als erwartet. Immer bevorzugen.</li>
+          </ul>
         </div>
       </div>
 
-      <!-- Code Review Feedback einarbeiten -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">🔄</div>
-          <span class="sub-title">Code Review Feedback einarbeiten</span>
-          <span class="sub-arrow">▶</span>
-        </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            PR ist offen, Reviewer haben Feedback gegeben — Änderungen in denselben Branch committen und pushen.
-          </p>
-          <pre><span class="hl-comment"># Änderungen nach Review committen</span>
-<span class="hl-func">git</span> add .
-<span class="hl-func">git</span> commit -m <span class="hl-str">"refactor: address review comments"</span>
+      <div class="cmd-block" id="uc-review">
+        <h3 class="cmd-heading"><span>🔄</span> Code Review Feedback einarbeiten</h3>
+        <p class="sub-desc">PR ist offen, Reviewer haben Feedback gegeben — Änderungen in denselben Branch committen und pushen.</p>
+        <pre><span class="hl-comment"># Änderungen nach Review committen</span>
+<span class="hl-func">git</span> add . && <span class="hl-func">git</span> commit -m <span class="hl-str">"refactor: address review comments"</span>
 <span class="hl-func">git</span> push
 
 <span class="hl-comment"># Wenn man letzten Commit erweitern will (noch nicht gepusht)</span>
-<span class="hl-func">git</span> add .
-<span class="hl-func">git</span> commit --amend --no-edit
+<span class="hl-func">git</span> add . && <span class="hl-func">git</span> commit --amend --no-edit
 <span class="hl-func">git</span> push --force-with-lease
 
 <span class="hl-comment"># Wenn main sich inzwischen geändert hat: rebasen</span>
 <span class="hl-func">git</span> fetch origin
 <span class="hl-func">git</span> rebase origin/main
 <span class="hl-func">git</span> push --force-with-lease</pre>
-        </div>
       </div>
 
-      <!-- Release tagging -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">🚀</div>
-          <span class="sub-title">Release vorbereiten & taggen</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-release">
+        <h3 class="cmd-heading"><span>🚀</span> Release vorbereiten & taggen</h3>
+        <p class="sub-desc">Neues Release ausliefern — Changelog aktualisieren, Version taggen, CI/CD triggert den Deploy.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>main ist stabil und alle PRs gemergt.</div>
+          <div class="step"><span class="step-num">02.</span>Version in package.json / Changelog anpassen.</div>
+          <div class="step"><span class="step-num">03.</span>Commit + annotated Tag erstellen.</div>
+          <div class="step"><span class="step-num">04.</span>Tag pushen — löst Pipeline aus.</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Neues Release ausliefern — Changelog aktualisieren, Version taggen, CI/CD triggert den Deploy.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>main ist stabil und alle PRs gemergt.</div>
-            <div class="step"><span class="step-num">02.</span>Version in package.json / Changelog anpassen.</div>
-            <div class="step"><span class="step-num">03.</span>Commit + annotated Tag erstellen.</div>
-            <div class="step"><span class="step-num">04.</span>Tag pushen — löst Pipeline aus.</div>
-          </div>
-          <pre><span class="hl-comment"># 1. Sicherstellen, dass main aktuell ist</span>
-<span class="hl-func">git</span> checkout main
-<span class="hl-func">git</span> pull
+        <pre><span class="hl-comment"># Sicherstellen, dass main aktuell ist</span>
+<span class="hl-func">git</span> checkout main && <span class="hl-func">git</span> pull
 
-<span class="hl-comment"># 2. Version-Commit</span>
+<span class="hl-comment"># Version-Commit + annotated Tag</span>
 <span class="hl-func">git</span> commit -am <span class="hl-str">"chore: bump version to 2.1.0"</span>
-
-<span class="hl-comment"># 3. Annotated Tag</span>
 <span class="hl-func">git</span> tag -a <span class="hl-var">v2.1.0</span> -m <span class="hl-str">"Release v2.1.0 — neue Dashboard-Features"</span>
 
-<span class="hl-comment"># 4. Pushen (Commit + Tag)</span>
-<span class="hl-func">git</span> push
-<span class="hl-func">git</span> push origin <span class="hl-var">v2.1.0</span></pre>
-        </div>
+<span class="hl-comment"># Pushen (Commit + Tag)</span>
+<span class="hl-func">git</span> push && <span class="hl-func">git</span> push origin <span class="hl-var">v2.1.0</span></pre>
       </div>
 
-      <!-- Merge Conflict lösen -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">⚔️</div>
-          <span class="sub-title">Merge Conflict lösen</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-conflict">
+        <h3 class="cmd-heading"><span>⚔️</span> Merge Conflict lösen</h3>
+        <p class="sub-desc">Zwei Branches haben dieselbe Datei geändert — Git kann nicht automatisch mergen. Konflikt manuell auflösen.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>git merge oder rebase schlägt fehl, zeigt Konflikt-Dateien.</div>
+          <div class="step"><span class="step-num">02.</span>Konflikt-Markierungen in den Dateien manuell auflösen.</div>
+          <div class="step"><span class="step-num">03.</span>Gelöste Dateien stagen.</div>
+          <div class="step"><span class="step-num">04.</span>Merge / Rebase abschließen.</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Zwei Branches haben dieselbe Datei geändert — Git kann nicht automatisch mergen. Konflikt manuell auflösen.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>git merge oder rebase schlägt fehl, zeigt Konflikt-Dateien.</div>
-            <div class="step"><span class="step-num">02.</span>Konflikt-Markierungen in den Dateien manuell auflösen.</div>
-            <div class="step"><span class="step-num">03.</span>Gelöste Dateien stagen.</div>
-            <div class="step"><span class="step-num">04.</span>Merge / Rebase abschließen.</div>
-          </div>
-          <pre><span class="hl-comment"># Merge schlägt fehl — Konflikte anzeigen</span>
+        <pre><span class="hl-comment"># Konflikte anzeigen</span>
 <span class="hl-func">git</span> status
 <span class="hl-comment"># → "both modified: src/auth.js"</span>
 
-<span class="hl-comment"># Konflikt-Datei öffnen und Markierungen suchen:</span>
+<span class="hl-comment"># Konflikt-Datei öffnen und Markierungen auflösen:</span>
 <span class="hl-comment"># &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD     (eigene Änderung)</span>
 <span class="hl-comment"># =======           (Trennlinie)</span>
 <span class="hl-comment"># &gt;&gt;&gt;&gt;&gt;&gt;&gt; main     (incoming Änderung)</span>
@@ -812,69 +584,97 @@
 <span class="hl-comment"># Nach manuellem Lösen: stagen + abschließen</span>
 <span class="hl-func">git</span> add <span class="hl-var">src/auth.js</span>
 <span class="hl-func">git</span> merge --continue
-<span class="hl-comment"># oder bei rebase:</span>
-<span class="hl-func">git</span> rebase --continue
+<span class="hl-comment"># oder bei rebase: git rebase --continue</span>
 
-<span class="hl-comment"># Merge/Rebase abbrechen (zurück zum Ausgangszustand)</span>
+<span class="hl-comment"># Abbrechen (zurück zum Ausgangszustand)</span>
 <span class="hl-func">git</span> merge --abort
 <span class="hl-func">git</span> rebase --abort</pre>
-        </div>
       </div>
 
-      <!-- Falscher Branch -->
-      <div class="subcategory">
-        <div class="sub-header">
-          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">😬</div>
-          <span class="sub-title">Auf falschem Branch committet</span>
-          <span class="sub-arrow">▶</span>
+      <div class="cmd-block" id="uc-wrongbranch">
+        <h3 class="cmd-heading"><span>😬</span> Auf falschem Branch committet</h3>
+        <p class="sub-desc">Commit landet versehentlich auf dem falschen Branch (z.B. direkt auf main statt auf einem Feature-Branch). Commit auf den richtigen Branch verschieben und vom falschen entfernen.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">01.</span>Commit-Hash des falschen Commits notieren.</div>
+          <div class="step"><span class="step-num">02.</span>Auf den richtigen Branch wechseln.</div>
+          <div class="step"><span class="step-num">03.</span>Commit per cherry-pick übernehmen.</div>
+          <div class="step"><span class="step-num">04.</span>Zurück auf den falschen Branch, Commit entfernen.</div>
         </div>
-        <div class="sub-content">
-          <p class="sub-desc">
-            Commit landet versehentlich auf dem falschen Branch (z.B. direkt auf main statt auf einem Feature-Branch). Commit auf den richtigen Branch verschieben und vom falschen entfernen.
-          </p>
-          <div class="steps">
-            <div class="step"><span class="step-num">01.</span>Commit-Hash des falschen Commits notieren.</div>
-            <div class="step"><span class="step-num">02.</span>Auf den richtigen Branch wechseln.</div>
-            <div class="step"><span class="step-num">03.</span>Commit per cherry-pick übernehmen.</div>
-            <div class="step"><span class="step-num">04.</span>Zurück auf den falschen Branch, Commit entfernen.</div>
-          </div>
-          <pre><span class="hl-comment"># 1. Hash des versehentlichen Commits merken</span>
-<span class="hl-func">git</span> log --oneline -5
+        <pre><span class="hl-comment"># 1. Hash des versehentlichen Commits merken</span>
+<span class="hl-func">git</span> log --oneline -<span class="hl-num">5</span>
 <span class="hl-comment"># → abc1234 FEAT: neues Feature  ← der falsche Commit</span>
 
-<span class="hl-comment"># 2. Auf richtigen Branch wechseln + Commit holen</span>
+<span class="hl-comment"># 2. Auf richtigen Branch + Commit holen</span>
 <span class="hl-func">git</span> checkout <span class="hl-var">feature/richtiger-branch</span>
 <span class="hl-func">git</span> cherry-pick <span class="hl-var">abc1234</span>
 
-<span class="hl-comment"># 3. Zurück zum falschen Branch, Commit entfernen</span>
+<span class="hl-comment"># 3. Vom falschen Branch entfernen</span>
 <span class="hl-func">git</span> checkout <span class="hl-var">falscher-branch</span>
 <span class="hl-func">git</span> reset --hard HEAD~1</pre>
-          <div class="defense-block">
-            <h4>⚠️ Commit bereits gepusht?</h4>
-            <ul>
-              <li>War der Commit noch <strong>nicht gepusht</strong>: obiges Vorgehen reicht.</li>
-              <li>War der Commit bereits <strong>gepusht</strong>: nach dem <code>reset --hard</code> muss force-gepusht werden — aber nur wenn niemand anderes den Branch gepullt hat.</li>
-            </ul>
-          </div>
-          <pre><span class="hl-comment"># Nur wenn bereits gepusht und kein anderer den Branch hat</span>
-<span class="hl-func">git</span> push --force-with-lease
-
-<span class="hl-comment"># War remote schon weiter (diverged)? Erst rebasen</span>
+        <div class="defense-block">
+          <h4>⚠️ Commit bereits gepusht?</h4>
+          <ul>
+            <li>War der Commit noch <strong>nicht gepusht</strong>: obiges Vorgehen reicht.</li>
+            <li>War der Commit bereits <strong>gepusht</strong> und remote ist weiter (diverged): erst rebasen, dann force-pushen.</li>
+          </ul>
+        </div>
+        <pre><span class="hl-comment"># Wenn bereits gepusht und diverged</span>
 <span class="hl-func">git</span> pull --rebase
 <span class="hl-comment"># Konflikte lösen falls nötig, dann:</span>
-<span class="hl-func">git</span> rebase --continue</pre>
-        </div>
+<span class="hl-func">git</span> rebase --continue
+<span class="hl-func">git</span> push --force-with-lease</pre>
       </div>
 
-    </div>
+    </section>
 
     <div class="divider"></div>
     <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding-bottom:60px">
       // wiki.simonwied.com · <span id="siteVersion"></span>
     </p>
-
   </main>
-</div>
 
+  <!-- ── RIGHT TOC ── -->
+  <aside class="toc-right" id="tocRight">
+    <div class="toc-label">Inhalt</div>
+    <nav>
+      <a href="#basics" class="toc-h2">Basics</a>
+      <a href="#basics-init" class="toc-h3">init & clone</a>
+      <a href="#basics-add" class="toc-h3">add & commit</a>
+      <a href="#basics-status" class="toc-h3">status & diff</a>
+
+      <a href="#branching" class="toc-h2">Branching</a>
+      <a href="#branching-branch" class="toc-h3">branch & checkout</a>
+      <a href="#branching-merge" class="toc-h3">merge & rebase</a>
+
+      <a href="#remote" class="toc-h2">Remote</a>
+      <a href="#remote-manage" class="toc-h3">remote</a>
+      <a href="#remote-sync" class="toc-h3">push & pull</a>
+
+      <a href="#history" class="toc-h2">History & Log</a>
+      <a href="#history-log" class="toc-h3">log & show</a>
+
+      <a href="#undoing" class="toc-h2">Undoing</a>
+      <a href="#undoing-revert" class="toc-h3">revert, reset & restore</a>
+
+      <a href="#stash" class="toc-h2">Stash</a>
+      <a href="#stash-usage" class="toc-h3">stash</a>
+
+      <a href="#advanced" class="toc-h2">Advanced</a>
+      <a href="#advanced-cherry" class="toc-h3">cherry-pick</a>
+      <a href="#advanced-tag" class="toc-h3">tag</a>
+      <a href="#advanced-config" class="toc-h3">config</a>
+
+      <a href="#usecases" class="toc-h2">Use Cases</a>
+      <a href="#uc-feature" class="toc-h3">Feature Branch</a>
+      <a href="#uc-hotfix" class="toc-h3">Hotfix</a>
+      <a href="#uc-cleanup" class="toc-h3">Branch aufräumen</a>
+      <a href="#uc-review" class="toc-h3">Code Review</a>
+      <a href="#uc-release" class="toc-h3">Release</a>
+      <a href="#uc-conflict" class="toc-h3">Merge Conflict</a>
+      <a href="#uc-wrongbranch" class="toc-h3">Falscher Branch</a>
+    </nav>
+  </aside>
+
+</div>
 </body>
 </html>
