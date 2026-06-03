@@ -695,7 +695,7 @@ pre {
 .toc-h2:hover { color: var(--accent); }
 .toc-h3:hover { color: var(--text); }
 .toc-h2.toc-active { color: var(--accent); background: rgba(0,153,85,0.08); }
-.toc-h3.toc-active { color: var(--text); }
+.toc-h3.toc-active { color: var(--accent); background: rgba(0,153,85,0.08); }
 
 @media (max-width: 1180px) { .toc-right { display: none; } }
 
