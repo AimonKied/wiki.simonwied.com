@@ -821,6 +821,51 @@
         </div>
       </div>
 
+      <!-- Falscher Branch -->
+      <div class="subcategory">
+        <div class="sub-header">
+          <div class="sub-icon" style="background:rgba(255,204,68,0.08)">😬</div>
+          <span class="sub-title">Auf falschem Branch committet</span>
+          <span class="sub-arrow">▶</span>
+        </div>
+        <div class="sub-content">
+          <p class="sub-desc">
+            Commit landet versehentlich auf dem falschen Branch (z.B. direkt auf main statt auf einem Feature-Branch). Commit auf den richtigen Branch verschieben und vom falschen entfernen.
+          </p>
+          <div class="steps">
+            <div class="step"><span class="step-num">01.</span>Commit-Hash des falschen Commits notieren.</div>
+            <div class="step"><span class="step-num">02.</span>Auf den richtigen Branch wechseln.</div>
+            <div class="step"><span class="step-num">03.</span>Commit per cherry-pick übernehmen.</div>
+            <div class="step"><span class="step-num">04.</span>Zurück auf den falschen Branch, Commit entfernen.</div>
+          </div>
+          <pre><span class="hl-comment"># 1. Hash des versehentlichen Commits merken</span>
+<span class="hl-func">git</span> log --oneline -5
+<span class="hl-comment"># → abc1234 FEAT: neues Feature  ← der falsche Commit</span>
+
+<span class="hl-comment"># 2. Auf richtigen Branch wechseln + Commit holen</span>
+<span class="hl-func">git</span> checkout <span class="hl-var">feature/richtiger-branch</span>
+<span class="hl-func">git</span> cherry-pick <span class="hl-var">abc1234</span>
+
+<span class="hl-comment"># 3. Zurück zum falschen Branch, Commit entfernen</span>
+<span class="hl-func">git</span> checkout <span class="hl-var">falscher-branch</span>
+<span class="hl-func">git</span> reset --hard HEAD~1</pre>
+          <div class="defense-block">
+            <h4>⚠️ Commit bereits gepusht?</h4>
+            <ul>
+              <li>War der Commit noch <strong>nicht gepusht</strong>: obiges Vorgehen reicht.</li>
+              <li>War der Commit bereits <strong>gepusht</strong>: nach dem <code>reset --hard</code> muss force-gepusht werden — aber nur wenn niemand anderes den Branch gepullt hat.</li>
+            </ul>
+          </div>
+          <pre><span class="hl-comment"># Nur wenn bereits gepusht und kein anderer den Branch hat</span>
+<span class="hl-func">git</span> push --force-with-lease
+
+<span class="hl-comment"># War remote schon weiter (diverged)? Erst rebasen</span>
+<span class="hl-func">git</span> pull --rebase
+<span class="hl-comment"># Konflikte lösen falls nötig, dann:</span>
+<span class="hl-func">git</span> rebase --continue</pre>
+        </div>
+      </div>
+
     </div>
 
     <div class="divider"></div>
