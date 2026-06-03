@@ -26,8 +26,8 @@ document.querySelectorAll('.sub-header').forEach(h => {
   h.addEventListener('click', () => toggle(h));
 });
 
-// Ersten Eintrag jeder Kategorie öffnen
-document.querySelectorAll('.subcategory:first-of-type .sub-header').forEach(h => toggle(h));
+// Alle Einträge öffnen — git-commands ist eine Referenz-Seite
+document.querySelectorAll('.sub-header').forEach(h => toggle(h));
 
 // ─── Sidebar Toggle & Resize ─────────────────────────────
 (function () {

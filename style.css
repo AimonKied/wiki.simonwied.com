@@ -2,6 +2,17 @@
   style.css
   Shared stylesheet for all wiki sub-pages
 */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('assets/fonts/inter.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
 :root {
   --bg: #f2f2f6;
   --surface: #ffffff;
@@ -23,7 +34,9 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Syne', sans-serif;
+  font-family: 'Inter', 'Syne', sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -50,6 +63,7 @@ body::before {
 h4 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
+  line-height: 1.5;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -169,6 +183,7 @@ h4 {
 .page-emoji { font-size: 48px; margin-bottom: 16px; display: block; }
 
 .page-title {
+  font-family: 'Syne', sans-serif;
   font-size: 42px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -251,6 +266,7 @@ h4 {
 }
 
 .cat-title {
+  font-family: 'Syne', sans-serif;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -266,7 +282,7 @@ h4 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
   overflow: hidden;
   transition: border-color 0.2s;
 }
@@ -277,7 +293,7 @@ h4 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 20px;
+  padding: 18px 24px;
   cursor: pointer;
   user-select: none;
 }
@@ -295,8 +311,10 @@ h4 {
 }
 
 .sub-title {
+  font-family: 'Syne', sans-serif;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.4;
   flex: 1;
 }
 
@@ -309,7 +327,7 @@ h4 {
 .sub-arrow.open { transform: rotate(90deg); }
 
 .sub-content {
-  padding: 0 20px 20px;
+  padding: 0 24px 28px;
   display: none;
 }
 
@@ -327,10 +345,10 @@ h4 {
 .category-content.open { display: block; }
 
 .sub-desc {
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.65;
   color: var(--text);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .how-it-works {
@@ -340,6 +358,7 @@ h4 {
 .how-it-works h4 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
+  line-height: 1.5;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -349,7 +368,8 @@ h4 {
 .steps {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .step {
@@ -358,7 +378,7 @@ h4 {
   align-items: flex-start;
   font-size: 15px;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 .step-num {
@@ -406,14 +426,14 @@ h4 {
 pre {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12.5px;
-  padding: 14px 16px;
+  padding: 18px 20px;
   overflow-x: auto;
-  line-height: 1.7;
+  line-height: 1.75;
   color: #c0c0e0;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .hl-key { color: #ff79c6; }
@@ -445,8 +465,9 @@ pre {
   background: rgba(0,255,136,0.04);
   border: 1px solid rgba(0,255,136,0.15);
   border-radius: 8px;
-  padding: 12px 16px;
-  margin-top: 12px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  margin-bottom: 20px;
 }
 
 .defense-block h4 {
@@ -462,11 +483,12 @@ pre {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .defense-block ul li {
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.65;
   color: var(--text);
   display: flex;
   gap: 8px;
@@ -508,7 +530,7 @@ pre {
   color: var(--text);
   font-size: 15px;
   vertical-align: top;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 .info-table tr:last-child td { border-bottom: none; }
