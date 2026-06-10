@@ -523,6 +523,16 @@ pre {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+body { animation: pageFadeIn 0.15s ease; }
+
+/* Smooth page transitions (Chrome 111+, Safari 18+) */
+@view-transition { navigation: auto; }
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
