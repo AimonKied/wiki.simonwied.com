@@ -252,7 +252,7 @@ h4 {
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
-  cursor: pointer;
+  cursor: default;
 }
 
 .category-badge {
@@ -294,8 +294,8 @@ h4 {
   align-items: center;
   gap: 10px;
   padding: 18px 24px;
-  cursor: pointer;
-  user-select: none;
+  cursor: default;
+  user-select: auto;
 }
 
 .sub-header:hover { background: rgba(255,255,255,0.02); }
@@ -319,30 +319,22 @@ h4 {
 }
 
 .sub-arrow {
-  font-size: 12px;
-  color: var(--muted);
-  transition: transform 0.2s;
+  display: none;
 }
-
-.sub-arrow.open { transform: rotate(90deg); }
 
 .sub-content {
   padding: 0 24px 28px;
-  display: none;
+  display: block;
 }
 
-.sub-content.open { display: block; }
-
 .category-content {
-  display: none;
+  display: block;
   padding: 16px 20px 20px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   margin-bottom: 16px;
 }
-
-.category-content.open { display: block; }
 
 .sub-desc {
   font-size: 15px;
