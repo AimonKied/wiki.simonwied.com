@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg:      #f2f2f6;
+  --surface: #ffffff;
+  --surface2:#e8e8f0;
+  --border:  #d0d0e0;
+  --text:    #1a1a2a;
+  --muted:   #666680;
+  --accent:  #009955;
+  --accent2: #dd2244;
+  --accent3: #2255cc;
+  --accent4: #bb7700;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  line-height: 1.75;
+  min-height: 100vh;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@view-transition { navigation: auto; }
