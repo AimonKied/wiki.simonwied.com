@@ -112,7 +112,7 @@
       </div>
 
       <div class="cmd-block" id="basics-init">
-        <h3 class="cmd-heading"><span>🚀</span> init & clone — Repository anlegen</h3>
+        <h3 class="cmd-heading">init & clone — Repository anlegen</h3>
         <p class="sub-desc">Neues Repository erstellen oder ein bestehendes klonen.</p>
         <pre><span class="hl-comment"># Neues Repo im aktuellen Ordner initialisieren</span>
 <span class="hl-func">git</span> init
@@ -128,7 +128,7 @@
       </div>
 
       <div class="cmd-block" id="basics-add">
-        <h3 class="cmd-heading"><span>✅</span> add & commit — Änderungen speichern</h3>
+        <h3 class="cmd-heading">add & commit — Änderungen speichern</h3>
         <p class="sub-desc">Dateien zum Staging-Bereich hinzufügen und committen.</p>
         <pre><span class="hl-comment"># Einzelne Datei stagen</span>
 <span class="hl-func">git</span> add <span class="hl-var">datei.txt</span>
@@ -147,7 +147,7 @@
       </div>
 
       <div class="cmd-block" id="basics-status">
-        <h3 class="cmd-heading"><span>🔎</span> status & diff — Änderungen einsehen</h3>
+        <h3 class="cmd-heading">status & diff — Änderungen einsehen</h3>
         <p class="sub-desc">Aktuellen Stand des Repos und konkrete Änderungen anzeigen.</p>
         <pre><span class="hl-comment"># Überblick über geänderte Dateien</span>
 <span class="hl-func">git</span> status
@@ -181,7 +181,7 @@
       </div>
 
       <div class="cmd-block" id="branching-branch">
-        <h3 class="cmd-heading"><span>🌿</span> branch & checkout — Branches verwalten</h3>
+        <h3 class="cmd-heading">branch & checkout — Branches verwalten</h3>
         <p class="sub-desc">Branches erstellen, wechseln und löschen.</p>
         <pre><span class="hl-comment"># Alle lokalen Branches anzeigen</span>
 <span class="hl-func">git</span> branch
@@ -206,7 +206,7 @@
       </div>
 
       <div class="cmd-block" id="branching-merge">
-        <h3 class="cmd-heading"><span>🔀</span> merge & rebase — Branches zusammenführen</h3>
+        <h3 class="cmd-heading">merge & rebase — Branches zusammenführen</h3>
         <p class="sub-desc">Merge fügt Branches zusammen und behält die History. Rebase schreibt die Commit-History neu — saubere lineare History, aber nie auf public Branches anwenden.</p>
         <pre><span class="hl-comment"># feature/login in main mergen (erst in main wechseln)</span>
 <span class="hl-func">git</span> checkout main
@@ -243,7 +243,7 @@
       </div>
 
       <div class="cmd-block" id="remote-manage">
-        <h3 class="cmd-heading"><span>🔗</span> remote — Remote-Verbindungen</h3>
+        <h3 class="cmd-heading">remote — Remote-Verbindungen</h3>
         <p class="sub-desc">Remote-Repos verwalten (GitHub, GitLab, etc.).</p>
         <pre><span class="hl-comment"># Alle remotes anzeigen</span>
 <span class="hl-func">git</span> remote -v
@@ -259,7 +259,7 @@
       </div>
 
       <div class="cmd-block" id="remote-sync">
-        <h3 class="cmd-heading"><span>⬆️</span> push & pull — Synchronisieren</h3>
+        <h3 class="cmd-heading">push & pull — Synchronisieren</h3>
         <p class="sub-desc">Commits hochladen und Änderungen herunterladen.</p>
         <pre><span class="hl-comment"># Aktuellen Branch pushen</span>
 <span class="hl-func">git</span> push
@@ -298,7 +298,7 @@
       </div>
 
       <div class="cmd-block" id="history-log">
-        <h3 class="cmd-heading"><span>📜</span> log & show — Commit-History</h3>
+        <h3 class="cmd-heading">log & show — Commit-History</h3>
         <p class="sub-desc">Commit-Historie durchsuchen und einzelne Commits inspizieren.</p>
         <pre><span class="hl-comment"># Commit-History anzeigen</span>
 <span class="hl-func">git</span> log
@@ -337,7 +337,7 @@
       </div>
 
       <div class="cmd-block" id="undoing-revert">
-        <h3 class="cmd-heading"><span>↩️</span> revert, reset & restore</h3>
+        <h3 class="cmd-heading">revert, reset & restore</h3>
         <p class="sub-desc">Commits oder Änderungen rückgängig machen — je nach Situation die richtige Methode wählen.</p>
         <pre><span class="hl-comment"># Einzelne Datei auf letzten Commit zurücksetzen</span>
 <span class="hl-func">git</span> restore <span class="hl-var">datei.txt</span>
@@ -384,7 +384,7 @@
       </div>
 
       <div class="cmd-block" id="stash-usage">
-        <h3 class="cmd-heading"><span>📦</span> stash — Temporär weglegen</h3>
+        <h3 class="cmd-heading">stash — Temporär weglegen</h3>
         <p class="sub-desc">Unfertige Änderungen temporär wegpacken, um den Branch zu wechseln oder etwas anderes zu erledigen.</p>
         <pre><span class="hl-comment"># Aktuelle Änderungen stashen</span>
 <span class="hl-func">git</span> stash
@@ -420,7 +420,7 @@
       </div>
 
       <div class="cmd-block" id="advanced-cherry">
-        <h3 class="cmd-heading"><span>🍒</span> cherry-pick — Einzelne Commits übernehmen</h3>
+        <h3 class="cmd-heading">cherry-pick — Einzelne Commits übernehmen</h3>
         <p class="sub-desc">Einen einzelnen Commit aus einem anderen Branch in den aktuellen Branch übernehmen.</p>
         <pre><span class="hl-comment"># Einzelnen Commit in aktuellen Branch holen</span>
 <span class="hl-func">git</span> cherry-pick <span class="hl-var">abc1234</span>
@@ -433,7 +433,7 @@
       </div>
 
       <div class="cmd-block" id="advanced-tag">
-        <h3 class="cmd-heading"><span>🏷️</span> tag — Versionen markieren</h3>
+        <h3 class="cmd-heading">tag — Versionen markieren</h3>
         <p class="sub-desc">Commits mit einem Tag markieren — typisch für Releases (v1.0.0, v2.3.1).</p>
         <pre><span class="hl-comment"># Alle Tags anzeigen</span>
 <span class="hl-func">git</span> tag
@@ -450,7 +450,7 @@
       </div>
 
       <div class="cmd-block" id="advanced-config">
-        <h3 class="cmd-heading"><span>⚙️</span> config — Git konfigurieren</h3>
+        <h3 class="cmd-heading">config — Git konfigurieren</h3>
         <p class="sub-desc">Git global oder pro-Repo konfigurieren.</p>
         <pre><span class="hl-comment"># Name und E-Mail setzen (global)</span>
 <span class="hl-func">git</span> config --global user.name <span class="hl-str">"Simon Wied"</span>
@@ -483,7 +483,7 @@
       </div>
 
       <div class="cmd-block" id="uc-feature">
-        <h3 class="cmd-heading"><span>🌿</span> Feature Branch Workflow</h3>
+        <h3 class="cmd-heading">Feature Branch Workflow</h3>
         <p class="sub-desc">Standard-Workflow in fast jedem Team: jedes Feature bekommt einen eigenen Branch. main bleibt immer stabil und deploybar.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>Von main aus neuen Feature-Branch erstellen.</div>
@@ -510,7 +510,7 @@
       </div>
 
       <div class="cmd-block" id="uc-hotfix">
-        <h3 class="cmd-heading"><span>🚨</span> Hotfix — Produktionsbug schnell fixen</h3>
+        <h3 class="cmd-heading">Hotfix — Produktionsbug schnell fixen</h3>
         <p class="sub-desc">Kritischer Bug in Produktion — direkt vom main-Branch aus fixen, ohne laufende Features zu stören.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>Laufende Arbeit stashen.</div>
@@ -536,7 +536,7 @@
       </div>
 
       <div class="cmd-block" id="uc-cleanup">
-        <h3 class="cmd-heading"><span>🧹</span> Branch aufräumen vor Pull Request</h3>
+        <h3 class="cmd-heading">Branch aufräumen vor Pull Request</h3>
         <p class="sub-desc">Vor einem PR die Commits squashen und den Branch auf den aktuellen main rebasen — saubere History für Reviewer.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>main pullen.</div>
@@ -565,7 +565,7 @@
       </div>
 
       <div class="cmd-block" id="uc-review">
-        <h3 class="cmd-heading"><span>🔄</span> Code Review Feedback einarbeiten</h3>
+        <h3 class="cmd-heading">Code Review Feedback einarbeiten</h3>
         <p class="sub-desc">PR ist offen, Reviewer haben Feedback gegeben — Änderungen in denselben Branch committen und pushen.</p>
         <pre><span class="hl-comment"># Änderungen nach Review committen</span>
 <span class="hl-func">git</span> add . && <span class="hl-func">git</span> commit -m <span class="hl-str">"refactor: address review comments"</span>
@@ -582,7 +582,7 @@
       </div>
 
       <div class="cmd-block" id="uc-release">
-        <h3 class="cmd-heading"><span>🚀</span> Release vorbereiten & taggen</h3>
+        <h3 class="cmd-heading">Release vorbereiten & taggen</h3>
         <p class="sub-desc">Neues Release ausliefern — Changelog aktualisieren, Version taggen, CI/CD triggert den Deploy.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>main ist stabil und alle PRs gemergt.</div>
@@ -602,7 +602,7 @@
       </div>
 
       <div class="cmd-block" id="uc-conflict">
-        <h3 class="cmd-heading"><span>⚔️</span> Merge Conflict lösen</h3>
+        <h3 class="cmd-heading">Merge Conflict lösen</h3>
         <p class="sub-desc">Zwei Branches haben dieselbe Datei geändert — Git kann nicht automatisch mergen. Konflikt manuell auflösen.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>git merge oder rebase schlägt fehl, zeigt Konflikt-Dateien.</div>
@@ -630,7 +630,7 @@
       </div>
 
       <div class="cmd-block" id="uc-wrongbranch">
-        <h3 class="cmd-heading"><span>😬</span> Auf falschem Branch committet</h3>
+        <h3 class="cmd-heading">Auf falschem Branch committet</h3>
         <p class="sub-desc">Commit landet versehentlich auf dem falschen Branch (z.B. direkt auf main statt auf einem Feature-Branch). Commit auf den richtigen Branch verschieben und vom falschen entfernen.</p>
         <div class="steps">
           <div class="step"><span class="step-num">01.</span>Commit-Hash des falschen Commits notieren.</div>
