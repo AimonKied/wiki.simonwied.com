@@ -61,11 +61,11 @@ h4 {
 }
 
 .sidebar {
-  width: 276px;
+  width: 260px;
   min-height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 24px 0;
+  padding: 28px 0;
   position: sticky;
   top: 0;
   height: 100vh;
