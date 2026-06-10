@@ -1,160 +1,10 @@
 /*
   index.css
-  Wiki Startseite – wiki.simonwied.com
+  Homepage-specific styles only — shared base is in style.css
 */
 
-:root {
-  --bg: #f2f2f6;
-  --surface: #ffffff;
-  --surface2: #e8e8f0;
-  --border: #d0d0e0;
-  --primary: #1a1a2a;
-  --secondary: #009955;
-  --accent: #009955;
-  --accent2: #dd2244;
-  --accent3: #2255cc;
-  --accent4: #bb7700;
-  --text: #1a1a2a;
-  --muted: #666680;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
-  line-height: 1.75;
-  min-height: 100vh;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.layout {
-  display: flex;
-  min-height: 100vh;
-  position: relative;
-  z-index: 1;
-}
-
-/* ── Sidebar ── */
-.sidebar {
-  width: 260px;
-  min-height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 28px 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  flex-shrink: 0;
-  transition: width 0.3s, min-width 0.3s, padding 0.3s;
-  display: flex;
-  flex-direction: column;
-}
-.sidebar-logo {
-  padding: 0 20px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.sidebar-logo .logo-img {
-  max-height: 40px;
-  width: auto;
-  display: block;
-}
-
-.hero-logo {
-  display: block;
-  max-height: 80px;
-  width: auto;
-  margin-bottom: 16px;
-}
-
-.sidebar-logo .logo-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  text-decoration: none;
-  display: block;
-  margin-bottom: 6px;
-}
-
-.sidebar-logo .logo-dot {
-  color: var(--accent);
-}
-
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-}
-
-.sidebar-logo .logo-text,
-.sidebar-bottom .logo-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  font-weight: 400;
-  letter-spacing: 0.06em;
-}
-
-.nav-section { padding: 0 12px; margin-bottom: 8px; }
-
-.nav-section-title {
-  font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--muted);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 8px 8px 4px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--muted);
-  transition: all 0.15s;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.nav-item:hover, .nav-item.active {
-  background: var(--surface2);
-  color: var(--text);
-}
-
-.nav-item .dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* ── Main ── */
+/* Override main max-width for homepage */
 .main {
-  flex: 1;
-  padding: 60px 80px;
   max-width: 1040px;
 }
 
@@ -164,8 +14,14 @@ body::before {
   animation: fadeInUp 0.6s ease both;
 }
 
+.hero-logo {
+  display: block;
+  max-height: 80px;
+  width: auto;
+  margin-bottom: 16px;
+}
+
 .hero-eyebrow {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--accent);
   letter-spacing: 0.15em;
@@ -182,12 +38,9 @@ body::before {
   margin-bottom: 16px;
 }
 
-.hero-dot {
-  color: var(--accent);
-}
+.hero-dot { color: var(--accent); }
 
 .hero-sub {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   color: var(--muted);
   line-height: 1.7;
@@ -200,21 +53,15 @@ body::before {
   margin-top: 28px;
 }
 
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.stat { display: flex; flex-direction: column; gap: 2px; }
 
 .stat-num {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 22px;
   font-weight: 700;
   color: var(--accent);
 }
 
 .stat-label {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   color: var(--muted);
   text-transform: uppercase;
@@ -239,7 +86,6 @@ body::before {
 .search-bar:focus-within { border-color: rgba(0,255,136,0.4); }
 
 .search-bar span {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   color: var(--muted);
 }
@@ -257,7 +103,6 @@ body::before {
 .search-bar input::placeholder { color: var(--muted); }
 
 .search-bar .kbd {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   color: var(--muted);
   background: var(--surface2);
@@ -275,7 +120,6 @@ body::before {
 }
 
 .section-title {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--muted);
   text-transform: uppercase;
@@ -288,7 +132,7 @@ body::before {
   background: var(--border);
 }
 
-/* Article card grid */
+/* Card grid */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -341,13 +185,9 @@ body::before {
   justify-content: space-between;
 }
 
-.card-icon {
-  font-size: 28px;
-  line-height: 1;
-}
+.card-icon { font-size: 28px; line-height: 1; }
 
 .card-badge {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
   padding: 3px 7px;
   border-radius: 4px;
@@ -367,7 +207,6 @@ body::before {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.6;
-  font-family: 'JetBrains Mono', monospace;
 }
 
 .card-footer {
@@ -380,7 +219,6 @@ body::before {
 }
 
 .card-tag {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   padding: 2px 7px;
   background: var(--surface2);
@@ -411,14 +249,13 @@ body::before {
 }
 
 .card-placeholder .card-title { color: var(--muted); }
-.card-placeholder .card-desc  { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.card-placeholder .card-desc  { font-size: 12px; }
 
 /* Footer */
 .wiki-footer {
   margin-top: 24px;
   padding: 24px 0 60px;
   border-top: 1px solid var(--border);
-  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--muted);
   display: flex;
@@ -426,89 +263,7 @@ body::before {
   justify-content: space-between;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Sidebar Toggle ── */
-.sidebar-toggle {
-  position: absolute;
-  top: 14px;
-  right: 10px;
-  z-index: 100;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.sidebar-toggle:hover {
-  background: var(--surface2);
-  color: var(--text);
-}
-
-.sidebar.collapsed .sidebar-toggle {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  right: auto;
-}
-
-/* ── Sidebar Collapsed ── */
-
-.sidebar.collapsed {
-  width: 0 !important;
-  min-width: 0 !important;
-  padding: 0;
-  overflow: visible;
-  border-right: none;
-}
-
-.sidebar.collapsed > *:not(.sidebar-toggle) {
-  opacity: 0;
-  pointer-events: none;
-  overflow: hidden;
-  height: 0;
-  padding: 0;
-  margin: 0;
-}
-
-/* ── Sidebar Resize Handle ── */
-.sidebar-resize {
-  width: 4px;
-  cursor: col-resize;
-  background: transparent;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-  transition: background 0.15s;
-}
-
-.sidebar-resize:hover,
-.sidebar-resize.active {
-  background: var(--accent);
-}
-
 @media (max-width: 900px) {
-  .sidebar { display: none; }
-  .sidebar-toggle { display: none; }
-  .sidebar-resize { display: none; }
-  .main { padding: 32px 24px; }
   .hero-title { font-size: 34px; }
   .card-grid { grid-template-columns: 1fr; }
   .wiki-footer { flex-direction: column; gap: 8px; }
