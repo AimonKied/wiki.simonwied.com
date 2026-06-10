@@ -234,7 +234,12 @@ h4 {
 .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 
 .category {
-  margin-bottom: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  overflow: hidden;
   animation: fadeInUp 0.5s ease both;
 }
 
@@ -320,11 +325,7 @@ h4 {
 
 .category-content {
   display: block;
-  padding: 16px 20px 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 16px;
+  padding: 8px 0 4px;
 }
 
 .sub-desc {
@@ -707,16 +708,18 @@ body { animation: pageFadeIn 0.15s ease; }
 }
 
 .cmd-block {
-  padding-bottom: 40px;
-  margin-bottom: 40px;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s;
 }
 
-.cmd-block:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-  margin-bottom: 0;
-}
+.cmd-block:hover { border-color: rgba(0,0,0,0.15); }
+
+.cmd-block:last-child { margin-bottom: 0; }
 
 .cmd-heading {
   font-family: 'JetBrains Mono', monospace;
