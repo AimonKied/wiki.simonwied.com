@@ -23,7 +23,7 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Syne', sans-serif;
+  font-family: 'JetBrains Mono', monospace;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -84,7 +84,7 @@ body::before {
 }
 
 .sidebar-logo .logo-title {
-  font-family: 'Syne', sans-serif;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.03em;
