@@ -176,8 +176,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         [data-node-view-content] h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
 
         [data-node-view-content] p { margin: 0; line-height: 1.75; }
-        [data-node-view-content] ul,
-        [data-node-view-content] ol { padding-left: 22px; margin: 0; }
+        [data-node-view-content] ul { padding-left: 22px; margin: 0; list-style-type: disc; }
+        [data-node-view-content] ol { padding-left: 22px; margin: 0; list-style-type: decimal; }
         [data-node-view-content] li { margin-bottom: 3px; line-height: 1.75; }
         [data-node-view-content] li p { margin: 0; }
 
