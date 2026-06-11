@@ -86,8 +86,10 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   useEffect(() => {
     if (!tableMenuOpen) return
     const close = () => setTableMenuOpen(false)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
+    // setTimeout(0): defer until after the current click event finishes propagating,
+    // otherwise the click that opened the menu immediately triggers the listener
+    const id = window.setTimeout(() => document.addEventListener('click', close), 0)
+    return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
   }, [tableMenuOpen])
 
   if (!editor) return null
