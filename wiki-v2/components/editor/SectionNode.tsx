@@ -699,8 +699,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 position: 'absolute', top: 'calc(100% + 6px)', left: 0,
                 background: 'var(--surface)', border: '1px solid var(--border)',
                 borderRadius: '10px', padding: '8px',
-                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px',
-                zIndex: 200, width: '300px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '3px',
+                zIndex: 200, width: '360px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
               }}>
                 {ELEMENTS.map(el => (
                   <button
