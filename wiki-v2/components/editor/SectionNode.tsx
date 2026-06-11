@@ -232,7 +232,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       origEl.style.top         = `${rect.top - cardRect2.top}px`
       origEl.style.left        = `${rect.left - cardRect2.left}px`
       origEl.style.width       = `${rect.width}px`
-      origEl.style.opacity     = '0'
+      origEl.style.opacity     = '0.08'
       origEl.style.pointerEvents = 'none'
       origEl.style.zIndex      = '-1'
 
@@ -263,11 +263,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         `top:${rect.top - cardRect2.top}px`,
         `height:${ghostHRef.current}px`,
         `border-radius:8px`,
-        `background:rgba(0,153,85,0.06)`,
-        `border:1.5px solid rgba(0,153,85,0.3)`,
+        `background:rgba(0,153,85,0.05)`,
+        `border:2px dashed rgba(0,153,85,0.4)`,
         `pointer-events:none`,
         `z-index:8`,
         `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
+        `box-sizing:border-box`,
       ].join(';')
       cardRef.current.appendChild(slot)
       slotRef.current = slot
@@ -417,11 +418,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             `right:${d.slotRight}px`,
             `height:${ghH}px`,
             `border-radius:8px`,
-            `background:rgba(0,153,85,0.06)`,
-            `border:1.5px solid rgba(0,153,85,0.3)`,
+            `background:rgba(0,153,85,0.05)`,
+            `border:2px dashed rgba(0,153,85,0.4)`,
             `pointer-events:none`,
             `z-index:8`,
             `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
+            `box-sizing:border-box`,
           ].join(';')
           targetCardDiv.appendChild(xSlot)
           crossSlotRef.current = xSlot
