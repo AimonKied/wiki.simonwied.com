@@ -1,7 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -82,6 +82,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       onChange?.(editor.getJSON())
     },
   })
+
+  useEffect(() => {
+    if (!tableMenuOpen) return
+    const close = () => setTableMenuOpen(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [tableMenuOpen])
 
   if (!editor) return null
 
@@ -189,7 +196,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
             {/* Dropdown menu */}
             {tableMenuOpen && (
-              <div style={{
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
                 right: 0,
