@@ -932,7 +932,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                         onClick={() => setBlockColor(c.value, borderColor)}
                         style={{
                           width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
-                          background: c.style, border: '2px solid',
+                          backgroundColor: c.style, border: '2px solid',
                           borderColor: bgColor === c.value ? 'var(--accent)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
                           outline: bgColor === c.value ? '2px solid var(--accent)' : 'none',
                           outlineOffset: '1px',
@@ -955,7 +955,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                         onClick={() => setBlockColor(bgColor, c.value)}
                         style={{
                           width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
-                          background: c.style, border: '2px solid',
+                          backgroundColor: c.style, border: '2px solid',
                           borderColor: borderColor === c.value ? 'var(--text)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
                           outline: borderColor === c.value ? '2px solid var(--text)' : 'none',
                           outlineOffset: '1px',
