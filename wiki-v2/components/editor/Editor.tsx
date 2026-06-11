@@ -10,10 +10,23 @@ import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TableRow } from '@tiptap/extension-table-row'
-import { createLowlight, all } from 'lowlight'
+import { createLowlight } from 'lowlight'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import xml from 'highlight.js/lib/languages/xml'
+import json from 'highlight.js/lib/languages/json'
+import sql from 'highlight.js/lib/languages/sql'
+import go from 'highlight.js/lib/languages/go'
+import rust from 'highlight.js/lib/languages/rust'
+import java from 'highlight.js/lib/languages/java'
+import markdown from 'highlight.js/lib/languages/markdown'
 import { SectionExtension } from './SectionNode'
 
-const lowlight = createLowlight(all)
+const lowlight = createLowlight()
+lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
 
 // Wrap flat content (old notes) in a section so it renders as a card
 function ensureSections(content: object | null | undefined): object | string {
