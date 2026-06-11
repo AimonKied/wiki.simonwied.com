@@ -562,6 +562,106 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
+  function moveSectionTo(targetIdx: number) {
+    if (!editor || typeof getPos !== 'function') return
+    const sectionPos = getPos()
+    if (sectionPos === undefined) return
+
+    const sectionPositions: number[] = []
+    editor.state.doc.forEach((n, offset) => {
+      if (n.type.name === 'section') sectionPositions.push(offset)
+    })
+
+    const currentIdx = sectionPositions.indexOf(sectionPos)
+    if (currentIdx === -1 || targetIdx === currentIdx || targetIdx === currentIdx + 1) return
+
+    const sections: PMNode[] = []
+    editor.state.doc.forEach(n => { if (n.type.name === 'section') sections.push(n) })
+
+    const [moved] = sections.splice(currentIdx, 1)
+    sections.splice(targetIdx > currentIdx ? targetIdx - 1 : targetIdx, 0, moved)
+
+    const tr = editor.state.tr
+    tr.replaceWith(0, editor.state.doc.content.size, Fragment.from(sections))
+    editor.view.dispatch(tr)
+  }
+
+  function startSectionDrag(e: React.MouseEvent) {
+    if (!cardRef.current || typeof getPos !== 'function') return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const sectionPos = getPos() as number
+    if (sectionPos === undefined) return
+    if (!editor.state.doc.nodeAt(sectionPos)) return
+
+    const cardRect = cardRef.current.getBoundingClientRect()
+    const offsetY = e.clientY - cardRect.top
+
+    // Ghost: fixed clone following the cursor
+    const ghost = cardRef.current.cloneNode(true) as HTMLElement
+    ghost.style.cssText += `;position:fixed;top:${cardRect.top}px;left:${cardRect.left}px;width:${cardRect.width}px;opacity:0.92;pointer-events:none;z-index:9999;box-shadow:0 16px 48px rgba(0,0,0,0.24),0 0 0 1px var(--border);transform:scale(1.02);border-radius:12px;transition:none`
+    document.body.appendChild(ghost)
+
+    // Drop indicator
+    const indicator = document.createElement('div')
+    indicator.style.cssText = `position:fixed;height:3px;left:${cardRect.left}px;width:${cardRect.width}px;background:var(--accent);border-radius:2px;pointer-events:none;z-index:9998;display:none`
+    document.body.appendChild(indicator)
+
+    setDragging(true)
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'grabbing'
+
+    let dropBeforeIdx = -1
+
+    function onMove(ev: MouseEvent) {
+      ghost.style.top = `${ev.clientY - offsetY}px`
+
+      const sectionPositions: number[] = []
+      editor.state.doc.forEach((n, offset) => {
+        if (n.type.name === 'section') sectionPositions.push(offset)
+      })
+      const currentIdx = sectionPositions.indexOf(sectionPos)
+      const cards = Array.from(document.querySelectorAll('[data-section-card]')) as HTMLElement[]
+
+      let newDropIdx = cards.length
+      let indicatorY = 0
+
+      for (let i = 0; i < cards.length; i++) {
+        const r = cards[i].getBoundingClientRect()
+        if (ev.clientY < r.top + r.height / 2) {
+          newDropIdx = i
+          indicatorY = r.top - 5
+          break
+        }
+        if (i === cards.length - 1) indicatorY = r.bottom + 5
+      }
+
+      if (newDropIdx === currentIdx || newDropIdx === currentIdx + 1) {
+        indicator.style.display = 'none'
+        dropBeforeIdx = -1
+      } else {
+        indicator.style.display = 'block'
+        indicator.style.top = `${indicatorY}px`
+        dropBeforeIdx = newDropIdx
+      }
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      ghost.parentNode?.removeChild(ghost)
+      indicator.parentNode?.removeChild(indicator)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      setDragging(false)
+      if (dropBeforeIdx >= 0) moveSectionTo(dropBeforeIdx)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
   useEffect(() => {
     if (!colorPickerOpen) return
     const close = () => setColorPickerOpen(false)
@@ -803,7 +903,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             {/* Drag handle */}
             <div
               title="Block verschieben"
-              onMouseDown={startDrag}
+              onMouseDown={startSectionDrag}
               style={{
                 cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
                 width: '26px', height: '26px', borderRadius: '5px',
