@@ -125,6 +125,36 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
+      {/* Floating table toolbar — appears when cursor is inside a table cell */}
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={() => editor.isActive('tableCell') || editor.isActive('tableHeader')}
+          tippyOptions={{ placement: 'top', offset: [0, 8] }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+            background: '#1a1a2a',
+            border: '1px solid #2e2e42',
+            borderRadius: '8px',
+            padding: '4px 6px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          }}>
+            <button style={bBtn(false)} title="Zeile darüber" onClick={() => editor.chain().focus().addRowBefore().run()}>↑ Zeile</button>
+            <button style={bBtn(false)} title="Zeile darunter" onClick={() => editor.chain().focus().addRowAfter().run()}>↓ Zeile</button>
+            <button style={bBtn(false, { color: '#ff6b7a' })} title="Zeile löschen" onClick={() => editor.chain().focus().deleteRow().run()}>✕ Zeile</button>
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
+            <button style={bBtn(false)} title="Spalte links" onClick={() => editor.chain().focus().addColumnBefore().run()}>← Spalte</button>
+            <button style={bBtn(false)} title="Spalte rechts" onClick={() => editor.chain().focus().addColumnAfter().run()}>→ Spalte</button>
+            <button style={bBtn(false, { color: '#ff6b7a' })} title="Spalte löschen" onClick={() => editor.chain().focus().deleteColumn().run()}>✕ Spalte</button>
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
+            <button style={bBtn(false, { color: '#ff6b7a' })} title="Tabelle löschen" onClick={() => editor.chain().focus().deleteTable().run()}>✕ Tabelle</button>
+          </div>
+        </BubbleMenu>
+      )}
+
       {/* Editor area — transparent background, sections render as cards inside */}
       <EditorContent
         editor={editor}
