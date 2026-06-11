@@ -203,12 +203,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         if (i !== handle.childIdx) el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
       })
 
-      // Ghost: absolute inside card → inherits CSS variables, fonts, colors
+      // Ghost: fixed on body so it never covers origEl inside the card
       const ghost = document.createElement('div')
       ghost.style.cssText = [
-        `position:absolute`,
-        `left:${rect.left - cardRect2.left}px`,
-        `top:${rect.top - cardRect2.top}px`,
+        `position:fixed`,
+        `left:${rect.left}px`,
+        `top:${rect.top}px`,
         `width:${rect.width}px`,
         `background:var(--surface)`,
         `border-radius:10px`,
@@ -219,7 +219,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         `z-index:9999`,
       ].join(';')
       ghost.appendChild(origEl.cloneNode(true))
-      cardRef.current.appendChild(ghost)
+      document.body.appendChild(ghost)
 
       ghostRef.current = ghost
       ghostOffY.current = e.clientY - rect.top
@@ -298,9 +298,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const d = dragRef.current
       if (!d) return
 
-      // Ghost always follows cursor — position:absolute inside source card, no overflow clipping
+      // Ghost follows cursor in viewport coords (position:fixed on body)
       if (ghostRef.current) {
-        ghostRef.current.style.top = `${ev.clientY - ghostOffY.current - cardTopRef.current}px`
+        ghostRef.current.style.top = `${ev.clientY - ghostOffY.current}px`
       }
 
       const fromIdx = d.childIdx
