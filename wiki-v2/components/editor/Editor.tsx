@@ -156,7 +156,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           editor={editor}
           shouldShow={() => editor.isActive('tableCell') || editor.isActive('tableHeader')}
           tippyOptions={{
-            placement: 'top-start',
+            placement: 'top-end',
             offset: [0, 6],
             getReferenceClientRect: () => {
               const { node } = editor.view.domAtPos(editor.state.selection.from)
