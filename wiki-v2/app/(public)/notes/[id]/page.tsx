@@ -1,12 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import EditorViewer from '@/components/editor/EditorViewer'
 
-const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
-
-export default async function PublicNotePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
+export default async function PublicNotePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: slug } = await params
   const supabase = await createClient()
 
   const { data: note } = await supabase
@@ -28,7 +26,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ slu
       <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.02em' }}>
         {note.title}
       </h1>
-      <Editor content={note.content} editable={false} />
+      <EditorViewer content={note.content} />
     </div>
   )
 }
