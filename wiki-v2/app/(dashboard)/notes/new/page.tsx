@@ -7,9 +7,36 @@ import { createClient } from '@/lib/supabase/client'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 
+const DEFAULT_CONTENT = {
+  type: 'doc',
+  content: [
+    {
+      type: 'section',
+      content: [
+        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Übersicht' }] },
+        { type: 'paragraph' },
+      ],
+    },
+    {
+      type: 'section',
+      content: [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Details' }] },
+        { type: 'paragraph' },
+      ],
+    },
+    {
+      type: 'section',
+      content: [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Notizen' }] },
+        { type: 'paragraph' },
+      ],
+    },
+  ],
+}
+
 export default function NewNotePage() {
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState<object>({})
+  const [content, setContent] = useState<object>(DEFAULT_CONTENT)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
@@ -74,7 +101,7 @@ export default function NewNotePage() {
         </button>
       </div>
 
-      <Editor onChange={setContent} />
+      <Editor content={DEFAULT_CONTENT} onChange={setContent} />
     </div>
   )
 }
