@@ -634,8 +634,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const editable = editor.isEditable
 
   const BG_COLORS = [
-    { label: 'Standard',     value: null,           style: 'var(--surface)' },
     { label: 'Transparent',  value: 'transparent',  style: 'transparent' },
+    { label: 'Standard',     value: null,           style: 'var(--surface)' },
     { label: 'Weiß',         value: '#ffffff',       style: '#ffffff' },
     { label: 'Rot',       value: '#fef2f2',  style: '#fef2f2' },
     { label: 'Orange',    value: '#fff7ed',  style: '#fff7ed' },
@@ -649,6 +649,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     { label: 'Schwarz',   value: '#0f172a',  style: '#0f172a' },
   ]
   const BORDER_COLORS = [
+    { label: 'Transparent', value: 'transparent', style: 'transparent' },
     { label: 'Standard', value: null,       style: 'var(--border)' },
     { label: 'Grau',     value: '#d1d5db',  style: '#d1d5db' },
     { label: 'Rot',      value: '#f87171',  style: '#f87171' },
@@ -762,6 +763,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                           outlineOffset: '1px',
                           padding: 0,
                           boxSizing: 'border-box',
+                          backgroundImage: c.value === 'transparent'
+                            ? 'linear-gradient(to top right, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(to top left, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px))'
+                            : undefined,
                         }}
                       />
                     ))}
@@ -777,11 +781,14 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                         style={{
                           width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
                           background: c.style, border: '2px solid',
-                          borderColor: borderColor === c.value ? 'var(--text)' : 'transparent',
+                          borderColor: borderColor === c.value ? 'var(--text)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
                           outline: borderColor === c.value ? '2px solid var(--text)' : 'none',
                           outlineOffset: '1px',
                           padding: 0,
                           boxSizing: 'border-box',
+                          backgroundImage: c.value === 'transparent'
+                            ? 'linear-gradient(to top right, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(to top left, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px))'
+                            : undefined,
                         }}
                       />
                     ))}
