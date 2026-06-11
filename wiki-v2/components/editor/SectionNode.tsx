@@ -47,12 +47,32 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<(DragState & { cardTop: number }) | null>(null)
+  const dragRef    = useRef<(DragState & { cardTop: number }) | null>(null)
+  const ghostRef   = useRef<HTMLElement | null>(null)
+  const origElRef  = useRef<HTMLElement | null>(null)
+  const ghostOffY  = useRef<number>(0)
+  const siblingsRef = useRef<HTMLElement[]>([])
+  const ghostHRef   = useRef<number>(0)
+  const cardTopRef  = useRef<number>(0)
+  const slotRef     = useRef<HTMLElement | null>(null)
 
-  useEffect(() => () => {
+  function resetDragStyles() {
+    if (ghostRef.current) { ghostRef.current.parentNode?.removeChild(ghostRef.current); ghostRef.current = null }
+    if (slotRef.current)  { slotRef.current.parentNode?.removeChild(slotRef.current);  slotRef.current  = null }
+    if (origElRef.current) {
+      const el = origElRef.current
+      el.style.position = ''; el.style.top = ''; el.style.left = ''
+      el.style.width = ''; el.style.opacity = ''; el.style.pointerEvents = ''
+      el.style.zIndex = ''
+      origElRef.current = null
+    }
+    siblingsRef.current.forEach(el => { el.style.transition = ''; el.style.transform = '' })
+    siblingsRef.current = []
     document.body.style.userSelect = ''
     document.body.style.cursor = ''
-  }, [])
+  }
+
+  useEffect(() => () => { resetDragStyles() }, [])
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -132,6 +152,114 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (sectionPos === undefined) return
 
     const elBounds = calcElBounds(sectionPos, cardRect.top)
+
+    // Use nodeDOM to get reliable PM-index-matched DOM elements (avoids decoration mismatches)
+    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    const siblings: HTMLElement[] = []
+    if (sectionNode) {
+      let off = sectionPos + 1
+      for (let i = 0; i < sectionNode.childCount; i++) {
+        const el = editor.view.nodeDOM(off) as HTMLElement | null
+        siblings.push(el as HTMLElement)
+        off += sectionNode.child(i).nodeSize
+      }
+    }
+    const origEl = siblings[handle.childIdx] as HTMLElement | undefined
+
+    if (origEl && cardRef.current) {
+      const rect    = origEl.getBoundingClientRect()
+      const cardRect2 = cardRef.current.getBoundingClientRect()
+      cardTopRef.current = cardRect2.top
+
+      // Slot height: distance to next sibling's top (includes gap), or own height
+      const nextEl = siblings[handle.childIdx + 1]
+      ghostHRef.current = nextEl
+        ? nextEl.getBoundingClientRect().top - rect.top
+        : rect.height
+      siblingsRef.current = siblings.filter(Boolean) as HTMLElement[]
+
+      // Transitions on siblings (not the dragged element)
+      siblingsRef.current.forEach((el, i) => {
+        if (i !== handle.childIdx) el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
+      })
+
+      // Ghost: absolute inside card → inherits CSS variables, fonts, colors
+      const ghost = document.createElement('div')
+      ghost.style.cssText = [
+        `position:absolute`,
+        `left:${rect.left - cardRect2.left}px`,
+        `top:${rect.top - cardRect2.top}px`,
+        `width:${rect.width}px`,
+        `background:var(--surface)`,
+        `border-radius:10px`,
+        `box-shadow:0 16px 48px rgba(0,0,0,0.24),0 0 0 1px var(--border)`,
+        `transform:scale(1.02)`,
+        `opacity:0.96`,
+        `pointer-events:none`,
+        `z-index:9999`,
+      ].join(';')
+      ghost.appendChild(origEl.cloneNode(true))
+      cardRef.current.appendChild(ghost)
+
+      ghostRef.current = ghost
+      ghostOffY.current = e.clientY - rect.top
+      origElRef.current = origEl
+
+      // FLIP: record positions BEFORE origEl leaves flow
+      const firstTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
+
+      // Pull origEl out of flow → siblings fill the gap immediately via CSS reflow
+      origEl.style.position = 'absolute'
+      origEl.style.top = `${rect.top - cardRect2.top}px`
+      origEl.style.left = `${rect.left - cardRect2.left}px`
+      origEl.style.width = `${rect.width}px`
+      origEl.style.opacity = '0'
+      origEl.style.pointerEvents = 'none'
+      origEl.style.zIndex = '-1'
+
+      // Read positions AFTER reflow (getBoundingClientRect forces it)
+      const lastTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
+
+      // Invert: freeze visual positions instantly (no transition)
+      siblings.forEach((el, i) => {
+        if (!el || i === handle.childIdx) return
+        const delta = firstTops[i] - lastTops[i]
+        el.style.transition = 'none'
+        el.style.transform = delta ? `translateY(${delta}px)` : 'translateY(0)'
+      })
+
+      // Play: animate to gap-at-origin state (dropIdx = fromIdx initially)
+      const fromIdxForPlay = handle.childIdx
+      const ghHForPlay = ghostHRef.current
+      requestAnimationFrame(() => {
+        siblings.forEach((el, i) => {
+          if (!el || i === fromIdxForPlay) return
+          el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
+          el.style.transform = i >= fromIdxForPlay ? `translateY(${ghHForPlay}px)` : 'translateY(0)'
+        })
+      })
+
+      // Slot indicator: shows landing zone, animates to follow dropIdx
+      const slot = document.createElement('div')
+      const slotLeft = rect.left - cardRect2.left
+      const slotRight = cardRect2.right - rect.right
+      slot.style.cssText = [
+        `position:absolute`,
+        `left:${slotLeft}px`,
+        `right:${slotRight}px`,
+        `top:${rect.top - cardRect2.top}px`,
+        `height:${ghostHRef.current}px`,
+        `border-radius:8px`,
+        `background:rgba(0,153,85,0.06)`,
+        `border:1.5px solid rgba(0,153,85,0.3)`,
+        `pointer-events:none`,
+        `z-index:8`,
+        `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
+      ].join(';')
+      cardRef.current.appendChild(slot)
+      slotRef.current = slot
+    }
+
     const initial: DragState & { cardTop: number } = {
       childIdx: handle.childIdx,
       childPos: handle.childPos,
@@ -149,26 +277,52 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
     function onMove(ev: MouseEvent) {
       if (!dragRef.current) return
+      if (ghostRef.current) {
+        // Position ghost relative to card (absolute inside card)
+        ghostRef.current.style.top = `${ev.clientY - ghostOffY.current - cardTopRef.current}px`
+      }
+
+      const fromIdx = dragRef.current.childIdx
       const relY = ev.clientY - dragRef.current.cardTop
       let dropIdx = 0
       for (let i = 0; i < dragRef.current.elBounds.length; i++) {
         if (relY >= dragRef.current.elBounds[i].mid) dropIdx = i + 1
       }
-      dragRef.current = { ...dragRef.current, dropIdx }
-      setDrag({ ...dragRef.current })
+      dragRef.current.dropIdx = dropIdx
+
+      // Shift siblings: origEl is out of flow, so all elements >= dropIdx shift down by ghH
+      // to open a gap at the drop position; elements below dropIdx stay at natural (gap closed)
+      const ghH = ghostHRef.current
+      siblingsRef.current.forEach((el, i) => {
+        if (i === fromIdx) return
+        el.style.transform = i >= dropIdx ? `translateY(${ghH}px)` : 'translateY(0)'
+      })
+
+      // Animate slot indicator to the landing zone
+      if (slotRef.current) {
+        const bounds = dragRef.current.elBounds
+        let slotTop: number
+        if (dropIdx === fromIdx || dropIdx === fromIdx + 1) {
+          slotTop = bounds[fromIdx]?.top ?? 0
+        } else if (dropIdx < fromIdx) {
+          slotTop = bounds[dropIdx]?.top ?? 0
+        } else {
+          // dropIdx > fromIdx + 1: gap opens after the last shifted element
+          const prev = bounds[dropIdx - 1]
+          slotTop = prev ? prev.bottom - ghH : (bounds[fromIdx]?.top ?? 0)
+        }
+        slotRef.current.style.top = `${slotTop}px`
+      }
     }
 
     function onUp() {
-      if (dragRef.current) {
-        const { childIdx, childPos, childSize, dropIdx } = dragRef.current
-        moveElement(childIdx, childPos, childSize, dropIdx)
-      }
+      const saved = dragRef.current ? { ...dragRef.current } : null
       dragRef.current = null
+      resetDragStyles()
       setDrag(null)
-      document.body.style.userSelect = ''
-      document.body.style.cursor = ''
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      if (saved) moveElement(saved.childIdx, saved.childPos, saved.childSize, saved.dropIdx)
     }
 
     document.addEventListener('mousemove', onMove)
@@ -250,20 +404,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   const editable = editor.isEditable
 
-  // Drop line Y position (relative to card)
-  const dropLineY = (() => {
-    if (!drag) return 0
-    const { dropIdx, elBounds } = drag
-    if (!elBounds.length) return 0
-    if (dropIdx === 0) return elBounds[0].top
-    if (dropIdx >= elBounds.length) return elBounds[elBounds.length - 1].bottom
-    return (elBounds[dropIdx - 1].bottom + elBounds[dropIdx].top) / 2
-  })()
-
-  const showDropLine = drag !== null
-    && drag.dropIdx !== drag.childIdx
-    && drag.dropIdx !== drag.childIdx + 1
-
   return (
     <NodeViewWrapper style={{ margin: '0 0 12px' }}>
       <div
@@ -280,43 +420,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           cursor: drag ? 'grabbing' : undefined,
         }}
       >
-        {/* Drag: frame around the element being dragged */}
-        {editable && drag && drag.elBounds[drag.childIdx] && (
-          <div style={{
-            position: 'absolute',
-            left: 4, right: 4,
-            top: drag.elBounds[drag.childIdx].top - 3,
-            height: drag.elBounds[drag.childIdx].bottom - drag.elBounds[drag.childIdx].top + 6,
-            borderRadius: '6px',
-            boxShadow: 'inset 0 0 0 1.5px var(--accent)',
-            background: 'rgba(99,102,241,0.04)',
-            pointerEvents: 'none',
-            zIndex: 2,
-          }} />
-        )}
-
-        {/* Drag: drop indicator line */}
-        {editable && showDropLine && (
-          <div style={{
-            position: 'absolute',
-            left: 44, right: 4,
-            top: dropLineY - 1,
-            height: 2,
-            background: 'var(--accent)',
-            borderRadius: '1px',
-            pointerEvents: 'none',
-            zIndex: 15,
-          }}>
-            <div style={{
-              position: 'absolute',
-              left: -4, top: -3,
-              width: 8, height: 8,
-              borderRadius: '50%',
-              background: 'var(--accent)',
-            }} />
-          </div>
-        )}
-
         {/* Handle buttons: ⠿ drag + ✕ delete — no frame on hover */}
         {editable && handle && !drag && (
           <div style={{
