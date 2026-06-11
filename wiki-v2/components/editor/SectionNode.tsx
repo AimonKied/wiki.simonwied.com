@@ -225,42 +225,16 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       ghostOffY.current = e.clientY - rect.top
       origElRef.current = origEl
 
-      // FLIP: record positions BEFORE origEl leaves flow
-      const firstTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
-
-      origEl.style.position    = 'absolute'
-      origEl.style.top         = `${rect.top - cardRect2.top}px`
-      origEl.style.left        = `${rect.left - cardRect2.left}px`
-      origEl.style.width       = `${rect.width}px`
+      // Fade origEl in place — stays in flow, no position change
       origEl.style.opacity     = '0.08'
       origEl.style.pointerEvents = 'none'
-      origEl.style.zIndex      = '1'
 
-      const lastTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
-      siblings.forEach((el, i) => {
-        if (!el || i === handle.childIdx) return
-        const delta = firstTops[i] - lastTops[i]
-        el.style.transition = 'none'
-        el.style.transform  = delta ? `translateY(${delta}px)` : 'translateY(0)'
-      })
-
-      const fromIdxForPlay = handle.childIdx
-      const ghHForPlay     = ghostHRef.current
-      requestAnimationFrame(() => {
-        siblings.forEach((el, i) => {
-          if (!el || i === fromIdxForPlay) return
-          el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
-          el.style.transform  = i >= fromIdxForPlay ? `translateY(${ghHForPlay}px)` : 'translateY(0)'
-        })
-      })
-
-      // Source slot indicator
+      // Source slot indicator (hidden until user moves to a different target)
       const slot = document.createElement('div')
       slot.style.cssText = [
         `position:absolute`,
         `left:${slotLeft}px`,
         `right:${slotRight}px`,
-        `top:${rect.top - cardRect2.top}px`,
         `height:${ghostHRef.current}px`,
         `border-radius:8px`,
         `background:rgba(0,153,85,0.05)`,
@@ -269,6 +243,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         `z-index:8`,
         `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
         `box-sizing:border-box`,
+        `display:none`,
       ].join(';')
       cardRef.current.appendChild(slot)
       slotRef.current = slot
@@ -369,10 +344,16 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         d.dropIdx       = dropIdx
         d.targetDropIdx = dropIdx
 
-        // Shift siblings to open gap at dropIdx
+        // Shift siblings to open gap at dropIdx (origEl stays in flow, so only shift the range between source and target)
         siblingsRef.current.forEach((el, i) => {
           if (i === fromIdx) return
-          el.style.transform = i >= dropIdx ? `translateY(${ghH}px)` : 'translateY(0)'
+          let shift = 0
+          if (dropIdx <= fromIdx) {
+            if (i >= dropIdx && i < fromIdx) shift = ghH
+          } else {
+            if (i > fromIdx && i < dropIdx) shift = -ghH
+          }
+          el.style.transform = shift ? `translateY(${shift}px)` : 'translateY(0)'
         })
 
         // Move source slot to the landing zone
