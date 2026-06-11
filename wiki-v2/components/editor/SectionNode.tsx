@@ -3,6 +3,8 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
+import { Fragment } from '@tiptap/pm/model'
+import type { Node as PMNode } from '@tiptap/pm/model'
 import { useState, useRef, useEffect } from 'react'
 
 const ELEMENTS = [
@@ -20,19 +22,37 @@ const ELEMENTS = [
 ]
 
 interface HandleInfo {
-  top: number       // relative to card top (px)
-  height: number    // element height (px)
-  childPos: number  // ProseMirror position before child opening token
-  childSize: number // child node size
+  top: number
+  height: number
+  childPos: number
+  childSize: number
+  childIdx: number
+}
+
+interface ElBound { top: number; bottom: number; mid: number }
+
+interface DragState {
+  childIdx: number
+  childPos: number
+  childSize: number
+  dropIdx: number
+  elBounds: ElBound[]
 }
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
+  const [drag, setDrag] = useState<DragState | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<(DragState & { cardTop: number }) | null>(null)
+
+  useEffect(() => () => {
+    document.body.style.userSelect = ''
+    document.body.style.cursor = ''
+  }, [])
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -44,7 +64,33 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [pickerOpen])
 
+  function calcElBounds(sectionPos: number, cardTop: number): ElBound[] {
+    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    if (!sectionNode) return []
+    const bounds: ElBound[] = []
+    let offset = sectionPos + 1
+    for (let i = 0; i < sectionNode.childCount; i++) {
+      const child = sectionNode.child(i)
+      try {
+        let topY: number, bottomY: number
+        if (child.isLeaf) {
+          const c = editor.view.coordsAtPos(offset, 1)
+          topY = c.top; bottomY = c.bottom
+        } else {
+          topY    = editor.view.coordsAtPos(offset + 1).top
+          bottomY = editor.view.coordsAtPos(offset + child.nodeSize - 1).bottom
+        }
+        bounds.push({ top: topY - cardTop, bottom: bottomY - cardTop, mid: (topY + bottomY) / 2 - cardTop })
+      } catch {
+        bounds.push({ top: 0, bottom: 0, mid: 0 })
+      }
+      offset += child.nodeSize
+    }
+    return bounds
+  }
+
   function onMouseMove(e: React.MouseEvent) {
+    if (dragRef.current) return
     if (!cardRef.current || !editor.isEditable || typeof getPos !== 'function') return
     const cardRect = cardRef.current.getBoundingClientRect()
     const sectionPos = getPos()
@@ -53,43 +99,100 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     if (!sectionNode) return
 
-    // Iterate section children using ProseMirror state.
-    // coordsAtPos gives reliable viewport coordinates from document positions —
-    // no DOM traversal that might match wrong elements.
-    let childOffset = sectionPos + 1
+    let offset = sectionPos + 1
     for (let i = 0; i < sectionNode.childCount; i++) {
       const child = sectionNode.child(i)
-
       let topY: number, bottomY: number
       try {
         if (child.isLeaf) {
-          // Leaf nodes (hr, image): single token, use side=1 to get coords of the node itself
-          const c = editor.view.coordsAtPos(childOffset, 1)
-          topY = c.top
-          bottomY = c.bottom
+          const c = editor.view.coordsAtPos(offset, 1)
+          topY = c.top; bottomY = c.bottom
         } else {
-          // Non-leaf: enter node (+1), exit node (nodeSize-1)
-          topY    = editor.view.coordsAtPos(childOffset + 1).top
-          bottomY = editor.view.coordsAtPos(childOffset + child.nodeSize - 1).bottom
+          topY    = editor.view.coordsAtPos(offset + 1).top
+          bottomY = editor.view.coordsAtPos(offset + child.nodeSize - 1).bottom
         }
-      } catch {
-        childOffset += child.nodeSize
-        continue
-      }
+      } catch { offset += child.nodeSize; continue }
 
       if (e.clientY >= topY - 4 && e.clientY <= bottomY + 4) {
-        setHandle({
-          top: topY - cardRect.top,
-          height: bottomY - topY,
-          childPos: childOffset,
-          childSize: child.nodeSize,
-        })
+        setHandle({ top: topY - cardRect.top, height: bottomY - topY, childPos: offset, childSize: child.nodeSize, childIdx: i })
         return
       }
-
-      childOffset += child.nodeSize
+      offset += child.nodeSize
     }
     setHandle(null)
+  }
+
+  function startDrag(e: React.MouseEvent) {
+    if (!handle || !cardRef.current || typeof getPos !== 'function') return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const cardRect = cardRef.current.getBoundingClientRect()
+    const sectionPos = getPos()
+    if (sectionPos === undefined) return
+
+    const elBounds = calcElBounds(sectionPos, cardRect.top)
+    const initial: DragState & { cardTop: number } = {
+      childIdx: handle.childIdx,
+      childPos: handle.childPos,
+      childSize: handle.childSize,
+      dropIdx: handle.childIdx,
+      elBounds,
+      cardTop: cardRect.top,
+    }
+    dragRef.current = initial
+    setDrag(initial)
+    setHandle(null)
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'grabbing'
+
+    function onMove(ev: MouseEvent) {
+      if (!dragRef.current) return
+      const relY = ev.clientY - dragRef.current.cardTop
+      let dropIdx = 0
+      for (let i = 0; i < dragRef.current.elBounds.length; i++) {
+        if (relY >= dragRef.current.elBounds[i].mid) dropIdx = i + 1
+      }
+      dragRef.current = { ...dragRef.current, dropIdx }
+      setDrag({ ...dragRef.current })
+    }
+
+    function onUp() {
+      if (dragRef.current) {
+        const { childIdx, childPos, childSize, dropIdx } = dragRef.current
+        moveElement(childIdx, childPos, childSize, dropIdx)
+      }
+      dragRef.current = null
+      setDrag(null)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  function moveElement(fromIdx: number, _fromPos: number, _fromSize: number, toInsertIdx: number) {
+    if (!editor || typeof getPos !== 'function') return
+    if (fromIdx === toInsertIdx || fromIdx + 1 === toInsertIdx) return
+    const sectionPos = getPos()
+    if (sectionPos === undefined) return
+    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    if (!sectionNode) return
+
+    const children: PMNode[] = []
+    for (let i = 0; i < sectionNode.childCount; i++) children.push(sectionNode.child(i))
+
+    const [moved] = children.splice(fromIdx, 1)
+    const adjustedIdx = toInsertIdx > fromIdx ? toInsertIdx - 1 : toInsertIdx
+    children.splice(adjustedIdx, 0, moved)
+
+    const tr = editor.state.tr
+    tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, Fragment.from(children))
+    editor.view.dispatch(tr)
   }
 
   function deleteElement() {
@@ -97,9 +200,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const { childPos, childSize } = handle
     const $pos = editor.state.doc.resolve(childPos)
     const parent = $pos.parent
-
     if (parent.type.name === 'section' && parent.childCount === 1) {
-      // Only child — delete the whole section
       const sectionStart = childPos - $pos.parentOffset - 1
       editor.chain().focus().deleteRange({ from: sectionStart, to: sectionStart + parent.nodeSize }).run()
     } else {
@@ -149,12 +250,26 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   const editable = editor.isEditable
 
+  // Drop line Y position (relative to card)
+  const dropLineY = (() => {
+    if (!drag) return 0
+    const { dropIdx, elBounds } = drag
+    if (!elBounds.length) return 0
+    if (dropIdx === 0) return elBounds[0].top
+    if (dropIdx >= elBounds.length) return elBounds[elBounds.length - 1].bottom
+    return (elBounds[dropIdx - 1].bottom + elBounds[dropIdx].top) / 2
+  })()
+
+  const showDropLine = drag !== null
+    && drag.dropIdx !== drag.childIdx
+    && drag.dropIdx !== drag.childIdx + 1
+
   return (
     <NodeViewWrapper style={{ margin: '0 0 12px' }}>
       <div
         ref={cardRef}
         onMouseMove={onMouseMove}
-        onMouseLeave={() => setHandle(null)}
+        onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
@@ -162,42 +277,56 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           padding: '20px 28px 16px 44px',
           position: 'relative',
           outline: 'none',
+          cursor: drag ? 'grabbing' : undefined,
         }}
       >
-        {/* Hover indicator: React-controlled overlay — no DOM classList manipulation */}
-        {editable && handle && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 4,
-              right: 4,
-              top: handle.top - 3,
-              height: handle.height + 6,
-              borderRadius: '6px',
-              background: 'transparent',
-              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
-              pointerEvents: 'none',
-              zIndex: 2,
-            }}
-          />
+        {/* Drag: frame around the element being dragged */}
+        {editable && drag && drag.elBounds[drag.childIdx] && (
+          <div style={{
+            position: 'absolute',
+            left: 4, right: 4,
+            top: drag.elBounds[drag.childIdx].top - 3,
+            height: drag.elBounds[drag.childIdx].bottom - drag.elBounds[drag.childIdx].top + 6,
+            borderRadius: '6px',
+            boxShadow: 'inset 0 0 0 1.5px var(--accent)',
+            background: 'rgba(99,102,241,0.04)',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }} />
         )}
 
-        {/* Handle buttons: drag + delete for the hovered element */}
-        {editable && handle && (
-          <div
-            style={{
+        {/* Drag: drop indicator line */}
+        {editable && showDropLine && (
+          <div style={{
+            position: 'absolute',
+            left: 44, right: 4,
+            top: dropLineY - 1,
+            height: 2,
+            background: 'var(--accent)',
+            borderRadius: '1px',
+            pointerEvents: 'none',
+            zIndex: 15,
+          }}>
+            <div style={{
               position: 'absolute',
-              left: 4,
-              top: handle.top,
-              height: handle.height,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1px',
-              zIndex: 10,
-            }}
-          >
+              left: -4, top: -3,
+              width: 8, height: 8,
+              borderRadius: '50%',
+              background: 'var(--accent)',
+            }} />
+          </div>
+        )}
+
+        {/* Handle buttons: ⠿ drag + ✕ delete — no frame on hover */}
+        {editable && handle && !drag && (
+          <div style={{
+            position: 'absolute',
+            left: 4, top: handle.top, height: handle.height,
+            display: 'flex', alignItems: 'center', gap: '1px', zIndex: 10,
+          }}>
             <div
               title="Verschieben"
+              onMouseDown={startDrag}
               style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '13px', padding: '3px 2px', borderRadius: '3px', lineHeight: 1, userSelect: 'none' }}
             >
               ⠿
