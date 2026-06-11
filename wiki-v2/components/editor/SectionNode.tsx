@@ -617,7 +617,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const editable = editor.isEditable
 
   return (
-    <NodeViewWrapper style={{ margin: '0 0 12px' }}>
+    <NodeViewWrapper style={{ margin: '0 0 12px', position: 'relative', zIndex: pickerOpen || imageMode ? 100 : undefined }}>
       <div
         ref={cardRef}
         data-section-card="true"
