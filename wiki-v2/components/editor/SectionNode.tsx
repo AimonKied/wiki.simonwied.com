@@ -41,15 +41,22 @@ let _globalHandlersInstalled = false
 function _ensureGlobalHandlers() {
   if (_globalHandlersInstalled) return
   _globalHandlersInstalled = true
+
+  // Deselect blocks on click outside any drag handle
+  document.addEventListener('mousedown', (e) => {
+    if (_selSet.size === 0) return
+    if ((e.target as Element).closest('[data-section-drag-handle]')) return
+    sectionSel.clear()
+  })
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { sectionSel.clear(); return }
 
     const ctrl = e.ctrlKey || e.metaKey
     if (!ctrl) return
-    const textSelected = !!window.getSelection()?.toString()
 
-    // Ctrl+C / Ctrl+X: copy or cut selected sections
-    if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0 && !textSelected) {
+    // Ctrl+C / Ctrl+X: copy or cut selected sections (always takes priority when blocks are selected)
+    if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0) {
       e.preventDefault()
       const nodes: PMNode[] = []
       _activeEditor?.state.doc.forEach((node: PMNode, offset: number) => {
@@ -62,25 +69,29 @@ function _ensureGlobalHandlers() {
       _elementClipboard = null
 
       if (e.key === 'x') {
+        const doc = _activeEditor!.state.doc
         const tr = _activeEditor!.state.tr
-        const toDelete: number[] = []
-        _activeEditor!.state.doc.forEach((node: PMNode, offset: number) => {
+        const toDelete: { pos: number; size: number }[] = []
+        doc.forEach((node: PMNode, offset: number) => {
           if (node.type.name !== 'section') return
           const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
           const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
-          if (id && _selSet.has(id)) toDelete.push(offset)
+          if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
         })
-        toDelete.reverse().forEach(pos => {
-          const n = _activeEditor!.state.doc.nodeAt(tr.mapping.map(pos))
-          if (n) tr.delete(tr.mapping.map(pos), tr.mapping.map(pos) + n.nodeSize)
+        // Delete from end to start so positions remain valid
+        toDelete.reverse().forEach(({ pos, size }) => {
+          const mapped = tr.mapping.map(pos)
+          tr.delete(mapped, mapped + size)
         })
         _activeEditor!.view.dispatch(tr)
         sectionSel.clear()
       }
     }
 
-    // Ctrl+V: paste section clipboard
-    if (e.key === 'v' && _sectionClipboard.length > 0 && !textSelected) {
+    // Ctrl+V: paste section clipboard (only when no text is selected in the editor)
+    if (e.key === 'v' && _sectionClipboard.length > 0) {
+      const textSelected = !!window.getSelection()?.toString()
+      if (textSelected) return  // let browser handle text paste
       const ed = _activeEditor
       if (!ed) return
       const { from } = ed.state.selection
@@ -95,6 +106,8 @@ function _ensureGlobalHandlers() {
       const tr = ed.state.tr
       _sectionClipboard.forEach(n => tr.insert(tr.mapping.map(pastePos), n.copy(n.content)))
       ed.view.dispatch(tr)
+      // Clear after paste so next Ctrl+V doesn't re-paste sections unexpectedly
+      _sectionClipboard = []
     }
   })
 }
@@ -1224,6 +1237,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
             {/* Drag handle */}
             <div
+              data-section-drag-handle="true"
               title="Block verschieben / klicken zum Auswählen"
               onMouseDown={handleSectionDragDown}
               style={{
