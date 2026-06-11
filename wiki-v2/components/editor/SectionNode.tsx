@@ -31,34 +31,42 @@ interface HandleInfo {
 
 interface ElBound { top: number; bottom: number; mid: number }
 
-interface DragState {
+interface DragRefState {
   childIdx: number
   childPos: number
   childSize: number
   dropIdx: number
   elBounds: ElBound[]
+  cardTop: number
+  sourceSectionPos: number
+  targetSectionPos: number
+  targetDropIdx: number
+  slotLeft: number
+  slotRight: number
 }
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
-  const [drag, setDrag] = useState<DragState | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const dragRef    = useRef<(DragState & { cardTop: number }) | null>(null)
-  const ghostRef   = useRef<HTMLElement | null>(null)
-  const origElRef  = useRef<HTMLElement | null>(null)
-  const ghostOffY  = useRef<number>(0)
+  const dragRef = useRef<DragRefState | null>(null)
+  const ghostRef = useRef<HTMLElement | null>(null)
+  const origElRef = useRef<HTMLElement | null>(null)
+  const ghostOffY = useRef<number>(0)
   const siblingsRef = useRef<HTMLElement[]>([])
-  const ghostHRef   = useRef<number>(0)
-  const cardTopRef  = useRef<number>(0)
-  const slotRef     = useRef<HTMLElement | null>(null)
+  const ghostHRef = useRef<number>(0)
+  const cardTopRef = useRef<number>(0)
+  const slotRef = useRef<HTMLElement | null>(null)
+  const crossSlotRef = useRef<HTMLElement | null>(null)
 
   function resetDragStyles() {
     if (ghostRef.current) { ghostRef.current.parentNode?.removeChild(ghostRef.current); ghostRef.current = null }
-    if (slotRef.current)  { slotRef.current.parentNode?.removeChild(slotRef.current);  slotRef.current  = null }
+    if (slotRef.current) { slotRef.current.parentNode?.removeChild(slotRef.current); slotRef.current = null }
+    if (crossSlotRef.current) { crossSlotRef.current.parentNode?.removeChild(crossSlotRef.current); crossSlotRef.current = null }
     if (origElRef.current) {
       const el = origElRef.current
       el.style.position = ''; el.style.top = ''; el.style.left = ''
@@ -153,7 +161,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
     const elBounds = calcElBounds(sectionPos, cardRect.top)
 
-    // Use nodeDOM to get reliable PM-index-matched DOM elements (avoids decoration mismatches)
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     const siblings: HTMLElement[] = []
     if (sectionNode) {
@@ -166,19 +173,22 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     }
     const origEl = siblings[handle.childIdx] as HTMLElement | undefined
 
+    let slotLeft = 0, slotRight = 0
+
     if (origEl && cardRef.current) {
-      const rect    = origEl.getBoundingClientRect()
+      const rect      = origEl.getBoundingClientRect()
       const cardRect2 = cardRef.current.getBoundingClientRect()
       cardTopRef.current = cardRect2.top
 
-      // Slot height: distance to next sibling's top (includes gap), or own height
+      slotLeft  = rect.left - cardRect2.left
+      slotRight = cardRect2.right - rect.right
+
       const nextEl = siblings[handle.childIdx + 1]
       ghostHRef.current = nextEl
         ? nextEl.getBoundingClientRect().top - rect.top
         : rect.height
       siblingsRef.current = siblings.filter(Boolean) as HTMLElement[]
 
-      // Transitions on siblings (not the dragged element)
       siblingsRef.current.forEach((el, i) => {
         if (i !== handle.childIdx) el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
       })
@@ -208,41 +218,34 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       // FLIP: record positions BEFORE origEl leaves flow
       const firstTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
 
-      // Pull origEl out of flow → siblings fill the gap immediately via CSS reflow
-      origEl.style.position = 'absolute'
-      origEl.style.top = `${rect.top - cardRect2.top}px`
-      origEl.style.left = `${rect.left - cardRect2.left}px`
-      origEl.style.width = `${rect.width}px`
-      origEl.style.opacity = '0'
+      origEl.style.position    = 'absolute'
+      origEl.style.top         = `${rect.top - cardRect2.top}px`
+      origEl.style.left        = `${rect.left - cardRect2.left}px`
+      origEl.style.width       = `${rect.width}px`
+      origEl.style.opacity     = '0'
       origEl.style.pointerEvents = 'none'
-      origEl.style.zIndex = '-1'
+      origEl.style.zIndex      = '-1'
 
-      // Read positions AFTER reflow (getBoundingClientRect forces it)
       const lastTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
-
-      // Invert: freeze visual positions instantly (no transition)
       siblings.forEach((el, i) => {
         if (!el || i === handle.childIdx) return
         const delta = firstTops[i] - lastTops[i]
         el.style.transition = 'none'
-        el.style.transform = delta ? `translateY(${delta}px)` : 'translateY(0)'
+        el.style.transform  = delta ? `translateY(${delta}px)` : 'translateY(0)'
       })
 
-      // Play: animate to gap-at-origin state (dropIdx = fromIdx initially)
       const fromIdxForPlay = handle.childIdx
-      const ghHForPlay = ghostHRef.current
+      const ghHForPlay     = ghostHRef.current
       requestAnimationFrame(() => {
         siblings.forEach((el, i) => {
           if (!el || i === fromIdxForPlay) return
           el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
-          el.style.transform = i >= fromIdxForPlay ? `translateY(${ghHForPlay}px)` : 'translateY(0)'
+          el.style.transform  = i >= fromIdxForPlay ? `translateY(${ghHForPlay}px)` : 'translateY(0)'
         })
       })
 
-      // Slot indicator: shows landing zone, animates to follow dropIdx
+      // Source slot indicator
       const slot = document.createElement('div')
-      const slotLeft = rect.left - cardRect2.left
-      const slotRight = cardRect2.right - rect.right
       slot.style.cssText = [
         `position:absolute`,
         `left:${slotLeft}px`,
@@ -260,69 +263,169 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       slotRef.current = slot
     }
 
-    const initial: DragState & { cardTop: number } = {
+    dragRef.current = {
       childIdx: handle.childIdx,
       childPos: handle.childPos,
       childSize: handle.childSize,
       dropIdx: handle.childIdx,
       elBounds,
       cardTop: cardRect.top,
+      sourceSectionPos: sectionPos,
+      targetSectionPos: sectionPos,
+      targetDropIdx: handle.childIdx,
+      slotLeft,
+      slotRight,
     }
-    dragRef.current = initial
-    setDrag(initial)
+    setDragging(true)
     setHandle(null)
 
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'grabbing'
 
     function onMove(ev: MouseEvent) {
-      if (!dragRef.current) return
+      const d = dragRef.current
+      if (!d) return
+
+      // Ghost always follows cursor — position:absolute inside source card, no overflow clipping
       if (ghostRef.current) {
-        // Position ghost relative to card (absolute inside card)
         ghostRef.current.style.top = `${ev.clientY - ghostOffY.current - cardTopRef.current}px`
       }
 
-      const fromIdx = dragRef.current.childIdx
-      const relY = ev.clientY - dragRef.current.cardTop
-      let dropIdx = 0
-      for (let i = 0; i < dragRef.current.elBounds.length; i++) {
-        if (relY >= dragRef.current.elBounds[i].mid) dropIdx = i + 1
-      }
-      dragRef.current.dropIdx = dropIdx
+      const fromIdx = d.childIdx
+      const ghH     = ghostHRef.current
 
-      // Shift siblings: origEl is out of flow, so all elements >= dropIdx shift down by ghH
-      // to open a gap at the drop position; elements below dropIdx stay at natural (gap closed)
-      const ghH = ghostHRef.current
-      siblingsRef.current.forEach((el, i) => {
-        if (i === fromIdx) return
-        el.style.transform = i >= dropIdx ? `translateY(${ghH}px)` : 'translateY(0)'
-      })
+      // Determine which section the cursor is over
+      const posResult = editor.view.posAtCoords({ left: ev.clientX, top: ev.clientY })
+      if (!posResult) return
 
-      // Animate slot indicator to the landing zone
-      if (slotRef.current) {
-        const bounds = dragRef.current.elBounds
-        let slotTop: number
-        if (dropIdx === fromIdx || dropIdx === fromIdx + 1) {
-          slotTop = bounds[fromIdx]?.top ?? 0
-        } else if (dropIdx < fromIdx) {
-          slotTop = bounds[dropIdx]?.top ?? 0
-        } else {
-          // dropIdx > fromIdx + 1: gap opens after the last shifted element
-          const prev = bounds[dropIdx - 1]
-          slotTop = prev ? prev.bottom - ghH : (bounds[fromIdx]?.top ?? 0)
+      let cursorSectionPos: number | null = null
+      try {
+        const $cursor = editor.state.doc.resolve(posResult.pos)
+        for (let depth = $cursor.depth; depth >= 0; depth--) {
+          if ($cursor.node(depth).type.name === 'section') {
+            cursorSectionPos = $cursor.before(depth)
+            break
+          }
         }
-        slotRef.current.style.top = `${slotTop}px`
+      } catch { return }
+
+      if (cursorSectionPos === null) return
+
+      if (cursorSectionPos === d.sourceSectionPos) {
+        // ─── SAME SECTION ──────────────────────────────────────────────
+        // Restore source slot, remove any cross-slot
+        if (slotRef.current) slotRef.current.style.display = ''
+        if (crossSlotRef.current) {
+          crossSlotRef.current.parentNode?.removeChild(crossSlotRef.current)
+          crossSlotRef.current = null
+        }
+        d.targetSectionPos = d.sourceSectionPos
+
+        const relY = ev.clientY - d.cardTop
+        let dropIdx = 0
+        for (let i = 0; i < d.elBounds.length; i++) {
+          if (relY >= d.elBounds[i].mid) dropIdx = i + 1
+        }
+        d.dropIdx       = dropIdx
+        d.targetDropIdx = dropIdx
+
+        // Shift siblings to open gap at dropIdx
+        siblingsRef.current.forEach((el, i) => {
+          if (i === fromIdx) return
+          el.style.transform = i >= dropIdx ? `translateY(${ghH}px)` : 'translateY(0)'
+        })
+
+        // Move source slot to the landing zone
+        if (slotRef.current) {
+          const bounds = d.elBounds
+          let slotTop: number
+          if (dropIdx === fromIdx || dropIdx === fromIdx + 1) {
+            slotTop = bounds[fromIdx]?.top ?? 0
+          } else if (dropIdx < fromIdx) {
+            slotTop = bounds[dropIdx]?.top ?? 0
+          } else {
+            const prev = bounds[dropIdx - 1]
+            slotTop = prev ? prev.bottom - ghH : (bounds[fromIdx]?.top ?? 0)
+          }
+          slotRef.current.style.top = `${slotTop}px`
+        }
+
+      } else {
+        // ─── CROSS SECTION ─────────────────────────────────────────────
+        // Hide source slot, close source gap
+        if (slotRef.current) slotRef.current.style.display = 'none'
+        siblingsRef.current.forEach((el, i) => {
+          if (i !== fromIdx) el.style.transform = 'translateY(0)'
+        })
+
+        d.targetSectionPos = cursorSectionPos
+
+        // Find the target card DOM via the section's NodeViewWrapper
+        const targetSectionDOM = editor.view.nodeDOM(cursorSectionPos) as HTMLElement | null
+        const targetCardDiv    = targetSectionDOM?.querySelector('[data-section-card]') as HTMLElement | null
+        if (!targetCardDiv) return
+
+        // Create or re-create cross-slot when entering a new target card
+        if (crossSlotRef.current?.parentElement !== targetCardDiv) {
+          if (crossSlotRef.current) {
+            crossSlotRef.current.parentNode?.removeChild(crossSlotRef.current)
+            crossSlotRef.current = null
+          }
+          const xSlot = document.createElement('div')
+          xSlot.style.cssText = [
+            `position:absolute`,
+            `left:${d.slotLeft}px`,
+            `right:${d.slotRight}px`,
+            `height:${ghH}px`,
+            `border-radius:8px`,
+            `background:rgba(0,153,85,0.06)`,
+            `border:1.5px solid rgba(0,153,85,0.3)`,
+            `pointer-events:none`,
+            `z-index:8`,
+            `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
+          ].join(';')
+          targetCardDiv.appendChild(xSlot)
+          crossSlotRef.current = xSlot
+        }
+
+        // Compute drop index in target section based on cursor Y
+        const targetCardRect  = targetCardDiv.getBoundingClientRect()
+        const targetElBounds  = calcElBounds(cursorSectionPos, targetCardRect.top)
+        const relY            = ev.clientY - targetCardRect.top
+        let targetDropIdx     = 0
+        for (let i = 0; i < targetElBounds.length; i++) {
+          if (relY >= targetElBounds[i].mid) targetDropIdx = i + 1
+        }
+        d.targetDropIdx = targetDropIdx
+
+        // Position cross-slot at the landing zone in the target card
+        let targetSlotTop: number
+        if (targetDropIdx < targetElBounds.length) {
+          targetSlotTop = targetElBounds[targetDropIdx].top
+        } else if (targetElBounds.length > 0) {
+          targetSlotTop = targetElBounds[targetElBounds.length - 1].bottom + 4
+        } else {
+          targetSlotTop = 0
+        }
+        if (crossSlotRef.current) crossSlotRef.current.style.top = `${targetSlotTop}px`
       }
     }
 
     function onUp() {
-      const saved = dragRef.current ? { ...dragRef.current } : null
+      const d = dragRef.current ? { ...dragRef.current } : null
       dragRef.current = null
       resetDragStyles()
-      setDrag(null)
+      setDragging(false)
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
-      if (saved) moveElement(saved.childIdx, saved.childPos, saved.childSize, saved.dropIdx)
+
+      if (!d) return
+
+      if (d.targetSectionPos === d.sourceSectionPos) {
+        moveElement(d.childIdx, d.childPos, d.childSize, d.dropIdx)
+      } else {
+        moveElementCrossSection(d.sourceSectionPos, d.childIdx, d.targetSectionPos, d.targetDropIdx)
+      }
     }
 
     document.addEventListener('mousemove', onMove)
@@ -346,6 +449,51 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
     const tr = editor.state.tr
     tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, Fragment.from(children))
+    editor.view.dispatch(tr)
+  }
+
+  function moveElementCrossSection(
+    sourceSectionPos: number,
+    fromIdx: number,
+    targetSectionPos: number,
+    toInsertIdx: number
+  ) {
+    if (!editor) return
+
+    const sourceNode = editor.state.doc.nodeAt(sourceSectionPos)
+    const targetNode = editor.state.doc.nodeAt(targetSectionPos)
+    if (!sourceNode || !targetNode) return
+
+    const movedNode = sourceNode.child(fromIdx)
+
+    // Build source content without the moved child
+    const sourceChildren: PMNode[] = []
+    for (let i = 0; i < sourceNode.childCount; i++) {
+      if (i !== fromIdx) sourceChildren.push(sourceNode.child(i))
+    }
+
+    // Build target content with the moved child inserted at toInsertIdx
+    const targetChildren: PMNode[] = []
+    for (let i = 0; i < targetNode.childCount; i++) {
+      if (i === toInsertIdx) targetChildren.push(movedNode)
+      targetChildren.push(targetNode.child(i))
+    }
+    if (toInsertIdx >= targetNode.childCount) targetChildren.push(movedNode)
+
+    const tr = editor.state.tr
+
+    // Keep source section alive (section requires at least one block child)
+    const sourceContent = sourceChildren.length > 0
+      ? Fragment.from(sourceChildren)
+      : Fragment.from(editor.state.schema.nodes.paragraph.create())
+
+    tr.replaceWith(sourceSectionPos + 1, sourceSectionPos + sourceNode.nodeSize - 1, sourceContent)
+
+    // Map target positions through the first operation's changes
+    const mappedTargetStart = tr.mapping.map(targetSectionPos + 1)
+    const mappedTargetEnd   = tr.mapping.map(targetSectionPos + targetNode.nodeSize - 1)
+    tr.replaceWith(mappedTargetStart, mappedTargetEnd, Fragment.from(targetChildren))
+
     editor.view.dispatch(tr)
   }
 
@@ -408,6 +556,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     <NodeViewWrapper style={{ margin: '0 0 12px' }}>
       <div
         ref={cardRef}
+        data-section-card="true"
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         style={{
@@ -417,11 +566,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           padding: '20px 28px 16px 44px',
           position: 'relative',
           outline: 'none',
-          cursor: drag ? 'grabbing' : undefined,
+          cursor: dragging ? 'grabbing' : undefined,
         }}
       >
-        {/* Handle buttons: ⠿ drag + ✕ delete — no frame on hover */}
-        {editable && handle && !drag && (
+        {/* Handle buttons: ⠿ drag + ✕ delete */}
+        {editable && handle && !dragging && (
           <div style={{
             position: 'absolute',
             left: 4, top: handle.top, height: handle.height,
