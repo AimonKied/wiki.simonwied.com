@@ -1,7 +1,6 @@
 'use client'
 
-import { useEditor, EditorContent, useEditorState } from '@tiptap/react'
-import { useState, useEffect } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -82,37 +81,17 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     },
   })
 
-  // Reactive: re-renders whenever cursor enters/leaves a table cell
-  const isInTable = useEditorState({
-    editor,
-    selector: (ctx) => !!(ctx.editor?.isActive('tableCell') || ctx.editor?.isActive('tableHeader')),
-  })
-
-  const [tablePos, setTablePos] = useState<{ top: number; right: number } | null>(null)
-
-  useEffect(() => {
-    if (!isInTable || !editor) { setTablePos(null); return }
-    const measure = () => {
-      try {
-        const { node } = editor.view.domAtPos(editor.state.selection.from)
-        let el: Element | null = node instanceof Element ? node : (node as Node).parentElement
-        while (el && el.tagName !== 'TABLE') el = el.parentElement
-        if (el) {
-          const r = el.getBoundingClientRect()
-          setTablePos({ top: r.top, right: r.right })
-        }
-      } catch { setTablePos(null) }
-    }
-    measure()
-    window.addEventListener('scroll', measure, true)
-    window.addEventListener('resize', measure)
-    return () => {
-      window.removeEventListener('scroll', measure, true)
-      window.removeEventListener('resize', measure)
-    }
-  }, [isInTable, editor])
-
   if (!editor) return null
+
+  const getTableRect = () => {
+    try {
+      const { node } = editor.view.domAtPos(editor.state.selection.from)
+      let el: Element | null = node instanceof Element ? node : (node as Node).parentElement
+      while (el && el.tagName !== 'TABLE') el = el.parentElement
+      if (el) return el.getBoundingClientRect()
+    } catch {}
+    return editor.view.dom.getBoundingClientRect()
+  }
 
   const tBtn = (title: string, onClick: () => void, label: string, destructive = false) => (
     <button
@@ -181,35 +160,42 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Fixed table toolbar — top-right of table, independent of cursor cell */}
-      {editable && tablePos && (
-        <div style={{
-          position: 'fixed',
-          top: tablePos.top - 36,
-          right: window.innerWidth - tablePos.right,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          padding: '3px 5px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-          fontFamily: 'inherit',
-          zIndex: 200,
-        }}>
-          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Zeile</span>
-          {tBtn('Zeile darüber',  () => editor.chain().focus().addRowBefore().run(), '↑')}
-          {tBtn('Zeile darunter', () => editor.chain().focus().addRowAfter().run(),  '↓')}
-          {tBtn('Zeile löschen',  () => editor.chain().focus().deleteRow().run(),    '✕', true)}
-          <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
-          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Spalte</span>
-          {tBtn('Spalte links',   () => editor.chain().focus().addColumnBefore().run(), '←')}
-          {tBtn('Spalte rechts',  () => editor.chain().focus().addColumnAfter().run(),  '→')}
-          {tBtn('Spalte löschen', () => editor.chain().focus().deleteColumn().run(),    '✕', true)}
-          <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
-          {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕', true)}
-        </div>
+      {/* Table toolbar — anchored above the whole table, not the cursor cell */}
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ editor }) => editor.isActive('tableCell') || editor.isActive('tableHeader')}
+          tippyOptions={{
+            placement: 'top-end',
+            offset: [0, 8],
+            hideOnClick: false,
+            getReferenceClientRect: getTableRect,
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '3px 5px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+            fontFamily: 'inherit',
+          }}>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Zeile</span>
+            {tBtn('Zeile darüber',  () => editor.chain().focus().addRowBefore().run(), '↑')}
+            {tBtn('Zeile darunter', () => editor.chain().focus().addRowAfter().run(),  '↓')}
+            {tBtn('Zeile löschen',  () => editor.chain().focus().deleteRow().run(),    '✕', true)}
+            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Spalte</span>
+            {tBtn('Spalte links',   () => editor.chain().focus().addColumnBefore().run(), '←')}
+            {tBtn('Spalte rechts',  () => editor.chain().focus().addColumnAfter().run(),  '→')}
+            {tBtn('Spalte löschen', () => editor.chain().focus().deleteColumn().run(),    '✕', true)}
+            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
+            {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕', true)}
+          </div>
+        </BubbleMenu>
       )}
 
       {/* Editor area — transparent background, sections render as cards inside */}
