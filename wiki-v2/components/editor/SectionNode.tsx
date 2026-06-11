@@ -49,6 +49,7 @@ interface DragRefState {
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [sectionDragging, setSectionDragging] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
@@ -592,57 +593,123 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     e.stopPropagation()
 
     const sectionPos = getPos() as number
-    if (sectionPos === undefined) return
     if (!editor.state.doc.nodeAt(sectionPos)) return
 
-    const cardRect = cardRef.current.getBoundingClientRect()
+    const cardEl = cardRef.current
+    const cardRect = cardEl.getBoundingClientRect()
     const offsetY = e.clientY - cardRect.top
 
-    // Ghost: fixed clone following the cursor
-    const ghost = cardRef.current.cloneNode(true) as HTMLElement
-    ghost.style.cssText += `;position:fixed;top:${cardRect.top}px;left:${cardRect.left}px;width:${cardRect.width}px;opacity:0.92;pointer-events:none;z-index:9999;box-shadow:0 16px 48px rgba(0,0,0,0.24),0 0 0 1px var(--border);transform:scale(1.02);border-radius:12px;transition:none`
+    // All section cards and their NodeViewWrapper parents
+    const allCardEls = Array.from(document.querySelectorAll('[data-section-card]')) as HTMLElement[]
+    const allWrappers = allCardEls.map(c => c.parentElement as HTMLElement)
+    const sourceIdx = allCardEls.indexOf(cardEl)
+    if (sourceIdx === -1) return
+
+    // Snapshot rects before any DOM changes
+    const initialRects = allWrappers.map(w => w.getBoundingClientRect())
+
+    // Height of source slot = distance from this wrapper top to next wrapper top
+    const slotHeight = sourceIdx < allWrappers.length - 1
+      ? initialRects[sourceIdx + 1].top - initialRects[sourceIdx].top
+      : initialRects[sourceIdx].height + 12
+
+    // Enable transitions on all non-source wrappers
+    allWrappers.forEach((w, i) => {
+      if (i !== sourceIdx) w.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
+    })
+
+    // Ghost: fixed clone following cursor
+    const ghost = cardEl.cloneNode(true) as HTMLElement
+    ghost.style.cssText = [
+      `position:fixed`,
+      `top:${cardRect.top}px`,
+      `left:${cardRect.left}px`,
+      `width:${cardRect.width}px`,
+      `opacity:0.92`,
+      `pointer-events:none`,
+      `z-index:9999`,
+      `box-shadow:0 16px 48px rgba(0,0,0,0.24),0 0 0 1px var(--border)`,
+      `transform:scale(1.02)`,
+      `border-radius:12px`,
+    ].join(';')
     document.body.appendChild(ghost)
 
-    // Drop indicator
-    const indicator = document.createElement('div')
-    indicator.style.cssText = `position:fixed;height:3px;left:${cardRect.left}px;width:${cardRect.width}px;background:var(--accent);border-radius:2px;pointer-events:none;z-index:9998;display:none`
-    document.body.appendChild(indicator)
+    // Slot: green outlined box at drop target position
+    const slot = document.createElement('div')
+    slot.style.cssText = [
+      `position:fixed`,
+      `left:${cardRect.left}px`,
+      `width:${cardRect.width}px`,
+      `height:${cardRect.height}px`,
+      `border-radius:12px`,
+      `background:rgba(0,153,85,0.05)`,
+      `border:2px dashed rgba(0,153,85,0.4)`,
+      `pointer-events:none`,
+      `z-index:9997`,
+      `display:none`,
+      `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
+      `box-sizing:border-box`,
+    ].join(';')
+    document.body.appendChild(slot)
 
-    setDragging(true)
+    setSectionDragging(true)
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'grabbing'
 
     let dropBeforeIdx = -1
+    let lastDropIdx = -2 // force first evaluation
+
+    function applyShifts(dropIdx: number) {
+      allWrappers.forEach((wrapper, i) => {
+        if (i === sourceIdx) return
+        let shift = 0
+        if (dropIdx <= sourceIdx) {
+          if (i >= dropIdx && i < sourceIdx) shift = slotHeight
+        } else {
+          if (i > sourceIdx && i < dropIdx) shift = -slotHeight
+        }
+        wrapper.style.transform = shift ? `translateY(${shift}px)` : 'translateY(0)'
+      })
+
+      // Calculate slot top in viewport coords
+      let slotTop: number
+      if (dropIdx <= sourceIdx) {
+        slotTop = initialRects[dropIdx].top
+      } else {
+        const prevIdx = dropIdx - 1
+        const prevShift = prevIdx > sourceIdx ? -slotHeight : 0
+        slotTop = initialRects[prevIdx].bottom + prevShift
+      }
+      slot.style.display = 'block'
+      slot.style.top = `${slotTop}px`
+    }
+
+    function resetShifts() {
+      allWrappers.forEach((w, i) => {
+        if (i !== sourceIdx) w.style.transform = 'translateY(0)'
+      })
+      slot.style.display = 'none'
+    }
 
     function onMove(ev: MouseEvent) {
       ghost.style.top = `${ev.clientY - offsetY}px`
 
-      const sectionPositions: number[] = []
-      editor.state.doc.forEach((n, offset) => {
-        if (n.type.name === 'section') sectionPositions.push(offset)
-      })
-      const currentIdx = sectionPositions.indexOf(sectionPos)
-      const cards = Array.from(document.querySelectorAll('[data-section-card]')) as HTMLElement[]
-
-      let newDropIdx = cards.length
-      let indicatorY = 0
-
-      for (let i = 0; i < cards.length; i++) {
-        const r = cards[i].getBoundingClientRect()
-        if (ev.clientY < r.top + r.height / 2) {
+      let newDropIdx = allCardEls.length
+      for (let i = 0; i < allCardEls.length; i++) {
+        if (ev.clientY < initialRects[i].top + initialRects[i].height / 2) {
           newDropIdx = i
-          indicatorY = r.top - 5
           break
         }
-        if (i === cards.length - 1) indicatorY = r.bottom + 5
       }
 
-      if (newDropIdx === currentIdx || newDropIdx === currentIdx + 1) {
-        indicator.style.display = 'none'
+      if (newDropIdx === lastDropIdx) return
+      lastDropIdx = newDropIdx
+
+      if (newDropIdx === sourceIdx || newDropIdx === sourceIdx + 1) {
+        resetShifts()
         dropBeforeIdx = -1
       } else {
-        indicator.style.display = 'block'
-        indicator.style.top = `${indicatorY}px`
+        applyShifts(newDropIdx)
         dropBeforeIdx = newDropIdx
       }
     }
@@ -651,10 +718,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       ghost.parentNode?.removeChild(ghost)
-      indicator.parentNode?.removeChild(indicator)
+      slot.parentNode?.removeChild(slot)
+      allWrappers.forEach(w => { w.style.transform = ''; w.style.transition = '' })
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
-      setDragging(false)
+      setSectionDragging(false)
       if (dropBeforeIdx >= 0) moveSectionTo(dropBeforeIdx)
     }
 
@@ -782,6 +850,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           position: 'relative',
           outline: 'none',
           cursor: dragging ? 'grabbing' : undefined,
+          opacity: sectionDragging ? 0.08 : undefined,
+          transition: sectionDragging ? undefined : 'opacity 0.15s',
         }}
       >
         {/* Handle buttons: ⠿ drag + ✕ delete */}
