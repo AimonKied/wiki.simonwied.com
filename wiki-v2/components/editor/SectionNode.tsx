@@ -234,7 +234,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       origEl.style.width       = `${rect.width}px`
       origEl.style.opacity     = '0.08'
       origEl.style.pointerEvents = 'none'
-      origEl.style.zIndex      = '-1'
+      origEl.style.zIndex      = '1'
 
       const lastTops = siblings.map(el => el ? el.getBoundingClientRect().top : 0)
       siblings.forEach((el, i) => {
