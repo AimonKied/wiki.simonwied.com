@@ -5,7 +5,43 @@ import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap
 import type { NodeViewProps } from '@tiptap/react'
 import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+
+// ── Module-level section selection store ──────────────────────────────────────
+const _selSet = new Set<string>()
+const _selCbs = new Set<() => void>()
+let _selDragging = false
+function _fireSel() { _selCbs.forEach(f => f()) }
+
+const sectionSel = {
+  has:      (id: string) => _selSet.has(id),
+  size:     () => _selSet.size,
+  ids:      () => new Set(_selSet),
+  dragging: () => _selDragging,
+  toggle:   (id: string, additive: boolean) => {
+    if (!additive) {
+      const onlyThis = _selSet.size === 1 && _selSet.has(id)
+      _selSet.clear()
+      if (!onlyThis) _selSet.add(id)
+    } else {
+      _selSet.has(id) ? _selSet.delete(id) : _selSet.add(id)
+    }
+    _fireSel()
+  },
+  clear:    () => { if (_selSet.size > 0) { _selSet.clear(); _fireSel() } },
+  setDrag:  (v: boolean) => { _selDragging = v; _fireSel() },
+  sub:      (fn: () => void) => { _selCbs.add(fn); return () => _selCbs.delete(fn) },
+}
+
+let _globalHandlersInstalled = false
+function _ensureGlobalHandlers() {
+  if (_globalHandlersInstalled) return
+  _globalHandlersInstalled = true
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') sectionSel.clear()
+  })
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ELEMENTS = [
   { key: 'paragraph',   label: 'Text',         icon: '¶'   },
@@ -47,6 +83,8 @@ interface DragRefState {
 }
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
+  const sectionId = useMemo(() => Math.random().toString(36).slice(2), [])
+  const [isSelected, setIsSelected] = useState(false)
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sectionDragging, setSectionDragging] = useState(false)
@@ -91,6 +129,15 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   useEffect(() => () => { resetDragStyles() }, [])
+
+  useEffect(() => {
+    _ensureGlobalHandlers()
+    const unsub = sectionSel.sub(() => {
+      setIsSelected(sectionSel.has(sectionId))
+      if (!sectionSel.has(sectionId) || !sectionSel.dragging()) setSectionDragging(false)
+    })
+    return () => { unsub() }
+  }, [sectionId])
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -570,6 +617,29 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
+  function moveSelectedSectionsTo(_draggedId: string, targetIdx: number) {
+    if (!editor) return
+    const allNodes: PMNode[] = []
+    const selectedIndices = new Set<number>()
+    editor.state.doc.forEach((node, offset) => {
+      if (node.type.name !== 'section') return
+      const dom = editor.view.nodeDOM(offset) as HTMLElement | null
+      const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+      if (id && sectionSel.has(id)) selectedIndices.add(allNodes.length)
+      allNodes.push(node)
+    })
+
+    const selected = allNodes.filter((_, i) => selectedIndices.has(i))
+    const rest = allNodes.filter((_, i) => !selectedIndices.has(i))
+    const selectedBefore = [...selectedIndices].filter(i => i < targetIdx).length
+    const insertAt = Math.max(0, Math.min(targetIdx - selectedBefore, rest.length))
+    rest.splice(insertAt, 0, ...selected)
+
+    const tr = editor.state.tr
+    tr.replaceWith(0, editor.state.doc.content.size, Fragment.from(rest))
+    editor.view.dispatch(tr)
+  }
+
   function duplicateSection() {
     if (!editor || typeof getPos !== 'function') return
     const sectionPos = getPos()
@@ -580,6 +650,31 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const tr = editor.state.tr
     tr.insert(editor.state.doc.content.size, copy)
     editor.view.dispatch(tr)
+  }
+
+  function handleSectionDragDown(e: React.MouseEvent) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX, startY = e.clientY
+    let didDrag = false
+    const nativeEvent = e.nativeEvent
+
+    function onMM(ev: MouseEvent) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
+        didDrag = true
+        document.removeEventListener('mousemove', onMM)
+        document.removeEventListener('mouseup', onMU)
+        startSectionDrag(e)
+      }
+    }
+    function onMU() {
+      document.removeEventListener('mousemove', onMM)
+      document.removeEventListener('mouseup', onMU)
+      if (!didDrag) sectionSel.toggle(sectionId, nativeEvent.shiftKey)
+    }
+    document.addEventListener('mousemove', onMM)
+    document.addEventListener('mouseup', onMU)
   }
 
   function startSectionDrag(e: React.MouseEvent) {
@@ -646,6 +741,17 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       `box-sizing:border-box`,
     ].join(';')
     document.body.appendChild(slot)
+
+    // Multi-drag: if this section is part of a multi-selection, drag all selected
+    const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
+    if (isMultiDrag) {
+      sectionSel.setDrag(true)
+      const count = sectionSel.size()
+      const badge = document.createElement('div')
+      badge.style.cssText = `position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;pointer-events:none`
+      badge.textContent = `${count} Blöcke`
+      ghost.appendChild(badge)
+    }
 
     setSectionDragging(true)
     document.body.style.userSelect = 'none'
@@ -751,9 +857,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         dupBtn.style.background  = ''
         dupBtn.style.color       = ''
       }
+      if (isMultiDrag) sectionSel.setDrag(false)
       setSectionDragging(false)
       if (hoveringDup) duplicateSection()
-      else if (dropBeforeIdx >= 0) moveSectionTo(dropBeforeIdx)
+      else if (dropBeforeIdx >= 0) {
+        if (isMultiDrag) moveSelectedSectionsTo(sectionId, dropBeforeIdx)
+        else moveSectionTo(dropBeforeIdx)
+      }
     }
 
     document.addEventListener('mousemove', onMove)
@@ -870,6 +980,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       <div
         ref={cardRef}
         data-section-card="true"
+        data-section-id={sectionId}
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         style={{
@@ -878,10 +989,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           borderRadius: '12px',
           padding: '20px 28px 16px 44px',
           position: 'relative',
-          outline: 'none',
+          outline: isSelected ? '2px solid var(--accent)' : 'none',
+          outlineOffset: '2px',
           cursor: dragging ? 'grabbing' : undefined,
-          opacity: sectionDragging ? 0.08 : undefined,
-          transition: sectionDragging ? undefined : 'opacity 0.15s',
+          opacity: sectionDragging || (sectionSel.dragging() && isSelected) ? 0.08 : undefined,
+          transition: sectionDragging ? undefined : 'opacity 0.15s, outline 0.1s',
         }}
       >
         {/* Handle buttons: ⠿ drag + ✕ delete */}
@@ -1002,8 +1114,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
             {/* Drag handle */}
             <div
-              title="Block verschieben"
-              onMouseDown={startSectionDrag}
+              title="Block verschieben / klicken zum Auswählen"
+              onMouseDown={handleSectionDragDown}
               style={{
                 cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
                 width: '26px', height: '26px', borderRadius: '5px',
