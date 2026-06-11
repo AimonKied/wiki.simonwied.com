@@ -50,6 +50,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [colorPickerOpen, setColorPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
@@ -561,6 +562,22 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
+  useEffect(() => {
+    if (!colorPickerOpen) return
+    const close = () => setColorPickerOpen(false)
+    const id = window.setTimeout(() => document.addEventListener('click', close), 0)
+    return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
+  }, [colorPickerOpen])
+
+  function setBlockColor(bgColor: string | null, borderColor: string | null) {
+    if (typeof getPos !== 'function') return
+    const pos = getPos()
+    if (pos === undefined) return
+    editor.view.dispatch(
+      editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, bgColor, borderColor })
+    )
+  }
+
   function deleteElement() {
     if (!handle || !editor) return
     const { childPos, childSize } = handle
@@ -616,16 +633,48 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   const editable = editor.isEditable
 
+  const BG_COLORS = [
+    { label: 'Standard',  value: null,      style: 'var(--surface)' },
+    { label: 'Weiß',      value: '#ffffff',  style: '#ffffff' },
+    { label: 'Rot',       value: '#fef2f2',  style: '#fef2f2' },
+    { label: 'Orange',    value: '#fff7ed',  style: '#fff7ed' },
+    { label: 'Gelb',      value: '#fefce8',  style: '#fefce8' },
+    { label: 'Grün',      value: '#f0fdf4',  style: '#f0fdf4' },
+    { label: 'Blau',      value: '#eff6ff',  style: '#eff6ff' },
+    { label: 'Lila',      value: '#f5f3ff',  style: '#f5f3ff' },
+    { label: 'Pink',      value: '#fdf4ff',  style: '#fdf4ff' },
+    { label: 'Grau',      value: '#f8fafc',  style: '#f8fafc' },
+    { label: 'Dunkel',    value: '#1e293b',  style: '#1e293b' },
+    { label: 'Schwarz',   value: '#0f172a',  style: '#0f172a' },
+  ]
+  const BORDER_COLORS = [
+    { label: 'Standard', value: null,       style: 'var(--border)' },
+    { label: 'Grau',     value: '#d1d5db',  style: '#d1d5db' },
+    { label: 'Rot',      value: '#f87171',  style: '#f87171' },
+    { label: 'Orange',   value: '#fb923c',  style: '#fb923c' },
+    { label: 'Gelb',     value: '#facc15',  style: '#facc15' },
+    { label: 'Grün',     value: '#4ade80',  style: '#4ade80' },
+    { label: 'Blau',     value: '#60a5fa',  style: '#60a5fa' },
+    { label: 'Lila',     value: '#a78bfa',  style: '#a78bfa' },
+    { label: 'Pink',     value: '#f472b6',  style: '#f472b6' },
+    { label: 'Akzent',   value: '#009955',  style: '#009955' },
+    { label: 'Alarm',    value: '#dd2244',  style: '#dd2244' },
+    { label: 'Schwarz',  value: '#0f172a',  style: '#0f172a' },
+  ]
+
+  const bgColor     = node.attrs.bgColor     as string | null
+  const borderColor = node.attrs.borderColor as string | null
+
   return (
-    <NodeViewWrapper style={{ margin: '0 0 12px', position: 'relative', zIndex: pickerOpen || imageMode ? 100 : undefined }}>
+    <NodeViewWrapper style={{ margin: '0 0 12px', position: 'relative', zIndex: pickerOpen || imageMode || colorPickerOpen ? 100 : undefined }}>
       <div
         ref={cardRef}
         data-section-card="true"
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
+          background: bgColor ?? 'var(--surface)',
+          border: `1px solid ${borderColor ?? 'var(--border)'}`,
           borderRadius: '12px',
           padding: '20px 28px 16px 44px',
           position: 'relative',
@@ -659,21 +708,102 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {/* Section-level delete — top right */}
+        {/* Top-right controls: color picker + delete */}
         {editable && (
-          <button
-            title="Block löschen"
-            onClick={() => deleteNode()}
-            className="wiki-section-delete"
-            style={{
-              position: 'absolute', top: 8, right: 8,
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--muted)', fontSize: '11px', padding: '3px 6px',
-              borderRadius: '4px', fontFamily: 'inherit', lineHeight: 1,
-            }}
-          >
-            Block ✕
-          </button>
+          <div className="wiki-section-delete" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: '2px' }}>
+
+            {/* Color picker toggle */}
+            <div style={{ position: 'relative' }}>
+              <button
+                title="Farbe anpassen"
+                onClick={e => { e.stopPropagation(); setColorPickerOpen(o => !o) }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '3px 5px', borderRadius: '4px', lineHeight: 1,
+                  display: 'flex', alignItems: 'center', gap: '3px',
+                  fontSize: '11px', color: 'var(--muted)', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+              >
+                <span style={{
+                  display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%',
+                  background: bgColor ?? 'var(--surface)',
+                  border: `2px solid ${borderColor ?? 'var(--border)'}`,
+                  flexShrink: 0,
+                }} />
+                Farbe
+              </button>
+
+              {colorPickerOpen && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+                    background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '10px 12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                    zIndex: 300, minWidth: '200px',
+                  }}
+                >
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>HINTERGRUND</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
+                    {BG_COLORS.map(c => (
+                      <button
+                        key={c.label}
+                        title={c.label}
+                        onClick={() => setBlockColor(c.value, borderColor)}
+                        style={{
+                          width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
+                          background: c.style, border: '2px solid',
+                          borderColor: bgColor === c.value ? 'var(--accent)' : (c.value === null ? 'var(--border)' : 'transparent'),
+                          outline: bgColor === c.value ? '2px solid var(--accent)' : 'none',
+                          outlineOffset: '1px',
+                          padding: 0,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0 8px' }} />
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>RAHMEN</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {BORDER_COLORS.map(c => (
+                      <button
+                        key={c.label}
+                        title={c.label}
+                        onClick={() => setBlockColor(bgColor, c.value)}
+                        style={{
+                          width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
+                          background: c.style, border: '2px solid',
+                          borderColor: borderColor === c.value ? 'var(--text)' : 'transparent',
+                          outline: borderColor === c.value ? '2px solid var(--text)' : 'none',
+                          outlineOffset: '1px',
+                          padding: 0,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Delete */}
+            <button
+              title="Block löschen"
+              onClick={() => deleteNode()}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--muted)', fontSize: '11px', padding: '3px 6px',
+                borderRadius: '4px', fontFamily: 'inherit', lineHeight: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.style.background = '#fff0f2' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
+            >
+              Block ✕
+            </button>
+          </div>
         )}
 
         <NodeViewContent />
@@ -754,8 +884,18 @@ export const SectionExtension = Node.create({
   content: 'block+',
   defining: true,
 
-  renderHTML({ HTMLAttributes }) {
-    return ['section', mergeAttributes(HTMLAttributes), 0]
+  addAttributes() {
+    return {
+      bgColor:     { default: null, parseHTML: el => el.getAttribute('data-bg')     || null },
+      borderColor: { default: null, parseHTML: el => el.getAttribute('data-border') || null },
+    }
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    const attrs: Record<string, string> = {}
+    if (node.attrs.bgColor)     attrs['data-bg']     = node.attrs.bgColor
+    if (node.attrs.borderColor) attrs['data-border'] = node.attrs.borderColor
+    return ['section', mergeAttributes(HTMLAttributes, attrs), 0]
   },
 
   parseHTML() {
