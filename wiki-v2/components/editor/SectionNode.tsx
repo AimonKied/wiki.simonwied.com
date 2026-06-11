@@ -570,6 +570,18 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
+  function duplicateSection() {
+    if (!editor || typeof getPos !== 'function') return
+    const sectionPos = getPos()
+    if (sectionPos === undefined) return
+    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    if (!sectionNode) return
+    const copy = sectionNode.copy(sectionNode.content)
+    const tr = editor.state.tr
+    tr.insert(editor.state.doc.content.size, copy)
+    editor.view.dispatch(tr)
+  }
+
   function startSectionDrag(e: React.MouseEvent) {
     if (!cardRef.current || typeof getPos !== 'function') return
     e.preventDefault()
@@ -639,8 +651,14 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'grabbing'
 
+    // Change "Neuer Block" button to "Duplizieren" for the duration of this drag
+    const dupBtn = document.querySelector('[data-new-block-btn]') as HTMLElement | null
+    const origBtnHTML = dupBtn?.innerHTML ?? ''
+    if (dupBtn) dupBtn.innerHTML = '<span style="font-size:16px;line-height:1;font-weight:300">⎘</span> Duplizieren'
+
     let dropBeforeIdx = -1
     let lastDropIdx = -2 // force first evaluation
+    let hoveringDup = false
 
     function applyShifts(dropIdx: number) {
       allWrappers.forEach((wrapper, i) => {
@@ -677,6 +695,28 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     function onMove(ev: MouseEvent) {
       ghost.style.top = `${ev.clientY - offsetY}px`
 
+      // Check hover over duplicate button
+      if (dupBtn) {
+        const r = dupBtn.getBoundingClientRect()
+        const over = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
+        if (over && !hoveringDup) {
+          hoveringDup = true
+          dupBtn.style.borderColor = 'var(--accent)'
+          dupBtn.style.background  = 'rgba(0,153,85,0.08)'
+          dupBtn.style.color       = 'var(--accent)'
+          resetShifts()
+          dropBeforeIdx = -1
+          lastDropIdx = -2
+        } else if (!over && hoveringDup) {
+          hoveringDup = false
+          dupBtn.style.borderColor = ''
+          dupBtn.style.background  = ''
+          dupBtn.style.color       = ''
+          lastDropIdx = -2
+        }
+        if (hoveringDup) return
+      }
+
       let newDropIdx = allCardEls.length
       for (let i = 0; i < allCardEls.length; i++) {
         if (ev.clientY < initialRects[i].top + initialRects[i].height / 2) {
@@ -705,8 +745,15 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       allWrappers.forEach(w => { w.style.transform = ''; w.style.transition = '' })
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
+      if (dupBtn) {
+        dupBtn.innerHTML = origBtnHTML
+        dupBtn.style.borderColor = ''
+        dupBtn.style.background  = ''
+        dupBtn.style.color       = ''
+      }
       setSectionDragging(false)
-      if (dropBeforeIdx >= 0) moveSectionTo(dropBeforeIdx)
+      if (hoveringDup) duplicateSection()
+      else if (dropBeforeIdx >= 0) moveSectionTo(dropBeforeIdx)
     }
 
     document.addEventListener('mousemove', onMove)
