@@ -23,6 +23,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [open, setOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
+  const [hovered, setHovered] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -82,16 +83,20 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   return (
     <NodeViewWrapper style={{ margin: '0 0 12px' }}>
-      <div style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '12px',
-        padding: '24px 28px 16px',
-        position: 'relative',
-        transition: 'border-color 0.15s',
-      }}>
-        {/* Delete button — top right, only in edit mode */}
-        {editable && (
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          padding: '24px 28px 16px',
+          position: 'relative',
+          transition: 'border-color 0.15s',
+        }}
+      >
+        {/* Delete button — top right, visible on hover */}
+        {editable && hovered && (
           <button
             title="Block löschen"
             onClick={() => deleteNode()}
@@ -100,17 +105,17 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               top: '10px',
               right: '10px',
               background: 'none',
-              border: 'none',
+              border: '1px solid var(--border)',
               cursor: 'pointer',
               color: 'var(--muted)',
-              fontSize: '12px',
-              padding: '4px 6px',
+              fontSize: '11px',
+              padding: '3px 7px',
               borderRadius: '4px',
-              opacity: 0,
-              transition: 'opacity 0.1s, color 0.1s',
               fontFamily: 'inherit',
+              lineHeight: 1,
             }}
-            className="section-delete-btn"
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.style.borderColor = 'var(--accent2)'; e.currentTarget.style.background = '#fff0f2' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'none' }}
           >
             ✕
           </button>
@@ -204,10 +209,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         )}
       </div>
 
-      <style>{`
-        [data-node-view-wrapper]:hover .section-delete-btn { opacity: 1; }
-        .section-delete-btn:hover { color: var(--accent2) !important; background: #fff0f2 !important; }
-      `}</style>
     </NodeViewWrapper>
   )
 }
