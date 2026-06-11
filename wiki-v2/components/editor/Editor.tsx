@@ -166,6 +166,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
       <style>{`
         /* Content inside section cards */
+        .ProseMirror { outline: none; }
         [data-node-view-content] { outline: none; }
         [data-node-view-content] > * + * { margin-top: 6px; }
 
