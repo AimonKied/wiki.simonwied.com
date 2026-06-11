@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Note } from '@/lib/types'
 import Link from 'next/link'
+import RightSidebar from '@/components/editor/RightSidebar'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 
@@ -85,121 +86,100 @@ export default function EditNotePage() {
   )
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease both', maxWidth: '860px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '16px' }}>
-        <input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          style={{
-            fontSize: '28px',
-            fontWeight: 800,
-            background: 'none',
-            border: 'none',
-            outline: 'none',
-            color: 'var(--text)',
-            fontFamily: 'inherit',
-            flex: 1,
-          }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          {saved && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
-          <button
-            onClick={handleDelete}
-            style={{
-              padding: '9px 14px',
-              background: 'none',
-              color: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            Löschen
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              padding: '9px 20px',
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              fontFamily: 'inherit',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Speichert…' : 'Speichern'}
-          </button>
-        </div>
-      </div>
+    <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both' }}>
 
-      {/* Editor */}
-      <Editor content={content} onChange={setContent} />
+      {/* Main editor column */}
+      <div style={{ flex: 1, minWidth: 0, maxWidth: '860px' }}>
 
-      {/* Metadaten */}
-      <div style={{
-        marginTop: '20px',
-        padding: '16px 20px',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '10px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
-        flexWrap: 'wrap',
-      }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '16px' }}>
           <input
-            type="checkbox"
-            checked={isPublic}
-            onChange={e => setIsPublic(e.target.checked)}
-            style={{ accentColor: 'var(--accent)', width: '14px', height: '14px' }}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            style={{
+              fontSize: '28px', fontWeight: 800, background: 'none', border: 'none',
+              outline: 'none', color: 'var(--text)', fontFamily: 'inherit', flex: 1,
+            }}
           />
-          Öffentlich
-        </label>
-
-        {isPublic && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
-            <input
-              value={slug}
-              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-              placeholder="mein-slug"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            {saved && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
+            <button
+              onClick={handleDelete}
               style={{
-                flex: 1,
-                padding: '5px 10px',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontFamily: 'inherit',
-                color: 'var(--text)',
-                outline: 'none',
+                padding: '9px 14px', background: 'none', color: 'var(--muted)',
+                border: '1px solid var(--border)', borderRadius: '8px',
+                fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
               }}
-            />
-            {slug && (
-              <Link
-                href={`/notes/${slug}`}
-                target="_blank"
-                style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
-              >
-                Ansehen →
-              </Link>
-            )}
+            >
+              Löschen
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Speichert…' : 'Speichern'}
+            </button>
           </div>
-        )}
+        </div>
 
-        <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
-          Strg+S zum Speichern
-        </span>
+        {/* Editor */}
+        <Editor content={content} onChange={setContent} />
+
+        {/* Metadaten */}
+        <div style={{
+          marginTop: '20px', padding: '16px 20px', background: 'var(--surface)',
+          border: '1px solid var(--border)', borderRadius: '10px',
+          display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={e => setIsPublic(e.target.checked)}
+              style={{ accentColor: 'var(--accent)', width: '14px', height: '14px' }}
+            />
+            Öffentlich
+          </label>
+          {isPublic && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
+              <input
+                value={slug}
+                onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                placeholder="mein-slug"
+                style={{
+                  flex: 1, padding: '5px 10px', background: 'var(--bg)',
+                  border: '1px solid var(--border)', borderRadius: '6px',
+                  fontSize: '12px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
+                }}
+              />
+              {slug && (
+                <Link
+                  href={`/notes/${slug}`}
+                  target="_blank"
+                  style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                >
+                  Ansehen →
+                </Link>
+              )}
+            </div>
+          )}
+          <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
+            Strg+S zum Speichern
+          </span>
+        </div>
+
       </div>
+
+      {/* Right sidebar */}
+      <RightSidebar content={content} />
+
     </div>
   )
 }
