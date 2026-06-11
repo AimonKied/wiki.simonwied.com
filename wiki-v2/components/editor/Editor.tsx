@@ -1,6 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
+import { useState } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -55,6 +56,7 @@ interface EditorProps {
 
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
   const initialContent = ensureSections(content)
+  const [tableMenuOpen, setTableMenuOpen] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -93,28 +95,19 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     return editor.view.dom.getBoundingClientRect()
   }
 
-  const tBtn = (title: string, onClick: () => void, label: string, destructive = false) => (
+  const menuItem = (label: string, onClick: () => void, destructive = false) => (
     <button
-      key={title}
-      title={title}
-      onClick={onClick}
+      key={label}
+      onClick={() => { onClick(); setTableMenuOpen(false) }}
       style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '4px 7px', minWidth: '28px',
-        background: 'none', border: '1px solid transparent', borderRadius: '6px',
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', lineHeight: 1,
-        color: destructive ? 'var(--accent2)' : 'var(--text)',
-        transition: 'background 0.1s, border-color 0.1s',
-        whiteSpace: 'nowrap',
+        display: 'block', width: '100%', textAlign: 'left',
+        padding: '6px 10px', background: 'none', border: 'none',
+        borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit',
+        fontSize: '13px', color: destructive ? 'var(--accent2)' : 'var(--text)',
+        transition: 'background 0.1s',
       }}
-      onMouseEnter={e => {
-        e.currentTarget.style.background = destructive ? '#fff0f2' : 'var(--surface2)'
-        e.currentTarget.style.borderColor = destructive ? 'var(--accent2)' : 'var(--border)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = 'none'
-        e.currentTarget.style.borderColor = 'transparent'
-      }}
+      onMouseEnter={e => { e.currentTarget.style.background = destructive ? '#fff0f2' : 'var(--surface2)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
     >{label}</button>
   )
 
@@ -160,7 +153,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Table toolbar — anchored above the whole table, not the cursor cell */}
+      {/* Table corner "+" — shows when cursor is in a table cell */}
       {editable && (
         <BubbleMenu
           editor={editor}
@@ -169,31 +162,62 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             placement: 'top-end',
             offset: [0, 8],
             hideOnClick: false,
+            onHide: () => setTableMenuOpen(false),
             getReferenceClientRect: getTableRect,
           }}
         >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1px',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            padding: '3px 5px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-            fontFamily: 'inherit',
-          }}>
-            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Zeile</span>
-            {tBtn('Zeile darüber',  () => editor.chain().focus().addRowBefore().run(), '↑')}
-            {tBtn('Zeile darunter', () => editor.chain().focus().addRowAfter().run(),  '↓')}
-            {tBtn('Zeile löschen',  () => editor.chain().focus().deleteRow().run(),    '✕', true)}
-            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
-            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Spalte</span>
-            {tBtn('Spalte links',   () => editor.chain().focus().addColumnBefore().run(), '←')}
-            {tBtn('Spalte rechts',  () => editor.chain().focus().addColumnAfter().run(),  '→')}
-            {tBtn('Spalte löschen', () => editor.chain().focus().deleteColumn().run(),    '✕', true)}
-            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
-            {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕', true)}
+          <div style={{ position: 'relative' }}>
+            {/* "+" toggle button */}
+            <button
+              onClick={() => setTableMenuOpen(o => !o)}
+              title="Tabelle bearbeiten"
+              style={{
+                width: '26px', height: '26px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '50%',
+                border: '1px solid var(--border)',
+                background: tableMenuOpen ? 'var(--accent)' : 'var(--surface)',
+                color: tableMenuOpen ? '#fff' : 'var(--muted)',
+                cursor: 'pointer',
+                fontSize: '18px', lineHeight: 1, fontWeight: 300,
+                boxShadow: '0 1px 6px rgba(0,0,0,0.1)',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!tableMenuOpen) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' } }}
+              onMouseLeave={e => { if (!tableMenuOpen) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)' } }}
+            >+</button>
+
+            {/* Dropdown menu */}
+            {tableMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                padding: '6px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                minWidth: '180px',
+                zIndex: 10,
+              }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '2px 6px 4px', letterSpacing: '0.07em' }}>ZEILE</div>
+                {menuItem('↑ Zeile davor einfügen',  () => editor.chain().focus().addRowBefore().run())}
+                {menuItem('↓ Zeile danach einfügen', () => editor.chain().focus().addRowAfter().run())}
+                {menuItem('✕ Zeile löschen',          () => editor.chain().focus().deleteRow().run(), true)}
+
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+                <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '2px 6px 4px', letterSpacing: '0.07em' }}>SPALTE</div>
+                {menuItem('← Spalte davor einfügen',  () => editor.chain().focus().addColumnBefore().run())}
+                {menuItem('→ Spalte danach einfügen', () => editor.chain().focus().addColumnAfter().run())}
+                {menuItem('✕ Spalte löschen',          () => editor.chain().focus().deleteColumn().run(), true)}
+
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+                {menuItem('✕ Tabelle löschen', () => editor.chain().focus().deleteTable().run(), true)}
+              </div>
+            )}
           </div>
         </BubbleMenu>
       )}
