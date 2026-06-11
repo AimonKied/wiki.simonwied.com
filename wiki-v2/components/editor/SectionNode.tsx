@@ -1,6 +1,6 @@
 'use client'
 
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes, Editor } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Fragment } from '@tiptap/pm/model'
@@ -33,12 +33,69 @@ const sectionSel = {
   sub:      (fn: () => void) => { _selCbs.add(fn); return () => _selCbs.delete(fn) },
 }
 
+let _activeEditor: Editor | null = null
+let _sectionClipboard: PMNode[] = []
+let _elementClipboard: PMNode | null = null
+
 let _globalHandlersInstalled = false
 function _ensureGlobalHandlers() {
   if (_globalHandlersInstalled) return
   _globalHandlersInstalled = true
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') sectionSel.clear()
+    if (e.key === 'Escape') { sectionSel.clear(); return }
+
+    const ctrl = e.ctrlKey || e.metaKey
+    if (!ctrl) return
+    const textSelected = !!window.getSelection()?.toString()
+
+    // Ctrl+C / Ctrl+X: copy or cut selected sections
+    if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0 && !textSelected) {
+      e.preventDefault()
+      const nodes: PMNode[] = []
+      _activeEditor?.state.doc.forEach((node: PMNode, offset: number) => {
+        if (node.type.name !== 'section') return
+        const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
+        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+        if (id && _selSet.has(id)) nodes.push(node)
+      })
+      _sectionClipboard = nodes
+      _elementClipboard = null
+
+      if (e.key === 'x') {
+        const tr = _activeEditor!.state.tr
+        const toDelete: number[] = []
+        _activeEditor!.state.doc.forEach((node: PMNode, offset: number) => {
+          if (node.type.name !== 'section') return
+          const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
+          const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+          if (id && _selSet.has(id)) toDelete.push(offset)
+        })
+        toDelete.reverse().forEach(pos => {
+          const n = _activeEditor!.state.doc.nodeAt(tr.mapping.map(pos))
+          if (n) tr.delete(tr.mapping.map(pos), tr.mapping.map(pos) + n.nodeSize)
+        })
+        _activeEditor!.view.dispatch(tr)
+        sectionSel.clear()
+      }
+    }
+
+    // Ctrl+V: paste section clipboard
+    if (e.key === 'v' && _sectionClipboard.length > 0 && !textSelected) {
+      const ed = _activeEditor
+      if (!ed) return
+      const { from } = ed.state.selection
+      let pastePos = ed.state.doc.content.size
+      try {
+        const $from = ed.state.doc.resolve(from)
+        for (let d = $from.depth; d >= 0; d--) {
+          if ($from.node(d).type.name === 'section') { pastePos = $from.after(d); break }
+        }
+      } catch { /* ignore */ }
+      e.preventDefault()
+      const tr = ed.state.tr
+      _sectionClipboard.forEach(n => tr.insert(tr.mapping.map(pastePos), n.copy(n.content)))
+      ed.view.dispatch(tr)
+    }
   })
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,12 +189,65 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   useEffect(() => {
     _ensureGlobalHandlers()
+    _activeEditor = editor as unknown as Editor
     const unsub = sectionSel.sub(() => {
       setIsSelected(sectionSel.has(sectionId))
       if (!sectionSel.has(sectionId) || !sectionSel.dragging()) setSectionDragging(false)
     })
     return () => { unsub() }
-  }, [sectionId])
+  }, [sectionId, editor])
+
+  // Element copy/cut/paste via Ctrl+C/X/V when element handle is visible
+  useEffect(() => {
+    if (!handle) return
+    function onKey(e: KeyboardEvent) {
+      const ctrl = e.ctrlKey || e.metaKey
+      if (!ctrl) return
+      if (window.getSelection()?.toString()) return
+      if (_selSet.size > 0) return  // section clipboard takes priority
+
+      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
+      if (sectionPos === undefined) return
+      const sectionNode = editor.state.doc.nodeAt(sectionPos)
+      if (!sectionNode || !handle) return
+
+      if (e.key === 'c') {
+        e.preventDefault()
+        _elementClipboard = sectionNode.child(handle.childIdx)
+        _sectionClipboard = []
+      }
+
+      if (e.key === 'x') {
+        e.preventDefault()
+        _elementClipboard = sectionNode.child(handle.childIdx)
+        _sectionClipboard = []
+        const children: PMNode[] = []
+        for (let i = 0; i < sectionNode.childCount; i++) {
+          if (i !== handle.childIdx) children.push(sectionNode.child(i))
+        }
+        const content = children.length > 0
+          ? Fragment.from(children)
+          : Fragment.from(editor.state.schema.nodes.paragraph.create())
+        const tr = editor.state.tr
+        tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, content)
+        editor.view.dispatch(tr)
+      }
+
+      if (e.key === 'v' && _elementClipboard) {
+        e.preventDefault()
+        const children: PMNode[] = []
+        for (let i = 0; i < sectionNode.childCount; i++) {
+          children.push(sectionNode.child(i))
+          if (i === handle.childIdx) children.push(_elementClipboard.copy(_elementClipboard.content))
+        }
+        const tr = editor.state.tr
+        tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, Fragment.from(children))
+        editor.view.dispatch(tr)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [handle, getPos, editor])
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
