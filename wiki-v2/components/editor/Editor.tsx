@@ -1,6 +1,6 @@
 'use client'
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, useEditorState } from '@tiptap/react'
 import { useState, useEffect } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
@@ -82,16 +82,17 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     },
   })
 
-  // Track table position for fixed toolbar
+  // Reactive: re-renders whenever cursor enters/leaves a table cell
+  const isInTable = useEditorState({
+    editor,
+    selector: (ctx) => !!(ctx.editor?.isActive('tableCell') || ctx.editor?.isActive('tableHeader')),
+  })
+
   const [tablePos, setTablePos] = useState<{ top: number; right: number } | null>(null)
 
   useEffect(() => {
-    if (!editor) return
-    const findTable = () => {
-      if (!editor.isActive('tableCell') && !editor.isActive('tableHeader')) {
-        setTablePos(null)
-        return
-      }
+    if (!isInTable || !editor) { setTablePos(null); return }
+    const measure = () => {
       try {
         const { node } = editor.view.domAtPos(editor.state.selection.from)
         let el: Element | null = node instanceof Element ? node : (node as Node).parentElement
@@ -102,17 +103,14 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         }
       } catch { setTablePos(null) }
     }
-    editor.on('selectionUpdate', findTable)
-    editor.on('transaction', findTable)
-    window.addEventListener('scroll', findTable, true)
-    window.addEventListener('resize', findTable)
+    measure()
+    window.addEventListener('scroll', measure, true)
+    window.addEventListener('resize', measure)
     return () => {
-      editor.off('selectionUpdate', findTable)
-      editor.off('transaction', findTable)
-      window.removeEventListener('scroll', findTable, true)
-      window.removeEventListener('resize', findTable)
+      window.removeEventListener('scroll', measure, true)
+      window.removeEventListener('resize', measure)
     }
-  }, [editor])
+  }, [isInTable, editor])
 
   if (!editor) return null
 
