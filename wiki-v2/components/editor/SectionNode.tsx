@@ -161,6 +161,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           borderRadius: '12px',
           padding: '20px 28px 16px 44px',
           position: 'relative',
+          outline: 'none',
         }}
       >
         {/* Hover indicator: React-controlled overlay — no DOM classList manipulation */}
