@@ -1,6 +1,9 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import type { Editor as TiptapEditor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import LinkExt from '@tiptap/extension-link'
@@ -12,9 +15,48 @@ import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TableRow } from '@tiptap/extension-table-row'
 import { createLowlight, all } from 'lowlight'
-import { useEffect } from 'react'
 
 const lowlight = createLowlight(all)
+
+const BLOCKS = [
+  { key: 'paragraph',   label: 'Text',          icon: '¶',    desc: 'Normaler Absatz' },
+  { key: 'h1',          label: 'Überschrift 1',  icon: 'H1',   desc: 'Großer Titel' },
+  { key: 'h2',          label: 'Überschrift 2',  icon: 'H2',   desc: 'Abschnittstitel' },
+  { key: 'h3',          label: 'Überschrift 3',  icon: 'H3',   desc: 'Unterabschnitt' },
+  { key: 'bulletList',  label: 'Aufzählung',     icon: '•',    desc: 'Ungeordnete Liste' },
+  { key: 'orderedList', label: 'Nummeriert',     icon: '1.',   desc: 'Nummerierte Liste' },
+  { key: 'codeBlock',   label: 'Code',           icon: '</>',  desc: 'Syntax Highlighting' },
+  { key: 'blockquote',  label: 'Zitat',          icon: '"',    desc: 'Hervorgehobenes Zitat' },
+  { key: 'hr',          label: 'Trennlinie',     icon: '—',    desc: 'Horizontale Linie' },
+  { key: 'table',       label: 'Tabelle',        icon: '⊞',   desc: '3 × 3 Tabelle' },
+  { key: 'image',       label: 'Bild',           icon: '⬜',   desc: 'Bild per URL' },
+]
+
+function insertBlock(editor: TiptapEditor, key: string) {
+  const end = editor.state.doc.content.size
+
+  if (key === 'table') {
+    editor.chain().focus().setTextSelection(end).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    return
+  }
+  if (key === 'hr') {
+    editor.chain().focus().insertContentAt(end, { type: 'horizontalRule' }).run()
+    return
+  }
+
+  const nodes: Record<string, object> = {
+    paragraph:   { type: 'paragraph' },
+    h1:          { type: 'heading', attrs: { level: 1 } },
+    h2:          { type: 'heading', attrs: { level: 2 } },
+    h3:          { type: 'heading', attrs: { level: 3 } },
+    bulletList:  { type: 'bulletList',  content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+    orderedList: { type: 'orderedList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+    codeBlock:   { type: 'codeBlock',   attrs: { language: null } },
+    blockquote:  { type: 'blockquote',  content: [{ type: 'paragraph' }] },
+  }
+  const node = nodes[key]
+  if (node) editor.chain().focus().insertContentAt(end, node).run()
+}
 
 interface EditorProps {
   content?: object | null
@@ -23,114 +65,272 @@ interface EditorProps {
 }
 
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [imageInput, setImageInput] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  const initialContent = content && Object.keys(content).length > 0 ? content : ''
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
       Underline,
-      LinkExt.configure({ openOnClick: false }),
+      LinkExt.configure({ openOnClick: !editable }),
       ImageExt,
       CodeBlockLowlight.configure({ lowlight }),
-      Placeholder.configure({ placeholder: 'Schreib etwas…' }),
+      Placeholder.configure({ placeholder: 'Schreib etwas, oder klicke + um einen Block hinzuzufügen…' }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
       TableCell,
     ],
-    content: content ?? '',
+    content: initialContent,
     editable,
     onUpdate({ editor }) {
       onChange?.(editor.getJSON())
     },
   })
 
+  // Close picker on outside click
   useEffect(() => {
-    if (editor && content && editor.isEmpty) {
-      editor.commands.setContent(content)
+    function onDown(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false)
+      }
     }
-  }, [editor, content])
+    if (pickerOpen) document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [pickerOpen])
+
+  function handleBlockSelect(key: string) {
+    if (!editor) return
+    if (key === 'image') { setPickerOpen(false); setImageInput(true); return }
+    insertBlock(editor, key)
+    setPickerOpen(false)
+  }
+
+  function handleImageInsert() {
+    if (!editor || !imageUrl.trim()) return
+    editor.chain().focus()
+      .insertContentAt(editor.state.doc.content.size, { type: 'image', attrs: { src: imageUrl.trim() } })
+      .run()
+    setImageUrl('')
+    setImageInput(false)
+  }
 
   if (!editor) return null
 
-  const btn = (active: boolean) => ({
-    padding: '4px 8px',
+  const bBtn = (active: boolean, extra?: React.CSSProperties) => ({
+    padding: '4px 9px',
     borderRadius: '5px',
     border: 'none',
     cursor: 'pointer',
     fontSize: '12px',
     fontFamily: 'inherit',
-    background: active ? 'var(--surface2)' : 'transparent',
-    color: active ? 'var(--text)' : 'var(--muted)',
     fontWeight: active ? 700 : 400,
-    transition: 'all 0.1s',
+    background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
+    color: '#e8e8f0',
+    transition: 'background 0.1s',
+    ...extra,
   } as React.CSSProperties)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ position: 'relative' }}>
+      {/* Bubble menu on text selection */}
       {editable && (
-        <div style={{
-          display: 'flex',
-          gap: '2px',
-          padding: '8px 12px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderBottom: 'none',
-          borderRadius: '10px 10px 0 0',
-          flexWrap: 'wrap',
-        }}>
-          <button style={btn(editor.isActive('bold'))} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
-          <button style={{ ...btn(editor.isActive('italic')), fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
-          <button style={{ ...btn(editor.isActive('underline')), textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-          <button style={{ ...btn(editor.isActive('strike')), textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
-          <span style={{ width: '1px', background: 'var(--border)', margin: '2px 6px' }} />
-          {([1, 2, 3] as const).map(level => (
-            <button key={level} style={btn(editor.isActive('heading', { level }))} onClick={() => editor.chain().focus().toggleHeading({ level }).run()}>
-              H{level}
-            </button>
-          ))}
-          <span style={{ width: '1px', background: 'var(--border)', margin: '2px 6px' }} />
-          <button style={btn(editor.isActive('bulletList'))} onClick={() => editor.chain().focus().toggleBulletList().run()}>• Liste</button>
-          <button style={btn(editor.isActive('orderedList'))} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1. Liste</button>
-          <span style={{ width: '1px', background: 'var(--border)', margin: '2px 6px' }} />
-          <button style={btn(editor.isActive('codeBlock'))} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>{'</>'}</button>
-          <button style={btn(editor.isActive('blockquote'))} onClick={() => editor.chain().focus().toggleBlockquote().run()}>&ldquo;</button>
-          <button style={btn(false)} onClick={() => editor.chain().focus().setHorizontalRule().run()}>—</button>
-        </div>
+        <BubbleMenu editor={editor}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+            background: '#1a1a2a',
+            border: '1px solid #2e2e42',
+            borderRadius: '8px',
+            padding: '4px 6px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          }}>
+            <button style={bBtn(editor.isActive('bold'),        { fontWeight: 800 })}        onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+            <button style={bBtn(editor.isActive('italic'),      { fontStyle: 'italic' })}    onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+            <button style={bBtn(editor.isActive('underline'),   { textDecoration: 'underline' })} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+            <button style={bBtn(editor.isActive('strike'),      { textDecoration: 'line-through' })} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+            <button style={bBtn(editor.isActive('code'),        { fontFamily: 'monospace' })} onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
+            <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+            <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+            <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+          </div>
+        </BubbleMenu>
       )}
 
+      {/* Editor content area */}
       <EditorContent
         editor={editor}
         style={{
-          flex: 1,
           background: 'var(--surface)',
           border: '1px solid var(--border)',
-          borderRadius: editable ? '0 0 10px 10px' : '10px',
-          padding: '24px 28px',
-          minHeight: '400px',
-          outline: 'none',
-          lineHeight: 1.75,
+          borderRadius: '12px',
+          padding: '32px 36px',
+          minHeight: '420px',
           fontSize: '14px',
-          overflowY: 'auto',
+          lineHeight: 1.75,
         }}
       />
 
+      {/* + Button & Block Picker */}
+      {editable && (
+        <div style={{ position: 'relative', marginTop: '10px' }} ref={pickerRef}>
+          <button
+            onClick={() => setPickerOpen(p => !p)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '9px',
+              background: pickerOpen ? 'var(--surface2)' : 'none',
+              border: '1px dashed var(--border)',
+              borderRadius: '8px',
+              color: 'var(--muted)',
+              fontSize: '13px',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize: '20px', lineHeight: 1, fontWeight: 300 }}>+</span>
+            Block hinzufügen
+          </button>
+
+          {pickerOpen && (
+            <div style={{
+              position: 'absolute',
+              bottom: 'calc(100% + 8px)',
+              left: 0,
+              right: 0,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '10px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '4px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              zIndex: 100,
+            }}>
+              {BLOCKS.map(block => (
+                <button
+                  key={block.key}
+                  onClick={() => handleBlockSelect(block.key)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '3px',
+                    padding: '10px 12px',
+                    background: 'none',
+                    border: '1px solid transparent',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.1s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}
+                >
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{block.icon}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>{block.label}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--muted)', lineHeight: 1.3 }}>{block.desc}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image URL input */}
+      {imageInput && (
+        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          <input
+            autoFocus
+            value={imageUrl}
+            onChange={e => setImageUrl(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleImageInsert(); if (e.key === 'Escape') setImageInput(false) }}
+            placeholder="https://example.com/bild.jpg"
+            style={{
+              flex: 1, padding: '9px 14px',
+              background: 'var(--bg)', border: '1px solid var(--border)',
+              borderRadius: '8px', fontSize: '13px',
+              fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
+            }}
+          />
+          <button onClick={handleImageInsert} style={{ padding: '9px 18px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>
+            Einfügen
+          </button>
+          <button onClick={() => setImageInput(false)} style={{ padding: '9px 12px', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <style>{`
         .tiptap { outline: none; }
-        .tiptap h1 { font-size: 24px; font-weight: 800; margin: 24px 0 8px; }
-        .tiptap h2 { font-size: 20px; font-weight: 700; margin: 20px 0 6px; }
-        .tiptap h3 { font-size: 16px; font-weight: 700; margin: 16px 0 4px; }
-        .tiptap p { margin: 0 0 10px; }
-        .tiptap ul, .tiptap ol { padding-left: 20px; margin: 0 0 10px; }
-        .tiptap li { margin-bottom: 4px; }
-        .tiptap blockquote { border-left: 3px solid var(--border); padding-left: 16px; color: var(--muted); margin: 12px 0; }
+        .tiptap > * + * { margin-top: 6px; }
+
+        .tiptap h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-top: 36px; margin-bottom: 10px; line-height: 1.2; }
+        .tiptap h2 { font-size: 20px; font-weight: 700; margin-top: 28px; margin-bottom: 8px; line-height: 1.3; }
+        .tiptap h3 { font-size: 16px; font-weight: 700; margin-top: 20px; margin-bottom: 6px; }
+        .tiptap h1:first-child, .tiptap h2:first-child, .tiptap h3:first-child { margin-top: 0; }
+
+        .tiptap p { margin: 0 0 6px; line-height: 1.75; }
+        .tiptap ul, .tiptap ol { padding-left: 22px; margin: 4px 0 10px; }
+        .tiptap li { margin-bottom: 4px; line-height: 1.75; }
+        .tiptap li p { margin-bottom: 2px; }
+
+        .tiptap blockquote {
+          border-left: 3px solid var(--accent);
+          padding: 12px 18px;
+          margin: 16px 0;
+          background: var(--surface2);
+          border-radius: 0 8px 8px 0;
+          color: var(--muted);
+        }
+        .tiptap blockquote p { margin: 0; }
+
         .tiptap code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-        .tiptap pre { background: #1a1a2a; color: #e8e8f0; padding: 16px 20px; border-radius: 8px; margin: 12px 0; overflow-x: auto; }
-        .tiptap pre code { background: none; padding: 0; font-size: 13px; }
-        .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+        .tiptap pre {
+          background: #1a1a2a;
+          color: #e8e8f0;
+          padding: 20px 24px;
+          border-radius: 10px;
+          margin: 16px 0;
+          overflow-x: auto;
+          border: 1px solid #2a2a3a;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .tiptap pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+        .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
         .tiptap a { color: var(--accent); text-decoration: underline; }
-        .tiptap table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .tiptap td, .tiptap th { border: 1px solid var(--border); padding: 8px 12px; }
+
+        .tiptap img { max-width: 100%; border-radius: 8px; margin: 10px 0; display: block; }
+
+        .tiptap table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        .tiptap td, .tiptap th { border: 1px solid var(--border); padding: 10px 14px; font-size: 13px; text-align: left; }
         .tiptap th { background: var(--surface2); font-weight: 700; }
-        .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; float: left; height: 0; }
+        .tiptap .selectedCell::after { background: rgba(0,153,85,0.08); }
+
+        .tiptap p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          color: var(--muted);
+          pointer-events: none;
+          float: left;
+          height: 0;
+        }
       `}</style>
     </div>
   )

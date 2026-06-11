@@ -12,6 +12,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tiptap/extension-bold": "^3.26.0",
+    "@tiptap/extension-bubble-menu": "^3.26.0",
     "@tiptap/extension-code-block-lowlight": "^3.26.0",
     "@tiptap/extension-drag-handle-react": "^3.26.0",
     "@tiptap/extension-heading": "^3.26.0",
