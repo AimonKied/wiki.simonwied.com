@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import LinkExt from '@tiptap/extension-link'
@@ -43,6 +45,7 @@ interface EditorProps {
 }
 
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
+  const [currentNodeInfo, setCurrentNodeInfo] = useState<{ pos: number; nodeSize: number } | null>(null)
   const initialContent = ensureSections(content)
 
   const editor = useEditor({
@@ -69,6 +72,20 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   })
 
   if (!editor) return null
+
+  function deleteCurrentNode() {
+    if (!editor || !currentNodeInfo) return
+    const { pos, nodeSize } = currentNodeInfo
+    const $pos = editor.state.doc.resolve(pos)
+    const parent = $pos.parent
+    // If this is the only child of a section, delete the whole section
+    if (parent.type.name === 'section' && parent.childCount === 1) {
+      const sectionPos = pos - $pos.parentOffset - 1
+      editor.chain().focus().deleteRange({ from: sectionPos, to: sectionPos + parent.nodeSize }).run()
+      return
+    }
+    editor.chain().focus().deleteRange({ from: pos, to: pos + nodeSize }).run()
+  }
 
   const bBtn = (active: boolean, extra?: React.CSSProperties) => ({
     padding: '4px 9px',
@@ -110,6 +127,33 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
           </div>
         </BubbleMenu>
+      )}
+
+      {/* Per-node drag handle + delete (sections AND elements inside sections) */}
+      {editable && (
+        <DragHandle
+          editor={editor}
+          nested
+          onNodeChange={({ node, pos }) => {
+            if (node) setCurrentNodeInfo({ pos, nodeSize: node.nodeSize })
+            else setCurrentNodeInfo(null)
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+            <div title="Verschieben" style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '13px', padding: '4px 3px', borderRadius: '4px', lineHeight: 1, userSelect: 'none' }}>
+              ⠿
+            </div>
+            <button
+              title="Löschen"
+              onClick={deleteCurrentNode}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: '12px', padding: '4px 5px', borderRadius: '4px', lineHeight: 1, fontFamily: 'inherit', transition: 'color 0.1s, background 0.1s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.style.background = '#fff0f2' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
+            >
+              ✕
+            </button>
+          </div>
+        </DragHandle>
       )}
 
       {/* Editor area — transparent background, sections render as cards inside */}

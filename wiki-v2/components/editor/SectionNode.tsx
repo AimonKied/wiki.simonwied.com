@@ -90,7 +90,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: '12px',
-          padding: '24px 28px 16px',
+          padding: '24px 28px 16px 40px',
           position: 'relative',
           transition: 'border-color 0.15s',
         }}
