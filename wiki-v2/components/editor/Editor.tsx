@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import LinkExt from '@tiptap/extension-link'
@@ -19,22 +20,21 @@ import { createLowlight, all } from 'lowlight'
 const lowlight = createLowlight(all)
 
 const BLOCKS = [
-  { key: 'paragraph',   label: 'Text',          icon: '¶',    desc: 'Normaler Absatz' },
-  { key: 'h1',          label: 'Überschrift 1',  icon: 'H1',   desc: 'Großer Titel' },
-  { key: 'h2',          label: 'Überschrift 2',  icon: 'H2',   desc: 'Abschnittstitel' },
-  { key: 'h3',          label: 'Überschrift 3',  icon: 'H3',   desc: 'Unterabschnitt' },
-  { key: 'bulletList',  label: 'Aufzählung',     icon: '•',    desc: 'Ungeordnete Liste' },
-  { key: 'orderedList', label: 'Nummeriert',     icon: '1.',   desc: 'Nummerierte Liste' },
+  { key: 'paragraph',   label: 'Text',          icon: '¶',   desc: 'Normaler Absatz' },
+  { key: 'h1',          label: 'Überschrift 1',  icon: 'H1',  desc: 'Großer Titel' },
+  { key: 'h2',          label: 'Überschrift 2',  icon: 'H2',  desc: 'Abschnittstitel' },
+  { key: 'h3',          label: 'Überschrift 3',  icon: 'H3',  desc: 'Unterabschnitt' },
+  { key: 'bulletList',  label: 'Aufzählung',     icon: '•',   desc: 'Ungeordnete Liste' },
+  { key: 'orderedList', label: 'Nummeriert',     icon: '1.',  desc: 'Nummerierte Liste' },
   { key: 'codeBlock',   label: 'Code',           icon: '</>',  desc: 'Syntax Highlighting' },
-  { key: 'blockquote',  label: 'Zitat',          icon: '"',    desc: 'Hervorgehobenes Zitat' },
-  { key: 'hr',          label: 'Trennlinie',     icon: '—',    desc: 'Horizontale Linie' },
+  { key: 'blockquote',  label: 'Zitat',          icon: '"',   desc: 'Hervorgehobenes Zitat' },
+  { key: 'hr',          label: 'Trennlinie',     icon: '—',   desc: 'Horizontale Linie' },
   { key: 'table',       label: 'Tabelle',        icon: '⊞',   desc: '3 × 3 Tabelle' },
-  { key: 'image',       label: 'Bild',           icon: '⬜',   desc: 'Bild per URL' },
+  { key: 'image',       label: 'Bild',           icon: '⬜',  desc: 'Bild per URL' },
 ]
 
 function insertBlock(editor: TiptapEditor, key: string) {
   const end = editor.state.doc.content.size
-
   if (key === 'table') {
     editor.chain().focus().setTextSelection(end).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
     return
@@ -43,7 +43,6 @@ function insertBlock(editor: TiptapEditor, key: string) {
     editor.chain().focus().insertContentAt(end, { type: 'horizontalRule' }).run()
     return
   }
-
   const nodes: Record<string, object> = {
     paragraph:   { type: 'paragraph' },
     h1:          { type: 'heading', attrs: { level: 1 } },
@@ -68,6 +67,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const [pickerOpen, setPickerOpen] = useState(false)
   const [imageInput, setImageInput] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
+  const [currentNodeInfo, setCurrentNodeInfo] = useState<{ pos: number; nodeSize: number } | null>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
 
   const initialContent = content && Object.keys(content).length > 0 ? content : ''
@@ -92,7 +92,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     },
   })
 
-  // Close picker on outside click
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
@@ -102,6 +101,12 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     if (pickerOpen) document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [pickerOpen])
+
+  function deleteCurrentBlock() {
+    if (!editor || !currentNodeInfo) return
+    const { pos, nodeSize } = currentNodeInfo
+    editor.chain().focus().deleteRange({ from: pos, to: pos + nodeSize }).run()
+  }
 
   function handleBlockSelect(key: string) {
     if (!editor) return
@@ -137,7 +142,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* Bubble menu on text selection */}
+      {/* Floating format menu on text selection */}
       {editable && (
         <BubbleMenu editor={editor}>
           <div style={{
@@ -150,11 +155,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             padding: '4px 6px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
           }}>
-            <button style={bBtn(editor.isActive('bold'),        { fontWeight: 800 })}        onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
-            <button style={bBtn(editor.isActive('italic'),      { fontStyle: 'italic' })}    onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
-            <button style={bBtn(editor.isActive('underline'),   { textDecoration: 'underline' })} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-            <button style={bBtn(editor.isActive('strike'),      { textDecoration: 'line-through' })} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
-            <button style={bBtn(editor.isActive('code'),        { fontFamily: 'monospace' })} onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
+            <button style={bBtn(editor.isActive('bold'),      { fontWeight: 800 })}                   onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+            <button style={bBtn(editor.isActive('italic'),    { fontStyle: 'italic' })}               onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+            <button style={bBtn(editor.isActive('underline'), { textDecoration: 'underline' })}       onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+            <button style={bBtn(editor.isActive('strike'),    { textDecoration: 'line-through' })}    onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+            <button style={bBtn(editor.isActive('code'),      { fontFamily: 'monospace' })}           onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
             <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
             <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
             <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
@@ -163,14 +168,64 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Editor content area */}
+      {/* Per-block drag handle with delete button */}
+      {editable && (
+        <DragHandle
+          editor={editor}
+          onNodeChange={({ node, pos }) => {
+            if (node) setCurrentNodeInfo({ pos, nodeSize: node.nodeSize })
+            else setCurrentNodeInfo(null)
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            {/* Grip */}
+            <div
+              title="Verschieben"
+              style={{
+                cursor: 'grab',
+                color: 'var(--muted)',
+                fontSize: '14px',
+                padding: '4px 3px',
+                borderRadius: '4px',
+                lineHeight: 1,
+                userSelect: 'none',
+              }}
+            >
+              ⠿
+            </div>
+            {/* Delete */}
+            <button
+              title="Block löschen"
+              onClick={deleteCurrentBlock}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--muted)',
+                fontSize: '13px',
+                padding: '4px 5px',
+                borderRadius: '4px',
+                lineHeight: 1,
+                fontFamily: 'inherit',
+                transition: 'color 0.1s, background 0.1s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.style.background = '#fff0f2' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
+            >
+              ✕
+            </button>
+          </div>
+        </DragHandle>
+      )}
+
+      {/* Editor content */}
       <EditorContent
         editor={editor}
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: '12px',
-          padding: '32px 36px',
+          padding: '28px 36px 28px 48px',
           minHeight: '420px',
           fontSize: '14px',
           lineHeight: 1.75,
@@ -277,23 +332,47 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
       <style>{`
         .tiptap { outline: none; }
-        .tiptap > * + * { margin-top: 6px; }
 
-        .tiptap h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-top: 36px; margin-bottom: 10px; line-height: 1.2; }
-        .tiptap h2 { font-size: 20px; font-weight: 700; margin-top: 28px; margin-bottom: 8px; line-height: 1.3; }
-        .tiptap h3 { font-size: 16px; font-weight: 700; margin-top: 20px; margin-bottom: 6px; }
+        /* Block separation — each top-level block gets a hover highlight + left indicator */
+        .tiptap > * {
+          position: relative;
+          padding: 3px 4px 3px 10px;
+          margin: 0 -4px 2px -10px;
+          border-left: 2px solid transparent;
+          border-radius: 0 6px 6px 0;
+          transition: background 0.1s, border-color 0.1s;
+        }
+        .tiptap > *:hover {
+          background: rgba(0, 0, 0, 0.025);
+          border-left-color: var(--border);
+        }
+        .tiptap > h1:hover { border-left-color: var(--accent); }
+        .tiptap > h2:hover { border-left-color: var(--accent); }
+        .tiptap > h3:hover { border-left-color: var(--accent); }
+        .tiptap > pre:hover { border-left-color: #4488ff; background: none; }
+        .tiptap > blockquote:hover { background: none; }
+
+        /* Block spacing */
+        .tiptap > * + * { margin-top: 4px; }
+        .tiptap > h1 + * { margin-top: 8px; }
+        .tiptap > h2 + * { margin-top: 6px; }
+
+        /* Typography */
+        .tiptap h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-top: 32px; margin-bottom: 4px; line-height: 1.2; }
+        .tiptap h2 { font-size: 20px; font-weight: 700; margin-top: 24px; margin-bottom: 4px; line-height: 1.3; }
+        .tiptap h3 { font-size: 16px; font-weight: 700; margin-top: 18px; margin-bottom: 2px; }
         .tiptap h1:first-child, .tiptap h2:first-child, .tiptap h3:first-child { margin-top: 0; }
 
-        .tiptap p { margin: 0 0 6px; line-height: 1.75; }
-        .tiptap ul, .tiptap ol { padding-left: 22px; margin: 4px 0 10px; }
-        .tiptap li { margin-bottom: 4px; line-height: 1.75; }
-        .tiptap li p { margin-bottom: 2px; }
+        .tiptap p { margin: 0; line-height: 1.75; }
+        .tiptap ul, .tiptap ol { padding-left: 22px; margin: 0; }
+        .tiptap li { margin-bottom: 3px; line-height: 1.75; }
+        .tiptap li p { margin: 0; }
 
         .tiptap blockquote {
-          border-left: 3px solid var(--accent);
-          padding: 12px 18px;
-          margin: 16px 0;
-          background: var(--surface2);
+          border-left: 3px solid var(--accent) !important;
+          padding: 12px 16px !important;
+          margin: 4px 0 !important;
+          background: var(--surface2) !important;
           border-radius: 0 8px 8px 0;
           color: var(--muted);
         }
@@ -306,7 +385,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           color: #e8e8f0;
           padding: 20px 24px;
           border-radius: 10px;
-          margin: 16px 0;
+          margin: 4px 0;
           overflow-x: auto;
           border: 1px solid #2a2a3a;
           font-size: 13px;
@@ -314,15 +393,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         }
         .tiptap pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
 
-        .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+        .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
         .tiptap a { color: var(--accent); text-decoration: underline; }
+        .tiptap img { max-width: 100%; border-radius: 8px; margin: 4px 0; display: block; }
 
-        .tiptap img { max-width: 100%; border-radius: 8px; margin: 10px 0; display: block; }
-
-        .tiptap table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        .tiptap table { border-collapse: collapse; width: 100%; margin: 4px 0; }
         .tiptap td, .tiptap th { border: 1px solid var(--border); padding: 10px 14px; font-size: 13px; text-align: left; }
         .tiptap th { background: var(--surface2); font-weight: 700; }
-        .tiptap .selectedCell::after { background: rgba(0,153,85,0.08); }
 
         .tiptap p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
