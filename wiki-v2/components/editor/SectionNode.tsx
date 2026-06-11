@@ -710,9 +710,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {/* Top-right controls: color picker + delete */}
+        {/* Top-right controls: color picker + drag + delete */}
         {editable && (
-          <div className="wiki-section-delete" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <div className="wiki-section-delete" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: '1px' }}>
 
             {/* Color picker toggle */}
             <div style={{ position: 'relative' }}>
@@ -721,20 +721,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 onClick={e => { e.stopPropagation(); setColorPickerOpen(o => !o) }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '3px 5px', borderRadius: '4px', lineHeight: 1,
-                  display: 'flex', alignItems: 'center', gap: '3px',
-                  fontSize: '11px', color: 'var(--muted)', fontFamily: 'inherit',
+                  width: '26px', height: '26px', borderRadius: '5px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
               >
                 <span style={{
-                  display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%',
-                  background: bgColor ?? 'var(--surface)',
-                  border: `2px solid ${borderColor ?? 'var(--border)'}`,
+                  display: 'inline-block', width: '13px', height: '13px', borderRadius: '50%',
+                  background: bgColor === 'transparent' ? 'transparent' : (bgColor ?? 'var(--surface)'),
+                  border: `2.5px solid ${borderColor === 'transparent' ? 'transparent' : (borderColor ?? 'var(--border)')}`,
+                  outline: '1.5px solid var(--border)',
+                  outlineOffset: '1px',
                   flexShrink: 0,
+                  backgroundImage: bgColor === 'transparent'
+                    ? 'linear-gradient(to top right, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(to top left, transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px))'
+                    : undefined,
                 }} />
-                Farbe
               </button>
 
               {colorPickerOpen && (
@@ -797,19 +800,37 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               )}
             </div>
 
+            {/* Drag handle */}
+            <div
+              title="Block verschieben"
+              onMouseDown={startDrag}
+              style={{
+                cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
+                width: '26px', height: '26px', borderRadius: '5px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                userSelect: 'none', lineHeight: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+            >
+              ⠿
+            </div>
+
             {/* Delete */}
             <button
               title="Block löschen"
               onClick={() => deleteNode()}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--muted)', fontSize: '11px', padding: '3px 6px',
-                borderRadius: '4px', fontFamily: 'inherit', lineHeight: 1,
+                color: 'var(--muted)', fontSize: '12px',
+                width: '26px', height: '26px', borderRadius: '5px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'inherit', lineHeight: 1,
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.style.background = '#fff0f2' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fff0f2' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
             >
-              Block ✕
+              ✕
             </button>
           </div>
         )}
