@@ -150,37 +150,44 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Floating table toolbar — appears when cursor is inside a table cell */}
+      {/* Floating table toolbar — anchored above the whole table */}
       {editable && (
         <BubbleMenu
           editor={editor}
           shouldShow={() => editor.isActive('tableCell') || editor.isActive('tableHeader')}
-          tippyOptions={{ placement: 'right-start', offset: [0, 12] }}
+          tippyOptions={{
+            placement: 'top-start',
+            offset: [0, 6],
+            getReferenceClientRect: () => {
+              const { node } = editor.view.domAtPos(editor.state.selection.from)
+              let el: Element | null = node instanceof Element ? node : (node as Node).parentElement
+              while (el && el.tagName !== 'TABLE') el = el.parentElement
+              return (el ?? editor.view.dom).getBoundingClientRect()
+            },
+          }}
         >
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
+            alignItems: 'center',
+            gap: '1px',
             background: 'var(--surface)',
             border: '1px solid var(--border)',
-            borderRadius: '10px',
-            padding: '6px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+            borderRadius: '8px',
+            padding: '3px 5px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
             fontFamily: 'inherit',
           }}>
-            {/* Row controls */}
-            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 3px', letterSpacing: '0.06em' }}>ZEILE</span>
-            {tBtn('Zeile darüber einfügen',  () => editor.chain().focus().addRowBefore().run(), '↑')}
-            {tBtn('Zeile darunter einfügen', () => editor.chain().focus().addRowAfter().run(),  '↓')}
-            {tBtn('Zeile löschen',           () => editor.chain().focus().deleteRow().run(),     '✕', true)}
-            <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-            {/* Column controls */}
-            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 3px', letterSpacing: '0.06em' }}>SPALTE</span>
-            {tBtn('Spalte links einfügen',  () => editor.chain().focus().addColumnBefore().run(), '←')}
-            {tBtn('Spalte rechts einfügen', () => editor.chain().focus().addColumnAfter().run(),  '→')}
-            {tBtn('Spalte löschen',         () => editor.chain().focus().deleteColumn().run(),    '✕', true)}
-            <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-            {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕ Tabelle', true)}
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Zeile</span>
+            {tBtn('Zeile darüber',  () => editor.chain().focus().addRowBefore().run(), '↑')}
+            {tBtn('Zeile darunter', () => editor.chain().focus().addRowAfter().run(),  '↓')}
+            {tBtn('Zeile löschen',  () => editor.chain().focus().deleteRow().run(),    '✕', true)}
+            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 4px', letterSpacing: '0.05em' }}>Spalte</span>
+            {tBtn('Spalte links',  () => editor.chain().focus().addColumnBefore().run(), '←')}
+            {tBtn('Spalte rechts', () => editor.chain().focus().addColumnAfter().run(),  '→')}
+            {tBtn('Spalte löschen', () => editor.chain().focus().deleteColumn().run(),   '✕', true)}
+            <div style={{ width: '1px', background: 'var(--border)', margin: '2px 4px', alignSelf: 'stretch' }} />
+            {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕', true)}
           </div>
         </BubbleMenu>
       )}
