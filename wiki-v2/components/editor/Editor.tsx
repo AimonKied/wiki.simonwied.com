@@ -138,6 +138,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       {/* Global: Add new block (section/card) */}
       {editable && (
         <button
+          data-new-block-btn="true"
           onClick={() => addSection(editor)}
           style={{
             width: '100%',

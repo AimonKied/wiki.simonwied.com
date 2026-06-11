@@ -41,6 +41,7 @@ interface DragRefState {
   sourceSectionPos: number
   targetSectionPos: number
   targetDropIdx: number
+  targetIsNewBlock: boolean
   slotLeft: number
   slotRight: number
 }
@@ -76,6 +77,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     }
     siblingsRef.current.forEach(el => { el.style.transition = ''; el.style.transform = '' })
     siblingsRef.current = []
+    // Reset "Neuer Block" button highlight
+    const newBlockBtn = document.querySelector('[data-new-block-btn]') as HTMLElement | null
+    if (newBlockBtn) {
+      newBlockBtn.style.borderColor = ''
+      newBlockBtn.style.background = ''
+      newBlockBtn.style.color = ''
+    }
     document.body.style.userSelect = ''
     document.body.style.cursor = ''
   }
@@ -273,6 +281,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       sourceSectionPos: sectionPos,
       targetSectionPos: sectionPos,
       targetDropIdx: handle.childIdx,
+      targetIsNewBlock: false,
       slotLeft,
       slotRight,
     }
@@ -293,6 +302,34 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
       const fromIdx = d.childIdx
       const ghH     = ghostHRef.current
+
+      // Check if cursor is over the "Neuer Block" drop target
+      const newBlockBtn = document.querySelector('[data-new-block-btn]') as HTMLElement | null
+      if (newBlockBtn) {
+        const r = newBlockBtn.getBoundingClientRect()
+        const isOver = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
+        if (isOver) {
+          if (!d.targetIsNewBlock) {
+            d.targetIsNewBlock = true
+            // Highlight button as drop zone
+            newBlockBtn.style.borderColor = 'var(--accent)'
+            newBlockBtn.style.background  = 'rgba(0,153,85,0.08)'
+            newBlockBtn.style.color       = 'var(--accent)'
+            // Hide all slot indicators, close source gap
+            if (slotRef.current) slotRef.current.style.display = 'none'
+            if (crossSlotRef.current) { crossSlotRef.current.parentNode?.removeChild(crossSlotRef.current); crossSlotRef.current = null }
+            siblingsRef.current.forEach((el, i) => { if (i !== fromIdx) el.style.transform = 'translateY(0)' })
+          }
+          return
+        } else if (d.targetIsNewBlock) {
+          // Left the button — reset highlight
+          d.targetIsNewBlock = false
+          newBlockBtn.style.borderColor = ''
+          newBlockBtn.style.background  = ''
+          newBlockBtn.style.color       = ''
+          if (slotRef.current) slotRef.current.style.display = ''
+        }
+      }
 
       // Determine which section the cursor is over
       const posResult = editor.view.posAtCoords({ left: ev.clientX, top: ev.clientY })
@@ -421,7 +458,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
       if (!d) return
 
-      if (d.targetSectionPos === d.sourceSectionPos) {
+      if (d.targetIsNewBlock) {
+        moveElementToNewSection(d.sourceSectionPos, d.childIdx)
+      } else if (d.targetSectionPos === d.sourceSectionPos) {
         moveElement(d.childIdx, d.childPos, d.childSize, d.dropIdx)
       } else {
         moveElementCrossSection(d.sourceSectionPos, d.childIdx, d.targetSectionPos, d.targetDropIdx)
@@ -494,6 +533,31 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const mappedTargetEnd   = tr.mapping.map(targetSectionPos + targetNode.nodeSize - 1)
     tr.replaceWith(mappedTargetStart, mappedTargetEnd, Fragment.from(targetChildren))
 
+    editor.view.dispatch(tr)
+  }
+
+  function moveElementToNewSection(sourceSectionPos: number, fromIdx: number) {
+    if (!editor) return
+
+    const sourceNode = editor.state.doc.nodeAt(sourceSectionPos)
+    if (!sourceNode) return
+
+    const movedNode = sourceNode.child(fromIdx)
+
+    const sourceChildren: PMNode[] = []
+    for (let i = 0; i < sourceNode.childCount; i++) {
+      if (i !== fromIdx) sourceChildren.push(sourceNode.child(i))
+    }
+
+    const sourceContent = sourceChildren.length > 0
+      ? Fragment.from(sourceChildren)
+      : Fragment.from(editor.state.schema.nodes.paragraph.create())
+
+    const newSection = editor.state.schema.nodes.section.create(null, Fragment.from(movedNode))
+
+    const tr = editor.state.tr
+    tr.replaceWith(sourceSectionPos + 1, sourceSectionPos + sourceNode.nodeSize - 1, sourceContent)
+    tr.insert(tr.mapping.map(editor.state.doc.content.size), newSection)
     editor.view.dispatch(tr)
   }
 
