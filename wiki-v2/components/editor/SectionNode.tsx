@@ -106,8 +106,6 @@ function _ensureGlobalHandlers() {
       const tr = ed.state.tr
       _sectionClipboard.forEach(n => tr.insert(tr.mapping.map(pastePos), n.copy(n.content)))
       ed.view.dispatch(tr)
-      // Clear after paste so next Ctrl+V doesn't re-paste sections unexpectedly
-      _sectionClipboard = []
     }
   })
 }
