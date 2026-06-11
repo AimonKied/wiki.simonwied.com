@@ -634,8 +634,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const editable = editor.isEditable
 
   const BG_COLORS = [
-    { label: 'Standard',  value: null,      style: 'var(--surface)' },
-    { label: 'Weiß',      value: '#ffffff',  style: '#ffffff' },
+    { label: 'Standard',     value: null,           style: 'var(--surface)' },
+    { label: 'Transparent',  value: 'transparent',  style: 'transparent' },
+    { label: 'Weiß',         value: '#ffffff',       style: '#ffffff' },
     { label: 'Rot',       value: '#fef2f2',  style: '#fef2f2' },
     { label: 'Orange',    value: '#fff7ed',  style: '#fff7ed' },
     { label: 'Gelb',      value: '#fefce8',  style: '#fefce8' },
@@ -756,7 +757,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                         style={{
                           width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
                           background: c.style, border: '2px solid',
-                          borderColor: bgColor === c.value ? 'var(--accent)' : (c.value === null ? 'var(--border)' : 'transparent'),
+                          borderColor: bgColor === c.value ? 'var(--accent)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
                           outline: bgColor === c.value ? '2px solid var(--accent)' : 'none',
                           outlineOffset: '1px',
                           padding: 0,
