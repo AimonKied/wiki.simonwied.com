@@ -83,6 +83,31 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
   if (!editor) return null
 
+  const tBtn = (title: string, onClick: () => void, label: string, destructive = false) => (
+    <button
+      key={title}
+      title={title}
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '4px 7px', minWidth: '28px',
+        background: 'none', border: '1px solid transparent', borderRadius: '6px',
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', lineHeight: 1,
+        color: destructive ? 'var(--accent2)' : 'var(--text)',
+        transition: 'background 0.1s, border-color 0.1s',
+        whiteSpace: 'nowrap',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = destructive ? '#fff0f2' : 'var(--surface2)'
+        e.currentTarget.style.borderColor = destructive ? 'var(--accent2)' : 'var(--border)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'none'
+        e.currentTarget.style.borderColor = 'transparent'
+      }}
+    >{label}</button>
+  )
+
   const bBtn = (active: boolean, extra?: React.CSSProperties) => ({
     padding: '4px 9px',
     borderRadius: '5px',
@@ -130,27 +155,32 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         <BubbleMenu
           editor={editor}
           shouldShow={() => editor.isActive('tableCell') || editor.isActive('tableHeader')}
-          tippyOptions={{ placement: 'top', offset: [0, 8] }}
+          tippyOptions={{ placement: 'right-start', offset: [0, 12] }}
         >
           <div style={{
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             gap: '2px',
-            background: '#1a1a2a',
-            border: '1px solid #2e2e42',
-            borderRadius: '8px',
-            padding: '4px 6px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            padding: '6px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+            fontFamily: 'inherit',
           }}>
-            <button style={bBtn(false)} title="Zeile darüber" onClick={() => editor.chain().focus().addRowBefore().run()}>↑ Zeile</button>
-            <button style={bBtn(false)} title="Zeile darunter" onClick={() => editor.chain().focus().addRowAfter().run()}>↓ Zeile</button>
-            <button style={bBtn(false, { color: '#ff6b7a' })} title="Zeile löschen" onClick={() => editor.chain().focus().deleteRow().run()}>✕ Zeile</button>
-            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
-            <button style={bBtn(false)} title="Spalte links" onClick={() => editor.chain().focus().addColumnBefore().run()}>← Spalte</button>
-            <button style={bBtn(false)} title="Spalte rechts" onClick={() => editor.chain().focus().addColumnAfter().run()}>→ Spalte</button>
-            <button style={bBtn(false, { color: '#ff6b7a' })} title="Spalte löschen" onClick={() => editor.chain().focus().deleteColumn().run()}>✕ Spalte</button>
-            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
-            <button style={bBtn(false, { color: '#ff6b7a' })} title="Tabelle löschen" onClick={() => editor.chain().focus().deleteTable().run()}>✕ Tabelle</button>
+            {/* Row controls */}
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 3px', letterSpacing: '0.06em' }}>ZEILE</span>
+            {tBtn('Zeile darüber einfügen',  () => editor.chain().focus().addRowBefore().run(), '↑')}
+            {tBtn('Zeile darunter einfügen', () => editor.chain().focus().addRowAfter().run(),  '↓')}
+            {tBtn('Zeile löschen',           () => editor.chain().focus().deleteRow().run(),     '✕', true)}
+            <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
+            {/* Column controls */}
+            <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', padding: '0 3px', letterSpacing: '0.06em' }}>SPALTE</span>
+            {tBtn('Spalte links einfügen',  () => editor.chain().focus().addColumnBefore().run(), '←')}
+            {tBtn('Spalte rechts einfügen', () => editor.chain().focus().addColumnAfter().run(),  '→')}
+            {tBtn('Spalte löschen',         () => editor.chain().focus().deleteColumn().run(),    '✕', true)}
+            <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
+            {tBtn('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), '✕ Tabelle', true)}
           </div>
         </BubbleMenu>
       )}
