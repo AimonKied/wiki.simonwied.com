@@ -9,145 +9,141 @@ Notizen von überall erstellen, bearbeiten und verwalten — mit Login und priva
 
 ## Tech Stack
 
-| Layer | Technologie | Begründung |
-|---|---|---|
-| Framework | **Next.js 14** (App Router) | Routing, SSR, API Routes in einem |
-| Editor | **TipTap** | Notion-ähnlicher Block-Editor, Open Source, erweiterbar |
-| Auth + DB | **Supabase** | Login, Datenbank (PostgreSQL), Storage — kostenlos startbar |
-| Styling | **Tailwind CSS** + eigene Design Tokens | Schnell, konsistent, bestehende Farben übertragbar |
-| Hosting | **Vercel** | Zero-Config Deploy, von überall erreichbar |
-| Diagramme | **Mermaid** (TipTap Extension) | Code-basierte Diagramme direkt im Editor |
+| Layer | Technologie |
+|---|---|
+| Framework | **Next.js 16** (App Router, Turbopack) |
+| Editor | **TipTap v3** |
+| Auth + DB | **Supabase** (PostgreSQL + Row Level Security) |
+| Styling | CSS Variables + JetBrains Mono (kein Tailwind-Utility-First) |
+| Hosting | **Vercel** |
+| Diagramme | **Mermaid** (geplant) |
 
 ---
 
-## Core Features
+## Projektstruktur (aktuell)
 
-### Authentifizierung
-- E-Mail + Passwort Login
-- Nur für den Owner (kein öffentliches Registrieren)
-- Eingeloggt: Zugriff auf alle Notizen (privat + öffentlich)
-- Ausgeloggt: Nur öffentliche Notizen sichtbar
-
-### Editor
-- Block-basierter Editor (wie Notion)
-- Unterstützte Blocks:
-  - Text, Überschriften (H1–H3)
-  - Code Blocks mit Syntax Highlighting
-  - Tabellen
-  - Aufzählungen & nummerierte Listen
-  - Mermaid Diagramme
-  - Bilder / Medien
-  - Divider
-- Drag & Drop zum Umsortieren von Blocks
-- Slash-Command Menü (`/`) zum Einfügen von Blocks
-
-### Notizen-Verwaltung
-- Kategorien / Collections (Security, Development, Rezepte, etc.)
-- Privat / Öffentlich Toggle pro Notiz
-- Tags für Notizen
-- Suche über alle Notizen
-- Sidebar-Navigation wie aktuelles Wiki
-
-### Design
-- Bestehendes Design (JetBrains Mono, Farbpalette, Grid-Hintergrund) übernehmen
-- Dark Mode (bereits vorhanden)
-- Responsiv
+```
+wiki-v2/
+├── app/
+│   ├── (auth)/login/             -- Login-Seite
+│   ├── (dashboard)/              -- Nur eingeloggt
+│   │   ├── dashboard/            -- Notizen-Übersicht
+│   │   └── notes/
+│   │       ├── new/              -- Neue Notiz
+│   │       └── [id]/edit/        -- Notiz bearbeiten
+│   ├── (public)/
+│   │   └── notes/[id]/           -- Öffentliche Notiz-Ansicht (via Slug)
+│   ├── layout.tsx
+│   └── page.tsx                  -- Homepage
+├── components/
+│   ├── editor/
+│   │   ├── Editor.tsx            -- TipTap Editor (mit Toolbar)
+│   │   └── EditorViewer.tsx      -- Read-only Client-Wrapper
+│   └── sidebar/
+│       └── Sidebar.tsx
+├── lib/
+│   ├── supabase/client.ts
+│   ├── supabase/server.ts
+│   └── types.ts
+└── proxy.ts                      -- Auth-Middleware (Next.js 16)
+```
 
 ---
 
 ## Datenbankschema (Supabase)
 
 ```sql
--- Notizen
 notes (
-  id          uuid PRIMARY KEY,
-  title       text,
-  content     jsonb,       -- TipTap JSON
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid REFERENCES auth.users NOT NULL,
+  title       text NOT NULL DEFAULT 'Untitled',
+  content     jsonb,
   slug        text UNIQUE,
   is_public   boolean DEFAULT false,
-  category    text,
-  tags        text[],
-  created_at  timestamp,
-  updated_at  timestamp,
-  user_id     uuid REFERENCES auth.users
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
 )
+-- Row Level Security aktiv
+```
 
--- Kategorien
-categories (
-  id    uuid PRIMARY KEY,
-  name  text,
-  color text,
-  icon  text
-)
+Noch nicht angelegt:
+```sql
+-- categories (geplant)
+-- tags (geplant)
 ```
 
 ---
 
-## Architektur
+## Fortschritt
 
-```
-app/
-├── (public)/
-│   ├── page.tsx              -- Homepage (öffentliche Notizen)
-│   └── notes/[slug]/
-│       └── page.tsx          -- Öffentliche Notiz
-├── (auth)/
-│   └── login/
-│       └── page.tsx          -- Login
-├── (dashboard)/              -- Nur eingeloggt
-│   ├── dashboard/
-│   │   └── page.tsx          -- Alle Notizen
-│   └── notes/
-│       ├── new/page.tsx      -- Neue Notiz erstellen
-│       └── [id]/edit/
-│           └── page.tsx      -- Notiz bearbeiten
-├── api/
-│   └── notes/                -- API Routes
-components/
-├── editor/                   -- TipTap Editor Komponenten
-├── sidebar/                  -- Navigation
-├── ui/                       -- Buttons, Cards, etc.
-lib/
-├── supabase/                 -- Supabase Client
-└── utils/
-```
+### ✅ Phase 1 — Grundgerüst
+- Next.js 16 Projekt aufgesetzt
+- Supabase SSR Client (Browser + Server)
+- Auth Middleware (proxy.ts) — schützt /dashboard und /notes/*/edit
+- Login-Seite (E-Mail + Passwort)
+- Dashboard-Layout mit Session-Guard
+- Sidebar-Komponente mit Nav-Sektionen
+- Homepage mit Kategorie-Karten
+- Design-System (CSS Variables, JetBrains Mono, Grid-Hintergrund)
+
+### ✅ Phase 2 — Editor
+- TipTap v3 Editor mit Toolbar (Bold, Italic, Underline, Strike, H1–H3, Listen, Code, Blockquote)
+- Syntax Highlighting via lowlight
+- Tabellen-Support
+- Neue Notiz erstellen + in Supabase speichern
+- Notiz laden und bearbeiten
+- Strg+S zum Speichern
+
+### ✅ Phase 3 — Basis-Features
+- Öffentlich/Privat Toggle pro Notiz
+- Slug-Feld für öffentliche Notizen
+- Öffentliche Notiz-Ansicht unter `/notes/[slug]`
+- Notiz löschen
 
 ---
 
-## Entwicklungs-Phasen
+## Offen — vor dem Go-Live
 
-### Phase 1 — Grundgerüst
-- [ ] Next.js Projekt aufsetzen
-- [ ] Supabase Projekt + Datenbankschema
-- [ ] Login / Auth Flow
-- [ ] Basis-Layout (Sidebar, Navigation) — aus aktuellem Wiki übernehmen
+### Funktional (muss)
+- [ ] Sidebar zeigt echte Notizen aus der DB (dynamisch, nicht hardcoded)
+- [ ] Kategorien / Collections für Notizen (Security, Development, Rezepte, …)
+- [ ] Notiz-Titel bei Erstellung als Slug vorschlagen (auto-generieren)
+- [ ] `updated_at` Trigger in Supabase (automatisch bei UPDATE setzen)
+- [ ] Fehlerbehandlung beim Speichern (was passiert wenn Supabase nicht erreichbar?)
+- [ ] 404-Seite für nicht existierende Notizen
 
-### Phase 2 — Editor
-- [ ] TipTap Integration
-- [ ] Basis-Blocks (Text, Überschriften, Code, Listen)
-- [ ] Notiz speichern / laden
-- [ ] Privat / Öffentlich Toggle
-
-### Phase 3 — Features
-- [ ] Drag & Drop (Blocks + Sidebar-Reihenfolge)
+### Editor (muss)
+- [ ] Slash-Command Menü (`/heading`, `/code`, `/table`, …)
 - [ ] Mermaid Diagramme
-- [ ] Tabellen
-- [ ] Suche
-- [ ] Tags & Kategorien
+- [ ] Bilder einfügen (via Supabase Storage oder URL)
+- [ ] Drag & Drop Blocks
 
-### Phase 4 — Migration & Polish
-- [ ] Bestehende Wiki-Seiten als Notizen migrieren
-- [ ] Design verfeinern
-- [ ] Mobile Ansicht
-- [ ] Deploy auf Vercel
+### Design / UX (muss)
+- [ ] Mobile-Ansicht (Sidebar ausblendbar)
+- [ ] Ladeanimation / Skeleton beim Laden von Notizen
+- [ ] Öffentliche Notizen-Ansicht: schöneres Layout (kein Editor-Chrome)
+- [ ] Dashboard: Suche über Notizen
+- [ ] Hover-Effekte auf Dashboard-Notiz-Karten
+
+### Sicherheit (muss vor Go-Live)
+- [ ] Supabase User nur manuell über Dashboard anlegen (kein öffentliches Signup)
+- [ ] RLS Policies testen (kann ein fremder User meine Notizen lesen/schreiben?)
+- [ ] `.env.local` niemals committen (bereits in .gitignore)
+
+### Migration (kann warten)
+- [ ] Bestehende HTML-Seiten als Notizen migrieren
+- [ ] Wiki v1 (wiki.simonwied.com) auf Wiki v2 umleiten
+
+### Deploy
+- [ ] Vercel Projekt anlegen und mit GitHub verknüpfen
+- [ ] Supabase-Credentials als Vercel Environment Variables setzen
+- [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
 
 ---
 
-## Migration bestehender Inhalte
+## Migration bestehender Inhalte (später)
 
-Die aktuellen HTML-Seiten werden als erste Notizen in die neue Datenbank migriert:
-
-| Aktuelle Seite | Neue Kategorie | Öffentlich |
+| Aktuelle Seite | Kategorie | Öffentlich |
 |---|---|---|
 | git-commands.html | Development | ✅ |
 | web-hacking.html | Security | ✅ |
