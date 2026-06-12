@@ -276,6 +276,7 @@ interface DragRefState {
   dropIdx: number
   elBounds: ElBound[]
   cardTop: number
+  canvasZoom: number
   sourceSectionPos: number
   targetSectionPos: number
   targetDropIdx: number
@@ -395,7 +396,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return () => document.removeEventListener('keydown', onKey)
   }, [handle, getPos, editor])
 
-  function calcElBounds(sectionPos: number, cardTop: number): ElBound[] {
+  function calcElBounds(sectionPos: number, cardTop: number, canvasZoom: number): ElBound[] {
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     if (!sectionNode) return []
     const bounds: ElBound[] = []
@@ -404,14 +405,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const child = sectionNode.child(i)
       try {
         let topY: number, bottomY: number
-        if (child.isLeaf) {
+        const element = editor.view.nodeDOM(offset) as HTMLElement | null
+        if (element?.getBoundingClientRect) {
+          const rect = element.getBoundingClientRect()
+          topY = rect.top
+          bottomY = rect.bottom
+        } else if (child.isLeaf) {
           const c = editor.view.coordsAtPos(offset, 1)
           topY = c.top; bottomY = c.bottom
         } else {
           topY    = editor.view.coordsAtPos(offset + 1).top
           bottomY = editor.view.coordsAtPos(offset + child.nodeSize - 1).bottom
         }
-        bounds.push({ top: topY - cardTop, bottom: bottomY - cardTop, mid: (topY + bottomY) / 2 - cardTop })
+        bounds.push({
+          top: (topY - cardTop) / canvasZoom,
+          bottom: (bottomY - cardTop) / canvasZoom,
+          mid: ((topY + bottomY) / 2 - cardTop) / canvasZoom,
+        })
       } catch {
         bounds.push({ top: 0, bottom: 0, mid: 0 })
       }
@@ -425,6 +435,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (dragRef.current) return
     if (!cardRef.current || !editor.isEditable || typeof getPos !== 'function') return
     const cardRect = cardRef.current.getBoundingClientRect()
+    const canvas = cardRef.current.closest('[data-editor-canvas]') as HTMLElement | null
+    const canvasZoom = canvas ? _canvasZoom(canvas) : 1
     const sectionPos = getPos()
     if (sectionPos === undefined) return
 
@@ -436,7 +448,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const child = sectionNode.child(i)
       let topY: number, bottomY: number
       try {
-        if (child.isLeaf) {
+        const element = editor.view.nodeDOM(offset) as HTMLElement | null
+        if (element?.getBoundingClientRect) {
+          const rect = element.getBoundingClientRect()
+          topY = rect.top
+          bottomY = rect.bottom
+        } else if (child.isLeaf) {
           const c = editor.view.coordsAtPos(offset, 1)
           topY = c.top; bottomY = c.bottom
         } else {
@@ -446,7 +463,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       } catch { offset += child.nodeSize; continue }
 
       if (e.clientY >= topY - 4 && e.clientY <= bottomY + 4) {
-        setHandle({ top: topY - cardRect.top, height: bottomY - topY, childPos: offset, childSize: child.nodeSize, childIdx: i })
+        setHandle({
+          top: (topY - cardRect.top) / canvasZoom,
+          height: (bottomY - topY) / canvasZoom,
+          childPos: offset,
+          childSize: child.nodeSize,
+          childIdx: i,
+        })
         return
       }
       offset += child.nodeSize
@@ -460,10 +483,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     e.stopPropagation()
 
     const cardRect = cardRef.current.getBoundingClientRect()
+    const canvas = cardRef.current.closest('[data-editor-canvas]') as HTMLElement | null
+    const canvasZoom = canvas ? _canvasZoom(canvas) : 1
     const sectionPos = getPos()
     if (sectionPos === undefined) return
 
-    const elBounds = calcElBounds(sectionPos, cardRect.top)
+    const elBounds = calcElBounds(sectionPos, cardRect.top, canvasZoom)
 
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     const siblings: HTMLElement[] = []
@@ -484,13 +509,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const cardRect2 = cardRef.current.getBoundingClientRect()
       cardTopRef.current = cardRect2.top
 
-      slotLeft  = rect.left - cardRect2.left
-      slotRight = cardRect2.right - rect.right
+      slotLeft  = (rect.left - cardRect2.left) / canvasZoom
+      slotRight = (cardRect2.right - rect.right) / canvasZoom
 
       const nextEl = siblings[handle.childIdx + 1]
       ghostHRef.current = nextEl
-        ? nextEl.getBoundingClientRect().top - rect.top
-        : rect.height
+        ? (nextEl.getBoundingClientRect().top - rect.top) / canvasZoom
+        : rect.height / canvasZoom
       siblingsRef.current = siblings.filter(Boolean) as HTMLElement[]
 
       siblingsRef.current.forEach((el, i) => {
@@ -550,6 +575,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       dropIdx: handle.childIdx,
       elBounds,
       cardTop: cardRect.top,
+      canvasZoom,
       sourceSectionPos: sectionPos,
       targetSectionPos: sectionPos,
       targetDropIdx: handle.childIdx,
@@ -630,7 +656,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         }
         d.targetSectionPos = d.sourceSectionPos
 
-        const relY = ev.clientY - d.cardTop
+        const relY = (ev.clientY - d.cardTop) / d.canvasZoom
         let dropIdx = 0
         for (let i = 0; i < d.elBounds.length; i++) {
           if (relY >= d.elBounds[i].mid) dropIdx = i + 1
@@ -706,8 +732,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
         // Compute drop index in target section based on cursor Y
         const targetCardRect  = targetCardDiv.getBoundingClientRect()
-        const targetElBounds  = calcElBounds(cursorSectionPos, targetCardRect.top)
-        const relY            = ev.clientY - targetCardRect.top
+        const targetElBounds  = calcElBounds(cursorSectionPos, targetCardRect.top, d.canvasZoom)
+        const relY            = (ev.clientY - targetCardRect.top) / d.canvasZoom
         let targetDropIdx     = 0
         for (let i = 0; i < targetElBounds.length; i++) {
           if (relY >= targetElBounds[i].mid) targetDropIdx = i + 1
