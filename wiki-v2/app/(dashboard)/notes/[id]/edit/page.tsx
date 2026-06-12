@@ -97,7 +97,7 @@ export default function EditNotePage() {
     <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both' }}>
 
       {/* Main editor column */}
-      <div style={{ flex: 1, minWidth: 0, maxWidth: '860px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '28px' }}>

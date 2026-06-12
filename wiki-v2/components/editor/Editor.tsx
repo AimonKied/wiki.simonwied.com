@@ -1,7 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -39,10 +39,11 @@ function ensureSections(content: object | null | undefined): object | string {
   return { ...doc, content: [{ type: 'section', content: doc.content }] }
 }
 
-function addSection(editor: TiptapEditor) {
+function addSection(editor: TiptapEditor, attrs: Record<string, number | null> = {}) {
   editor.chain().focus()
     .insertContentAt(editor.state.doc.content.size, {
       type: 'section',
+      attrs,
       content: [{ type: 'paragraph' }],
     })
     .run()
@@ -57,6 +58,33 @@ interface EditorProps {
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
   const initialContent = ensureSections(content)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
+  const [viewport, setViewport] = useState({ x: 80, y: 48, zoom: 1 })
+  const viewportRef = useRef(viewport)
+  const spaceDownRef = useRef(false)
+
+  useEffect(() => {
+    viewportRef.current = viewport
+  }, [viewport])
+
+  function zoomAt(clientX: number, clientY: number, nextZoom: number) {
+    const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    if (!viewportEl) {
+      setViewport(v => ({ ...v, zoom: nextZoom }))
+      return
+    }
+    const rect = viewportEl.getBoundingClientRect()
+    setViewport(v => {
+      const zoom = Math.max(0.25, Math.min(2.5, nextZoom))
+      const worldX = (clientX - rect.left - v.x) / v.zoom
+      const worldY = (clientY - rect.top - v.y) / v.zoom
+      return {
+        x: clientX - rect.left - worldX * zoom,
+        y: clientY - rect.top - worldY * zoom,
+        zoom,
+      }
+    })
+  }
+
   useEffect(() => {
     if (!editable) return
 
@@ -70,12 +98,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
     function onDocMouseDown(e: MouseEvent) {
       const target = e.target as Element
-      if (!target.closest('[data-editor-canvas]')) return
-      if (target.closest('[data-node-view-content]')) return
+      if (!target.closest('[data-editor-workspace]')) return
+      if (spaceDownRef.current) return
       if (target.closest('button')) return
       if (target.closest('input') || target.closest('select') || target.closest('textarea')) return
       if (target.closest('a[href]')) return
       if (target.closest('[data-section-drag-handle]')) return
+      if (target.closest('[data-section-resize-handle]')) return
 
       const startX = e.clientX, startY = e.clientY
       let lassoActive = false
@@ -84,6 +113,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         if (!lassoActive) {
           if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return
           lassoActive = true
+          e.preventDefault()
+          window.getSelection()?.removeAllRanges()
           sectionSel.clear()
           document.body.style.userSelect = 'none'
         }
@@ -124,6 +155,74 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     }
   }, [editable])
 
+  useEffect(() => {
+    if (!editable) return
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== 'Space') return
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      spaceDownRef.current = true
+      document.body.style.cursor = 'grab'
+      e.preventDefault()
+    }
+
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code !== 'Space') return
+      spaceDownRef.current = false
+      document.body.style.cursor = ''
+    }
+
+    function onMouseDown(e: MouseEvent) {
+      if (!spaceDownRef.current || e.button !== 0) return
+      const target = e.target as Element
+      if (!target.closest('[data-editor-workspace]')) return
+      e.preventDefault()
+      const startX = e.clientX
+      const startY = e.clientY
+      const startView = viewportRef.current
+      document.body.style.cursor = 'grabbing'
+      document.body.style.userSelect = 'none'
+
+      function onMove(ev: MouseEvent) {
+        setViewport(v => ({ ...v, x: startView.x + ev.clientX - startX, y: startView.y + ev.clientY - startY }))
+      }
+
+      function onUp() {
+        document.body.style.cursor = spaceDownRef.current ? 'grab' : ''
+        document.body.style.userSelect = ''
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+      }
+
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    }
+
+    function onWheel(e: WheelEvent) {
+      const target = e.target as Element
+      if (!target.closest('[data-editor-workspace]')) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+      const current = viewportRef.current.zoom
+      const factor = e.deltaY > 0 ? 0.9 : 1.1
+      zoomAt(e.clientX, e.clientY, current * factor)
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keyup', onKeyUp)
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('keyup', onKeyUp)
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('wheel', onWheel)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [editable])
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -159,6 +258,14 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   }, [tableMenuOpen])
 
   if (!editor) return null
+
+  function addSectionAtViewportCenter() {
+    const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    const rect = viewportEl?.getBoundingClientRect()
+    const x = rect ? (rect.width / 2 - viewport.x) / viewport.zoom - 280 : 0
+    const y = rect ? (rect.height / 2 - viewport.y) / viewport.zoom - 80 : 0
+    addSection(editor, { x: Math.round(x), y: Math.round(y), w: 560, h: null })
+  }
 
   const getTableRect = () => {
     try {
@@ -201,7 +308,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   } as React.CSSProperties)
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%' }}>
       {/* Floating format menu on text selection */}
       {editable && (
         <BubbleMenu editor={editor}>
@@ -300,52 +407,110 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       )}
 
       {/* Editor canvas — owns the background, anchor for future block resizing/positioning */}
+      <div style={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        padding: '4px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+      }}>
+        <button
+          type="button"
+          title="Verkleinern"
+          onClick={() => zoomAt(window.innerWidth / 2, window.innerHeight / 2, viewport.zoom / 1.15)}
+          style={{ width: 28, height: 28, border: 'none', borderRadius: 6, background: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 16 }}
+        >-</button>
+        <div style={{ minWidth: 46, textAlign: 'center', fontSize: 12, color: 'var(--muted)', userSelect: 'none' }}>
+          {Math.round(viewport.zoom * 100)}%
+        </div>
+        <button
+          type="button"
+          title="Vergrößern"
+          onClick={() => zoomAt(window.innerWidth / 2, window.innerHeight / 2, viewport.zoom * 1.15)}
+          style={{ width: 28, height: 28, border: 'none', borderRadius: 6, background: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 16 }}
+        >+</button>
+      </div>
+
       <div
-        data-editor-canvas="true"
+        data-editor-workspace="true"
         style={{
           position: 'relative',
-          minHeight: '320px',
+          height: 'calc(100vh - 180px)',
+          minHeight: '520px',
           borderRadius: '12px',
-          padding: '12px 0 8px',
+          overflow: 'hidden',
+          background: 'var(--bg)',
+          backgroundImage: [
+            'linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)',
+          ].join(', '),
+          backgroundSize: `${40 * viewport.zoom}px ${40 * viewport.zoom}px`,
+          backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+          border: '1px solid var(--border)',
         }}
       >
-        <EditorContent
-          editor={editor}
+        <div
+          data-editor-canvas="true"
+          data-editor-zoom={viewport.zoom}
           style={{
-            fontSize: '14px',
-            lineHeight: 1.75,
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '9000px',
+            height: '4000px',
+            minHeight: '4000px',
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+            transformOrigin: '0 0',
+            overflow: 'visible',
           }}
-        />
-
-        {/* Add new block */}
-        {editable && (
-          <button
-            data-new-block-btn="true"
-            onClick={() => addSection(editor)}
+        >
+          <EditorContent
+            editor={editor}
             style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '10px',
-              marginTop: '4px',
-              background: 'none',
-              border: '1px dashed var(--border)',
-              borderRadius: '10px',
-              color: 'var(--muted)',
-              fontSize: '13px',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
+              width: '1200px',
+              minHeight: '4000px',
+              fontSize: '14px',
+              lineHeight: 1.75,
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)' }}
-          >
-            <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>+</span>
-            Neuer Block
-          </button>
-        )}
+          />
+
+          {/* Add new block */}
+          {editable && (
+            <button
+              data-new-block-btn="true"
+              onClick={addSectionAtViewportCenter}
+              style={{
+                width: '1200px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px',
+                marginTop: '4px',
+                background: 'var(--surface)',
+                border: '1px dashed var(--border)',
+                borderRadius: '10px',
+                color: 'var(--muted)',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)' }}
+            >
+              <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>+</span>
+              Neuer Block
+            </button>
+          )}
+        </div>
       </div>
 
       <style>{`

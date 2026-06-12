@@ -69,7 +69,7 @@ export default function NewNotePage() {
   }
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease both', maxWidth: '860px' }}>
+    <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '28px' }}>

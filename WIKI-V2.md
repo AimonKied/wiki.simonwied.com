@@ -90,6 +90,12 @@ Noch nicht angelegt:
 - TipTap v3 Editor mit Toolbar (Bold, Italic, Underline, Strike, H1–H3, Listen, Code, Blockquote)
 - Syntax Highlighting via lowlight
 - Tabellen-Support
+- Canvas-Workspace fuer Notizen:
+  - grosse Arbeitsflaeche mit verschiebbaren und skalierbaren Section-Bloecken
+  - Lasso-Auswahl fuer mehrere Bloecke auf der Workspace-Flaeche
+  - Panning mit Space + linker Maustaste
+  - Zoom per Ctrl/Cmd + Mausrad sowie Zoom-Buttons
+  - Snap-Linien beim Ausrichten an anderen Bloecken
 - Neue Notiz erstellen + in Supabase speichern
 - Notiz laden und bearbeiten
 - Strg+S zum Speichern
@@ -116,7 +122,9 @@ Noch nicht angelegt:
 - [ ] Slash-Command Menü (`/heading`, `/code`, `/table`, …)
 - [ ] Mermaid Diagramme
 - [ ] Bilder einfügen (via Supabase Storage oder URL)
-- [ ] Drag & Drop Blocks
+- [x] Drag & Drop Blocks als Canvas-Bloecke
+- [x] Resize fuer Blocks in alle Richtungen
+- [x] Workspace Pan/Zoom
 
 ### Design / UX (muss)
 - [ ] Mobile-Ansicht (Sidebar ausblendbar)

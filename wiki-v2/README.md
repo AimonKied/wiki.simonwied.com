@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wiki v2
 
-## Getting Started
+Next.js 16 app for the browser-based personal wiki.
 
-First, run the development server:
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Useful checks:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npx tsc --noEmit
+```
 
-## Learn More
+Known current check noise:
 
-To learn more about Next.js, take a look at the following resources:
+- `components/editor/RightSidebar.tsx` has a React hooks lint error for synchronous `setState` in an effect.
+- `components/editor/Editor.tsx` has a TipTap `BubbleMenu` type mismatch around `tippyOptions`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Editor Workspace
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The note editor uses a large canvas workspace rather than a narrow document column.
 
-## Deploy on Vercel
+- Drag a block handle to move a section freely on the workspace.
+- Drag selected block edges or corners to resize in any direction.
+- Drag on empty workspace area to lasso-select multiple blocks.
+- Hold `Space` and drag with the left mouse button to pan the workspace.
+- Use `Ctrl`/`Cmd` + mouse wheel, or the zoom buttons, to zoom in and out.
+- Blocks snap to matching edges of nearby blocks and show alignment guides.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Section positions and dimensions are stored on TipTap section nodes as `x`, `y`, `w`, and `h` attributes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Structure
+
+```text
+app/
+  (dashboard)/notes/new/       new note editor
+  (dashboard)/notes/[id]/edit/ edit note editor
+  (public)/notes/[id]/         public note view
+components/editor/
+  Editor.tsx                   TipTap setup, workspace viewport, pan/zoom/lasso
+  SectionNode.tsx              section node view, block move/resize/snap
+  RightSidebar.tsx             note outline
+components/sidebar/
+  Sidebar.tsx                  main navigation
+lib/supabase/
+  client.ts                    browser Supabase client
+  server.ts                    server Supabase client
+```

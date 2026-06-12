@@ -1,11 +1,12 @@
 'use client'
 
+/* eslint-disable react-hooks/immutability */
 import { Node, mergeAttributes, Editor } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useId, useState, useRef, useEffect } from 'react'
 
 // ── Module-level section selection store ──────────────────────────────────────
 const _selSet = new Set<string>()
@@ -26,7 +27,8 @@ const sectionSel = {
       _selSet.clear()
       if (!onlyThis) _selSet.add(id)
     } else {
-      _selSet.has(id) ? _selSet.delete(id) : _selSet.add(id)
+      if (_selSet.has(id)) _selSet.delete(id)
+      else _selSet.add(id)
     }
     _fireSel()
   },
@@ -38,6 +40,72 @@ const sectionSel = {
 let _activeEditor: Editor | null = null
 let _sectionClipboard: PMNode[] = []
 let _elementClipboard: PMNode | null = null
+
+// ── Canvas snap helpers ────────────────────────────────────────────────────────
+interface SnapLine { axis: 'x' | 'y'; pos: number; from: number; to: number }
+let _snapLineEls: HTMLElement[] = []
+const MIN_SECTION_W = 180
+const MIN_SECTION_H = 96
+function _canvasZoom(canvas: HTMLElement) {
+  const raw = canvas.dataset.editorZoom
+  const zoom = raw ? Number(raw) : 1
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1
+}
+function _clearSnapLines() {
+  _snapLineEls.forEach(el => el.parentNode?.removeChild(el))
+  _snapLineEls = []
+}
+function _showSnapLines(canvas: HTMLElement, lines: SnapLine[]) {
+  _clearSnapLines()
+  lines.forEach(line => {
+    const el = document.createElement('div')
+    const isX = line.axis === 'x'
+    el.style.cssText = `position:absolute;pointer-events:none;z-index:9998;background:var(--accent);${
+      isX
+        ? `left:${line.pos}px;top:${line.from}px;width:1px;height:${line.to - line.from}px`
+        : `top:${line.pos}px;left:${line.from}px;height:1px;width:${line.to - line.from}px`
+    }`
+    canvas.appendChild(el)
+    _snapLineEls.push(el)
+  })
+}
+function _computeSnap(canvas: HTMLElement, selfId: string, x: number, y: number, w: number, h: number): { x: number; y: number; lines: SnapLine[] } {
+  const T = 8
+  const cr = canvas.getBoundingClientRect()
+  const zoom = _canvasZoom(canvas)
+  let sx = x, sy = y
+  const lines: SnapLine[] = []
+  const myR = x + w, myB = y + h
+  canvas.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+    if (card.dataset.sectionId === selfId) return
+    const wr = (card.parentElement as HTMLElement).getBoundingClientRect()
+    const oL = (wr.left - cr.left) / zoom, oR = (wr.right  - cr.left) / zoom
+    const oT = (wr.top  - cr.top) / zoom,  oB = (wr.bottom - cr.top) / zoom
+    const ext = (a: number, b: number, c: number, d: number) => ({ from: Math.min(a, c) - 20, to: Math.max(b, d) + 20 })
+    if      (Math.abs(x   - oL) < T) { sx = oL;     lines.push({ axis: 'x', pos: oL, ...ext(y, myB, oT, oB) }) }
+    else if (Math.abs(x   - oR) < T) { sx = oR;     lines.push({ axis: 'x', pos: oR, ...ext(y, myB, oT, oB) }) }
+    else if (Math.abs(myR - oR) < T) { sx = oR - w; lines.push({ axis: 'x', pos: oR, ...ext(y, myB, oT, oB) }) }
+    else if (Math.abs(myR - oL) < T) { sx = oL - w; lines.push({ axis: 'x', pos: oL, ...ext(y, myB, oT, oB) }) }
+    if      (Math.abs(y   - oT) < T) { sy = oT;     lines.push({ axis: 'y', pos: oT, ...ext(x, myR, oL, oR) }) }
+    else if (Math.abs(y   - oB) < T) { sy = oB;     lines.push({ axis: 'y', pos: oB, ...ext(x, myR, oL, oR) }) }
+    else if (Math.abs(myB - oT) < T) { sy = oT - h; lines.push({ axis: 'y', pos: oT, ...ext(x, myR, oL, oR) }) }
+    else if (Math.abs(myB - oB) < T) { sy = oB - h; lines.push({ axis: 'y', pos: oB, ...ext(x, myR, oL, oR) }) }
+  })
+  return { x: sx, y: sy, lines }
+}
+
+function _fitCanvasToSections(canvas: HTMLElement) {
+  let maxBottom = 4000
+  const zoom = _canvasZoom(canvas)
+  canvas.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+    const wrap = card.parentElement as HTMLElement | null
+    if (!wrap) return
+    const y = parseFloat(wrap.style.top || '0')
+    const h = wrap.getBoundingClientRect().height / zoom
+    if (Number.isFinite(y) && Number.isFinite(h)) maxBottom = Math.max(maxBottom, y + h + 48)
+  })
+  canvas.style.minHeight = `${Math.ceil(maxBottom)}px`
+}
 
 let _globalHandlersInstalled = false
 function _ensureGlobalHandlers() {
@@ -180,7 +248,7 @@ interface DragRefState {
 }
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
-  const sectionId = useMemo(() => Math.random().toString(36).slice(2), [])
+  const sectionId = useId()
   const [isSelected, setIsSelected] = useState(false)
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -796,228 +864,217 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (sectionPos === undefined) return
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     if (!sectionNode) return
-    const copy = sectionNode.copy(sectionNode.content)
+    const newAttrs = sectionNode.attrs.x !== null
+      ? { ...sectionNode.attrs, x: (sectionNode.attrs.x as number) + 20, y: (sectionNode.attrs.y as number) + 20 }
+      : sectionNode.attrs
+    const copy = editor.state.schema.nodes.section.create(newAttrs, sectionNode.content)
     const tr = editor.state.tr
     tr.insert(editor.state.doc.content.size, copy)
     editor.view.dispatch(tr)
   }
 
   function handleSectionDragDown(e: React.MouseEvent) {
+    startFreeMove(e)
+  }
+
+  function startFreeMove(e: React.MouseEvent) {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const startX = e.clientX, startY = e.clientY
-    let didDrag = false
     const nativeEvent = e.nativeEvent
+    let didDrag = false
+    const downX = e.clientX, downY = e.clientY
 
     function onMM(ev: MouseEvent) {
-      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 4) {
+      if (!didDrag && Math.hypot(ev.clientX - downX, ev.clientY - downY) > 4) {
         didDrag = true
         document.removeEventListener('mousemove', onMM)
-        document.removeEventListener('mouseup', onMU)
-        startSectionDrag(e)
+        document.removeEventListener('mouseup',   onMU)
+        beginDrag()
       }
     }
     function onMU() {
       document.removeEventListener('mousemove', onMM)
-      document.removeEventListener('mouseup', onMU)
+      document.removeEventListener('mouseup',   onMU)
       if (!didDrag) sectionSel.toggle(sectionId, nativeEvent.shiftKey)
     }
     document.addEventListener('mousemove', onMM)
-    document.addEventListener('mouseup', onMU)
+    document.addEventListener('mouseup',   onMU)
+
+    function beginDrag() {
+      if (typeof getPos !== 'function') return
+      const docPos  = getPos() as number
+      const canvas  = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+      const maybeWrap = cardRef.current?.parentElement
+      if (!canvas || !maybeWrap) return
+      const canvasEl = canvas
+      const wrapEl = maybeWrap as HTMLElement
+      const canvasRect = canvasEl.getBoundingClientRect()
+      const zoom = _canvasZoom(canvasEl)
+
+      // First drag ever: snapshot flow positions as absolute for all unpositioned sections
+      if (node.attrs.x === null) {
+        const tr = editor.state.tr
+        editor.state.doc.forEach((sNode, offset) => {
+          if (sNode.type.name !== 'section' || sNode.attrs.x !== null) return
+          const dom = editor.view.nodeDOM(offset) as HTMLElement | null
+          if (!dom) return
+          const r = dom.getBoundingClientRect()
+          tr.setNodeMarkup(offset, undefined, {
+            ...sNode.attrs,
+            x: Math.round((r.left - canvasRect.left) / zoom),
+            y: Math.round((r.top  - canvasRect.top) / zoom),
+            w: Math.round(r.width / zoom),
+          })
+        })
+        editor.view.dispatch(tr)
+      }
+
+      const wrapRect = wrapEl.getBoundingClientRect()
+      const startBX = Math.round((wrapRect.left - canvasRect.left) / zoom)
+      const startBY = Math.round((wrapRect.top  - canvasRect.top) / zoom)
+      const blockW  = Math.round(wrapRect.width / zoom)
+      const blockH  = Math.round(wrapRect.height / zoom)
+
+      wrapEl.style.position = 'absolute'
+      wrapEl.style.margin   = '0'
+      wrapEl.style.zIndex   = '10'
+      wrapEl.style.left     = startBX + 'px'
+      wrapEl.style.top      = startBY + 'px'
+      wrapEl.style.width    = blockW  + 'px'
+
+      const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
+      const multiStarts = new Map<string, { el: HTMLElement; bx: number; by: number }>()
+      if (isMultiDrag) {
+        sectionSel.setDrag(true)
+        canvasEl.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+          const id = card.dataset.sectionId
+          if (!id || !sectionSel.has(id)) return
+          const wrap = card.parentElement as HTMLElement
+          const wr = wrap.getBoundingClientRect()
+          const bx = Math.round((wr.left - canvasRect.left) / zoom)
+          const by = Math.round((wr.top  - canvasRect.top) / zoom)
+          multiStarts.set(id, { el: wrap, bx, by })
+          wrap.style.position = 'absolute'
+          wrap.style.margin   = '0'
+          wrap.style.zIndex   = '10'
+          wrap.style.left     = bx + 'px'
+          wrap.style.top      = by + 'px'
+        })
+      }
+
+      setSectionDragging(true)
+      document.body.style.userSelect = 'none'
+      document.body.style.cursor     = 'grabbing'
+
+      function onMove(ev: MouseEvent) {
+        const dx = (ev.clientX - downX) / zoom
+        const dy = (ev.clientY - downY) / zoom
+        if (isMultiDrag) {
+          multiStarts.forEach(({ el, bx, by }) => { el.style.left = (bx + dx) + 'px'; el.style.top = (by + dy) + 'px' })
+          _fitCanvasToSections(canvasEl)
+        } else {
+          const snap = _computeSnap(canvasEl, sectionId, startBX + dx, startBY + dy, blockW, blockH)
+          wrapEl.style.left = snap.x + 'px'
+          wrapEl.style.top  = snap.y + 'px'
+          _showSnapLines(canvasEl, snap.lines)
+          _fitCanvasToSections(canvasEl)
+        }
+      }
+
+      function onUp() {
+        _clearSnapLines()
+        setSectionDragging(false)
+        if (isMultiDrag) sectionSel.setDrag(false)
+        document.body.style.userSelect = ''
+        document.body.style.cursor     = ''
+
+        const tr = editor.state.tr
+        if (isMultiDrag) {
+          editor.state.doc.forEach((sNode, offset) => {
+            if (sNode.type.name !== 'section') return
+            const dom = editor.view.nodeDOM(offset) as HTMLElement | null
+            const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+            if (!id || !sectionSel.has(id)) return
+            const start = multiStarts.get(id)
+            if (!start) return
+            tr.setNodeMarkup(offset, undefined, { ...sNode.attrs, x: Math.round(parseFloat(start.el.style.left)), y: Math.round(parseFloat(start.el.style.top)) })
+          })
+        } else {
+          const freshNode = editor.state.doc.nodeAt(docPos)
+          if (freshNode) tr.setNodeMarkup(docPos, undefined, { ...freshNode.attrs, x: Math.round(parseFloat(wrapEl.style.left)), y: Math.round(parseFloat(wrapEl.style.top)) })
+        }
+        editor.view.dispatch(tr)
+        _fitCanvasToSections(canvasEl)
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup',   onUp)
+      }
+
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup',   onUp)
+    }
   }
 
-  function startSectionDrag(e: React.MouseEvent) {
-    if (!cardRef.current || typeof getPos !== 'function') return
+  function startResize(dir: string, e: React.MouseEvent) {
+    if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-
-    const sectionPos = getPos() as number
-    if (!editor.state.doc.nodeAt(sectionPos)) return
-
-    const cardEl = cardRef.current
-    const cardRect = cardEl.getBoundingClientRect()
-    const offsetY = e.clientY - cardRect.top
-
-    // All section cards and their NodeViewWrapper parents
-    const allCardEls = Array.from(document.querySelectorAll('[data-section-card]')) as HTMLElement[]
-    const allWrappers = allCardEls.map(c => c.parentElement as HTMLElement)
-    const sourceIdx = allCardEls.indexOf(cardEl)
-    if (sourceIdx === -1) return
-
-    // Snapshot rects before any DOM changes
-    const initialRects = allWrappers.map(w => w.getBoundingClientRect())
-
-    // Height of source slot = distance from this wrapper top to next wrapper top
-    const slotHeight = sourceIdx < allWrappers.length - 1
-      ? initialRects[sourceIdx + 1].top - initialRects[sourceIdx].top
-      : initialRects[sourceIdx].height + 12
-
-    // Enable transitions on all non-source wrappers
-    allWrappers.forEach((w, i) => {
-      if (i !== sourceIdx) w.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
-    })
-
-    // Ghost: fixed clone following cursor
-    const ghost = cardEl.cloneNode(true) as HTMLElement
-    ghost.style.cssText = [
-      `position:fixed`,
-      `top:${cardRect.top}px`,
-      `left:${cardRect.left}px`,
-      `width:${cardRect.width}px`,
-      `opacity:0.92`,
-      `pointer-events:none`,
-      `z-index:9999`,
-      `box-shadow:0 16px 48px rgba(0,0,0,0.24),0 0 0 1px var(--border)`,
-      `transform:scale(1.02)`,
-      `border-radius:12px`,
-    ].join(';')
-    document.body.appendChild(ghost)
-
-    // Slot: green outlined box at drop target position
-    const slot = document.createElement('div')
-    slot.style.cssText = [
-      `position:fixed`,
-      `left:${cardRect.left}px`,
-      `width:${cardRect.width}px`,
-      `height:${cardRect.height}px`,
-      `border-radius:12px`,
-      `background:rgba(0,153,85,0.05)`,
-      `border:2px dashed rgba(0,153,85,0.4)`,
-      `pointer-events:none`,
-      `z-index:9997`,
-      `display:none`,
-      `transition:top 0.18s cubic-bezier(0.2,0,0,1)`,
-      `box-sizing:border-box`,
-    ].join(';')
-    document.body.appendChild(slot)
-
-    // Multi-drag: if this section is part of a multi-selection, drag all selected
-    const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
-    if (isMultiDrag) {
-      sectionSel.setDrag(true)
-      const count = sectionSel.size()
-      const badge = document.createElement('div')
-      badge.style.cssText = `position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;pointer-events:none`
-      badge.textContent = `${count} Blöcke`
-      ghost.appendChild(badge)
-    }
-
-    setSectionDragging(true)
+    const canvas    = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+    const maybeWrap = cardRef.current?.parentElement
+    if (!canvas || !maybeWrap) return
+    const canvasEl = canvas
+    const wrapEl = maybeWrap as HTMLElement
+    const canvasRect = canvasEl.getBoundingClientRect()
+    const zoom = _canvasZoom(canvasEl)
+    const wrapRect   = wrapEl.getBoundingClientRect()
+    const startBX = Math.round((wrapRect.left - canvasRect.left) / zoom)
+    const startBY = Math.round((wrapRect.top  - canvasRect.top) / zoom)
+    const startW  = Math.round(wrapRect.width / zoom)
+    const startH  = Math.round(wrapRect.height / zoom)
+    const startMX = e.clientX, startMY = e.clientY
+    document.body.style.cursor     = dir + '-resize'
     document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'grabbing'
-
-    // Change "Neuer Block" button to "Duplizieren" for the duration of this drag
-    const dupBtn = document.querySelector('[data-new-block-btn]') as HTMLElement | null
-    const origBtnHTML = dupBtn?.innerHTML ?? ''
-    if (dupBtn) dupBtn.innerHTML = '<span style="font-size:16px;line-height:1;font-weight:300">⎘</span> Duplizieren'
-
-    let dropBeforeIdx = -1
-    let lastDropIdx = -2 // force first evaluation
-    let hoveringDup = false
-
-    function applyShifts(dropIdx: number) {
-      allWrappers.forEach((wrapper, i) => {
-        if (i === sourceIdx) return
-        let shift = 0
-        if (dropIdx <= sourceIdx) {
-          if (i >= dropIdx && i < sourceIdx) shift = slotHeight
-        } else {
-          if (i > sourceIdx && i < dropIdx) shift = -slotHeight
-        }
-        wrapper.style.transform = shift ? `translateY(${shift}px)` : 'translateY(0)'
-      })
-
-      // Calculate slot top in viewport coords
-      let slotTop: number
-      if (dropIdx <= sourceIdx) {
-        slotTop = initialRects[dropIdx].top
-      } else {
-        const prevIdx = dropIdx - 1
-        const prevShift = prevIdx > sourceIdx ? -slotHeight : 0
-        slotTop = initialRects[prevIdx].bottom + prevShift
-      }
-      slot.style.display = 'block'
-      slot.style.top = `${slotTop}px`
-    }
-
-    function resetShifts() {
-      allWrappers.forEach((w, i) => {
-        if (i !== sourceIdx) w.style.transform = 'translateY(0)'
-      })
-      slot.style.display = 'none'
-    }
 
     function onMove(ev: MouseEvent) {
-      ghost.style.top = `${ev.clientY - offsetY}px`
-
-      // Check hover over duplicate button
-      if (dupBtn) {
-        const r = dupBtn.getBoundingClientRect()
-        const over = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
-        if (over && !hoveringDup) {
-          hoveringDup = true
-          dupBtn.style.borderColor = 'var(--accent)'
-          dupBtn.style.background  = 'rgba(0,153,85,0.08)'
-          dupBtn.style.color       = 'var(--accent)'
-          resetShifts()
-          dropBeforeIdx = -1
-          lastDropIdx = -2
-        } else if (!over && hoveringDup) {
-          hoveringDup = false
-          dupBtn.style.borderColor = ''
-          dupBtn.style.background  = ''
-          dupBtn.style.color       = ''
-          lastDropIdx = -2
-        }
-        if (hoveringDup) return
-      }
-
-      let newDropIdx = allCardEls.length
-      for (let i = 0; i < allCardEls.length; i++) {
-        if (ev.clientY < initialRects[i].top + initialRects[i].height / 2) {
-          newDropIdx = i
-          break
-        }
-      }
-
-      if (newDropIdx === lastDropIdx) return
-      lastDropIdx = newDropIdx
-
-      if (newDropIdx === sourceIdx || newDropIdx === sourceIdx + 1) {
-        resetShifts()
-        dropBeforeIdx = -1
-      } else {
-        applyShifts(newDropIdx)
-        dropBeforeIdx = newDropIdx
-      }
+      const dx = (ev.clientX - startMX) / zoom
+      const dy = (ev.clientY - startMY) / zoom
+      let nx = startBX, ny = startBY, nw = startW, nh = startH
+      if (dir.includes('e')) nw = Math.max(MIN_SECTION_W, startW + dx)
+      if (dir.includes('w')) { nw = Math.max(MIN_SECTION_W, startW - dx); nx = startBX + startW - nw }
+      if (dir.includes('s')) nh = Math.max(MIN_SECTION_H, startH + dy)
+      if (dir.includes('n')) { nh = Math.max(MIN_SECTION_H, startH - dy); ny = startBY + startH - nh }
+      wrapEl.style.left  = nx + 'px'
+      wrapEl.style.top   = ny + 'px'
+      wrapEl.style.width = nw + 'px'
+      wrapEl.style.height = nh + 'px'
+      _fitCanvasToSections(canvasEl)
     }
 
     function onUp() {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      ghost.parentNode?.removeChild(ghost)
-      slot.parentNode?.removeChild(slot)
-      allWrappers.forEach(w => { w.style.transform = ''; w.style.transition = '' })
+      document.body.style.cursor     = ''
       document.body.style.userSelect = ''
-      document.body.style.cursor = ''
-      if (dupBtn) {
-        dupBtn.innerHTML = origBtnHTML
-        dupBtn.style.borderColor = ''
-        dupBtn.style.background  = ''
-        dupBtn.style.color       = ''
+      const docPos = typeof getPos === 'function' ? getPos() as number : null
+      if (docPos !== null) {
+        const freshNode = editor.state.doc.nodeAt(docPos)
+        if (freshNode) {
+          const tr = editor.state.tr
+          tr.setNodeMarkup(docPos, undefined, {
+            ...freshNode.attrs,
+            x: Math.round(parseFloat(wrapEl.style.left)),
+            y: Math.round(parseFloat(wrapEl.style.top)),
+            w: Math.round(parseFloat(wrapEl.style.width)),
+            h: Math.round(parseFloat(wrapEl.style.height)),
+          })
+          editor.view.dispatch(tr)
+        }
       }
-      if (isMultiDrag) sectionSel.setDrag(false)
-      setSectionDragging(false)
-      if (hoveringDup) duplicateSection()
-      else if (dropBeforeIdx >= 0) {
-        if (isMultiDrag) moveSelectedSectionsTo(sectionId, dropBeforeIdx)
-        else moveSectionTo(dropBeforeIdx)
-      }
+      _fitCanvasToSections(canvasEl)
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup',   onUp)
     }
 
     document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+    document.addEventListener('mouseup',   onUp)
   }
 
   useEffect(() => {
@@ -1124,9 +1181,29 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   const bgColor     = node.attrs.bgColor     as string | null
   const borderColor = node.attrs.borderColor as string | null
+  const canvasX = node.attrs.x as number | null
+  const canvasY = node.attrs.y as number | null
+  const canvasW = node.attrs.w as number | null
+  const canvasH = node.attrs.h as number | null
+  const isCanvasBlock = canvasX !== null && canvasY !== null
+
+  useEffect(() => {
+    const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+    if (canvas) _fitCanvasToSections(canvas)
+  }, [canvasX, canvasY, canvasW, canvasH])
 
   return (
-    <NodeViewWrapper style={{ margin: '0 0 12px', position: 'relative', zIndex: pickerOpen || imageMode || colorPickerOpen ? 100 : undefined }}>
+    <NodeViewWrapper
+      style={{
+        margin: isCanvasBlock ? 0 : '0 0 12px',
+        position: isCanvasBlock ? 'absolute' : 'relative',
+        left: isCanvasBlock ? `${canvasX}px` : undefined,
+        top: isCanvasBlock ? `${canvasY}px` : undefined,
+        width: canvasW !== null ? `${canvasW}px` : undefined,
+        height: canvasH !== null ? `${canvasH}px` : undefined,
+        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging ? 100 : undefined,
+      }}
+    >
       <div
         ref={cardRef}
         data-section-card="true"
@@ -1139,6 +1216,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           borderRadius: '12px',
           padding: '20px 28px 16px 44px',
           position: 'relative',
+          height: canvasH !== null ? '100%' : undefined,
+          minHeight: canvasH !== null ? `${MIN_SECTION_H}px` : undefined,
+          boxSizing: 'border-box',
+          overflow: canvasH !== null ? 'auto' : undefined,
           outline: isSelected ? '2px solid var(--accent)' : 'none',
           outlineOffset: '2px',
           cursor: dragging ? 'grabbing' : undefined,
@@ -1298,6 +1379,42 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
+        {editable && isCanvasBlock && (
+          <>
+            {(['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'] as const).map(dir => {
+              const isCorner = dir.length === 2
+              const cursor = `${dir}-resize`
+              const style = {
+                position: 'absolute' as const,
+                zIndex: 20,
+                background: isSelected ? 'var(--accent)' : 'transparent',
+                border: isCorner && isSelected ? '1px solid #fff' : undefined,
+                boxShadow: isCorner && isSelected ? '0 0 0 1px var(--accent)' : undefined,
+                opacity: isSelected ? 1 : 0,
+                transition: 'opacity 0.1s',
+                cursor,
+                ...(dir === 'n' ? { left: 10, right: 10, top: -4, height: 8 } : {}),
+                ...(dir === 's' ? { left: 10, right: 10, bottom: -4, height: 8 } : {}),
+                ...(dir === 'e' ? { top: 10, right: -4, bottom: 10, width: 8 } : {}),
+                ...(dir === 'w' ? { top: 10, left: -4, bottom: 10, width: 8 } : {}),
+                ...(dir === 'ne' ? { top: -6, right: -6, width: 12, height: 12, borderRadius: 6 } : {}),
+                ...(dir === 'se' ? { right: -6, bottom: -6, width: 12, height: 12, borderRadius: 6 } : {}),
+                ...(dir === 'sw' ? { left: -6, bottom: -6, width: 12, height: 12, borderRadius: 6 } : {}),
+                ...(dir === 'nw' ? { top: -6, left: -6, width: 12, height: 12, borderRadius: 6 } : {}),
+              }
+              return (
+                <div
+                  key={dir}
+                  data-section-resize-handle="true"
+                  title="Größe ändern"
+                  onMouseDown={e => startResize(dir, e)}
+                  style={style}
+                />
+              )
+            })}
+          </>
+        )}
+
         <NodeViewContent />
 
         {/* Element picker */}
@@ -1382,6 +1499,10 @@ export const SectionExtension = Node.create({
     return {
       bgColor:     { default: null, parseHTML: el => el.getAttribute('data-bg')     || null },
       borderColor: { default: null, parseHTML: el => el.getAttribute('data-border') || null },
+      x: { default: null, parseHTML: el => el.hasAttribute('data-x') ? Number(el.getAttribute('data-x')) : null },
+      y: { default: null, parseHTML: el => el.hasAttribute('data-y') ? Number(el.getAttribute('data-y')) : null },
+      w: { default: null, parseHTML: el => el.hasAttribute('data-w') ? Number(el.getAttribute('data-w')) : null },
+      h: { default: null, parseHTML: el => el.hasAttribute('data-h') ? Number(el.getAttribute('data-h')) : null },
     }
   },
 
@@ -1389,6 +1510,10 @@ export const SectionExtension = Node.create({
     const attrs: Record<string, string> = {}
     if (node.attrs.bgColor)     attrs['data-bg']     = node.attrs.bgColor
     if (node.attrs.borderColor) attrs['data-border'] = node.attrs.borderColor
+    if (node.attrs.x !== null) attrs['data-x'] = String(node.attrs.x)
+    if (node.attrs.y !== null) attrs['data-y'] = String(node.attrs.y)
+    if (node.attrs.w !== null) attrs['data-w'] = String(node.attrs.w)
+    if (node.attrs.h !== null) attrs['data-h'] = String(node.attrs.h)
     return ['section', mergeAttributes(HTMLAttributes, attrs), 0]
   },
 
