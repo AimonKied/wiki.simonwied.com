@@ -288,6 +288,7 @@ interface DragRefState {
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const sectionId = useId()
   const [isSelected, setIsSelected] = useState(false)
+  const [isEditorActive, setIsEditorActive] = useState(false)
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sectionDragging, setSectionDragging] = useState(false)
@@ -343,6 +344,31 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     })
     return () => { unsub() }
   }, [sectionId, editor])
+
+  useEffect(() => {
+    function updateEditorActive() {
+      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
+      if (sectionPos === undefined || !editor.view.hasFocus()) {
+        setIsEditorActive(false)
+        return
+      }
+      const currentNode = editor.state.doc.nodeAt(sectionPos)
+      const cursorPos = editor.state.selection.from
+      setIsEditorActive(!!currentNode && cursorPos > sectionPos && cursorPos < sectionPos + currentNode.nodeSize)
+    }
+
+    updateEditorActive()
+    editor.on('selectionUpdate', updateEditorActive)
+    editor.on('focus', updateEditorActive)
+    editor.on('blur', updateEditorActive)
+    editor.on('transaction', updateEditorActive)
+    return () => {
+      editor.off('selectionUpdate', updateEditorActive)
+      editor.off('focus', updateEditorActive)
+      editor.off('blur', updateEditorActive)
+      editor.off('transaction', updateEditorActive)
+    }
+  }, [editor, getPos])
 
   // Element copy/cut/paste via Ctrl+C/X/V when element handle is visible
   useEffect(() => {
@@ -1444,9 +1470,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           overflow: 'visible',
           display: canvasH !== null ? 'flex' : undefined,
           flexDirection: canvasH !== null ? 'column' : undefined,
-          outline: isSelected || elementDropTarget ? '2px solid var(--accent)' : 'none',
+          outline: isSelected || isEditorActive || elementDropTarget ? '2px solid var(--accent)' : 'none',
           outlineOffset: elementDropTarget ? '4px' : '2px',
-          boxShadow: elementDropTarget ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)' : undefined,
+          boxShadow: elementDropTarget
+            ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
+            : isEditorActive
+              ? '0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent)'
+              : undefined,
           cursor: resizing ? 'inherit' : (dragging ? 'grabbing' : undefined),
           transition: sectionDragging || resizing ? undefined : 'outline 0.1s, box-shadow 0.12s',
         }}
