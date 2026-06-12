@@ -6,6 +6,9 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
+import { Fragment } from '@tiptap/pm/model'
+import type { Node as PMNode } from '@tiptap/pm/model'
+import { TextSelection } from '@tiptap/pm/state'
 import Document from '@tiptap/extension-document'
 import ImageExt from '@tiptap/extension-image'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
@@ -77,18 +80,35 @@ const FONT_FAMILIES = [
 const FONT_SIZES = ['12px', '14px', '16px', '18px', '24px', '32px', '40px', '48px']
 
 const ELEMENT_PALETTE = [
-  { key: 'paragraph',   label: 'Text',  icon: '¶'   },
-  { key: 'h1',          label: 'H1',    icon: 'H1'  },
-  { key: 'h2',          label: 'H2',    icon: 'H2'  },
-  { key: 'h3',          label: 'H3',    icon: 'H3'  },
-  { key: 'bulletList',  label: 'Liste', icon: '•'   },
-  { key: 'orderedList', label: '1.',    icon: '1.'  },
-  { key: 'codeBlock',   label: 'Code',  icon: '</>' },
-  { key: 'blockquote',  label: 'Zitat', icon: '"'   },
-  { key: 'hr',          label: 'Linie', icon: '—'   },
-  { key: 'table',       label: 'Table', icon: '⊞'   },
-  { key: 'image',       label: 'Bild',  icon: '▧'   },
+  { key: 'paragraph',   label: 'Text',          icon: '¶',   description: 'Normaler Text' },
+  { key: 'h1',          label: 'Überschrift 1', icon: 'H1',  description: 'Große Überschrift' },
+  { key: 'h2',          label: 'Überschrift 2', icon: 'H2',  description: 'Mittlere Überschrift' },
+  { key: 'h3',          label: 'Überschrift 3', icon: 'H3',  description: 'Kleine Überschrift' },
+  { key: 'bulletList',  label: 'Liste',         icon: '•',   description: 'Aufzählung' },
+  { key: 'orderedList', label: 'Nummeriert',    icon: '1.',  description: 'Nummerierte Liste' },
+  { key: 'codeBlock',   label: 'Code',          icon: '</>', description: 'Codeblock' },
+  { key: 'blockquote',  label: 'Zitat',         icon: '"',   description: 'Hervorgehobenes Zitat' },
+  { key: 'hr',          label: 'Trennlinie',    icon: '—',   description: 'Horizontale Linie' },
+  { key: 'table',       label: 'Tabelle',       icon: '⊞',   description: 'Tabelle mit 3 × 3 Zellen' },
+  { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL' },
 ]
+
+interface SlashMenuState {
+  from: number
+  to: number
+  query: string
+  left: number
+  top: number
+  selected: number
+}
+
+function getSlashItems(query: string) {
+  const normalized = query.trim().toLocaleLowerCase('de')
+  if (!normalized) return ELEMENT_PALETTE
+  return ELEMENT_PALETTE.filter(item =>
+    `${item.label} ${item.description} ${item.key}`.toLocaleLowerCase('de').includes(normalized)
+  )
+}
 
 // Wrap flat content (old notes) in a section so it renders as a card.
 // Sections without stored position render in normal flow first; the layout-pass
@@ -129,6 +149,79 @@ function addSection(editor: TiptapEditor, attrs: Record<string, number | null> =
     .run()
 }
 
+function createLineElement(editor: TiptapEditor, key: string, content: Fragment): PMNode | null {
+  const { schema } = editor.state
+  if (key === 'paragraph') return schema.nodes.paragraph.create(null, content)
+  if (key === 'h1') return schema.nodes.heading.create({ level: 1 }, content)
+  if (key === 'h2') return schema.nodes.heading.create({ level: 2 }, content)
+  if (key === 'h3') return schema.nodes.heading.create({ level: 3 }, content)
+  if (key === 'codeBlock') return schema.nodes.codeBlock.create({ language: null }, content)
+  if (key === 'blockquote') return schema.nodes.blockquote.create(null, schema.nodes.paragraph.create(null, content))
+  if (key === 'bulletList' || key === 'orderedList') {
+    const paragraph = schema.nodes.paragraph.create(null, content)
+    const item = schema.nodes.listItem.create(null, paragraph)
+    return schema.nodes[key].create(null, item)
+  }
+  if (key === 'hr') return schema.nodes.horizontalRule.create()
+  if (key === 'table') {
+    const cell = () => schema.nodes.tableCell.create(null, schema.nodes.paragraph.create())
+    const row = () => schema.nodes.tableRow.create(null, [cell(), cell(), cell()])
+    return schema.nodes.table.create(null, [row(), row(), row()])
+  }
+  return null
+}
+
+function transformVisualLine(editor: TiptapEditor, key: string, deleteRange?: { from: number; to: number }) {
+  const position = deleteRange?.from ?? editor.state.selection.from
+  const $pos = editor.state.doc.resolve(position)
+  const parentDepth = $pos.depth
+  if (!$pos.parent.isTextblock || parentDepth < 1 || $pos.node(parentDepth - 1).type.name !== 'section') return false
+
+  const parent = $pos.parent
+  const parentPos = $pos.before(parentDepth)
+  const parentStart = $pos.start(parentDepth)
+  const relativePos = position - parentStart
+  let previousBreak = -1
+  let nextBreak = parent.content.size
+  let nextBreakSize = 0
+
+  parent.forEach((child, offset) => {
+    if (child.type.name !== 'hardBreak') return
+    if (offset < relativePos) previousBreak = offset
+    else if (nextBreak === parent.content.size) {
+      nextBreak = offset
+      nextBreakSize = child.nodeSize
+    }
+  })
+
+  const lineStart = previousBreak < 0 ? 0 : previousBreak + 1
+  const lineEnd = nextBreak
+  let lineContent = parent.content.cut(lineStart, lineEnd)
+  if (deleteRange) {
+    const deleteFrom = Math.max(lineStart, deleteRange.from - parentStart)
+    const deleteTo = Math.min(lineEnd, deleteRange.to - parentStart)
+    lineContent = parent.content.cut(lineStart, deleteFrom).append(parent.content.cut(deleteTo, lineEnd))
+  }
+
+  const target = createLineElement(editor, key, lineContent)
+  if (!target) return false
+
+  const replacement: PMNode[] = []
+  const beforeContent = parent.content.cut(0, previousBreak < 0 ? 0 : previousBreak)
+  if (beforeContent.size) replacement.push(parent.copy(beforeContent))
+  const targetIndex = replacement.length
+  replacement.push(target)
+  const afterStart = nextBreak < parent.content.size ? nextBreak + nextBreakSize : parent.content.size
+  const afterContent = parent.content.cut(afterStart)
+  if (afterContent.size) replacement.push(parent.copy(afterContent))
+
+  const tr = editor.state.tr.replaceWith(parentPos, parentPos + parent.nodeSize, Fragment.fromArray(replacement))
+  const targetPos = parentPos + replacement.slice(0, targetIndex).reduce((sum, node) => sum + node.nodeSize, 0)
+  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(targetPos + 1, tr.doc.content.size))))
+  editor.view.dispatch(tr.scrollIntoView())
+  return true
+}
+
 interface EditorProps {
   content?: object | null
   onChange?: (json: object) => void
@@ -138,9 +231,55 @@ interface EditorProps {
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
   const initialContent = ensureSections(content)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
+  const slashMenuRef = useRef<SlashMenuState | null>(null)
+  const slashMenuListRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ x: 80, y: 48, zoom: 1 })
   const viewportRef = useRef(viewport)
   const spaceDownRef = useRef(false)
+
+  function syncSlashMenu(editor: TiptapEditor) {
+    const { selection } = editor.state
+    if (!selection.empty || !editor.isEditable) {
+      setSlashMenu(null)
+      return
+    }
+
+    const { $from } = selection
+    if (!$from.parent.isTextblock) {
+      setSlashMenu(null)
+      return
+    }
+
+    const textBefore = $from.parent.textBetween(
+      0,
+      $from.parentOffset,
+      undefined,
+      node => node.type.name === 'hardBreak' ? '\n' : '\ufffc',
+    )
+    const currentLine = textBefore.slice(textBefore.lastIndexOf('\n') + 1)
+    const match = currentLine.match(/^\/([^\s/]*)$/)
+    if (!match) {
+      setSlashMenu(null)
+      return
+    }
+
+    const query = match[1]
+    const from = selection.from - query.length - 1
+    try {
+      const coords = editor.view.coordsAtPos(selection.from)
+      setSlashMenu(previous => ({
+        from,
+        to: selection.from,
+        query,
+        left: coords.left,
+        top: coords.bottom + 8,
+        selected: previous?.query === query ? previous.selected : 0,
+      }))
+    } catch {
+      setSlashMenu(null)
+    }
+  }
 
   useEffect(() => {
     viewportRef.current = viewport
@@ -347,8 +486,93 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     immediatelyRender: true,
     onUpdate({ editor }) {
       onChange?.(editor.getJSON())
+      syncSlashMenu(editor)
+    },
+    onSelectionUpdate({ editor }) {
+      syncSlashMenu(editor)
+    },
+    onBlur() {
+      window.setTimeout(() => setSlashMenu(null), 120)
     },
   }, [editable, EDITOR_SCHEMA_VERSION])
+
+  useEffect(() => {
+    slashMenuRef.current = slashMenu
+  }, [slashMenu])
+
+  useEffect(() => {
+    if (!slashMenu) return
+    const activeItem = slashMenuListRef.current?.querySelector<HTMLElement>('[data-slash-active="true"]')
+    activeItem?.scrollIntoView({ block: 'nearest' })
+  }, [slashMenu])
+
+  useEffect(() => {
+    function onSlashKeyDown(e: KeyboardEvent) {
+      const menu = slashMenuRef.current
+      if (!menu || !editor) return
+      const items = getSlashItems(menu.query)
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setSlashMenu(null)
+        return
+      }
+      if (!items.length) return
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        e.stopPropagation()
+        const direction = e.key === 'ArrowDown' ? 1 : -1
+        setSlashMenu(current => current ? {
+          ...current,
+          selected: (current.selected + direction + items.length) % items.length,
+        } : null)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        executeSlashCommand(items[Math.min(menu.selected, items.length - 1)].key, menu)
+      }
+    }
+
+    document.addEventListener('keydown', onSlashKeyDown, true)
+    return () => document.removeEventListener('keydown', onSlashKeyDown, true)
+    // executeSlashCommand only closes over the current editor instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
+  function executeSlashCommand(key: string, menu: SlashMenuState) {
+    if (!editor) return
+    setSlashMenu(null)
+    if (key === 'image') {
+      transformVisualLine(editor, 'paragraph', { from: menu.from, to: menu.to })
+      document.dispatchEvent(new CustomEvent('wiki-editor-add-element', {
+        detail: { key: 'image', targetPos: editor.state.selection.from },
+      }))
+      return
+    }
+    if (transformVisualLine(editor, key, { from: menu.from, to: menu.to })) return
+
+    const chain = editor.chain().focus().deleteRange({ from: menu.from, to: menu.to })
+
+    if (key === 'paragraph') chain.setParagraph().run()
+    else if (key === 'h1') chain.setHeading({ level: 1 }).run()
+    else if (key === 'h2') chain.setHeading({ level: 2 }).run()
+    else if (key === 'h3') chain.setHeading({ level: 3 }).run()
+    else if (key === 'bulletList') chain.toggleBulletList().run()
+    else if (key === 'orderedList') chain.toggleOrderedList().run()
+    else if (key === 'codeBlock') chain.setCodeBlock().run()
+    else if (key === 'blockquote') chain.toggleBlockquote().run()
+    else if (key === 'hr') chain.setHorizontalRule().run()
+    else if (key === 'table') chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+  }
+
+  function changeSelectedLineType(key: 'h1' | 'h2' | 'h3') {
+    if (transformVisualLine(editor, key)) return
+    const level = key === 'h1' ? 1 : key === 'h2' ? 2 : 3
+    editor.chain().focus().toggleHeading({ level }).run()
+  }
 
   useEffect(() => {
     if (!tableMenuOpen) return
@@ -448,6 +672,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   }, [])
 
   if (!editor) return null
+  const slashItems = slashMenu ? getSlashItems(slashMenu.query) : []
 
   function addSectionAtViewportCenter() {
     const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
@@ -541,6 +766,49 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
+      {slashMenu && (
+        <div
+          ref={slashMenuListRef}
+          onMouseDown={e => e.preventDefault()}
+          style={{
+            position: 'fixed', left: slashMenu.left, top: slashMenu.top,
+            zIndex: 100001, width: 280, maxHeight: 330, overflowY: 'auto',
+            padding: 6, background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 10, boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+          }}
+        >
+          {slashItems.length ? slashItems.map((item, index) => (
+            <button
+              key={item.key}
+              type="button"
+              data-slash-active={index === slashMenu.selected ? 'true' : undefined}
+              onMouseEnter={() => setSlashMenu(current => current ? { ...current, selected: index } : null)}
+              onClick={() => executeSlashCommand(item.key, slashMenu)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 9px', border: 'none', borderRadius: 7,
+                background: index === slashMenu.selected ? 'var(--surface2)' : 'transparent',
+                color: 'var(--text)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+              }}
+            >
+              <span style={{
+                width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', border: '1px solid var(--border)', borderRadius: 6,
+                fontSize: item.icon.length > 2 ? 10 : 13, fontWeight: 700,
+              }}>
+                {item.icon}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{item.label}</span>
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{item.description}</span>
+              </span>
+            </button>
+          )) : (
+            <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--muted)' }}>Kein Element gefunden</div>
+          )}
+        </div>
+      )}
+
       {/* Floating format menu on text selection */}
       {editable && (
         <BubbleMenu
@@ -613,9 +881,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             <button style={bBtn(editor.isActive('strike'),    { textDecoration: 'line-through' })} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
             <button style={bBtn(editor.isActive('code'),      { fontFamily: 'monospace' })}      onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
             <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
-            <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-            <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-            <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+            <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => changeSelectedLineType('h1')}>H1</button>
+            <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => changeSelectedLineType('h2')}>H2</button>
+            <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => changeSelectedLineType('h3')}>H3</button>
             <button
               title="Formatierung löschen"
               style={bBtn(false)}

@@ -1292,13 +1292,17 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   useEffect(() => {
     function onAddElement(e: Event) {
-      const detail = (e as CustomEvent<{ key?: string }>).detail
-      if (!detail?.key || !sectionSel.has(sectionId)) return
+      const detail = (e as CustomEvent<{ key?: string; targetPos?: number }>).detail
+      if (!detail?.key) return
+      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
+      const targetsThisSection = typeof detail.targetPos === 'number' && sectionPos !== undefined
+        && detail.targetPos > sectionPos && detail.targetPos < sectionPos + node.nodeSize
+      if (!sectionSel.has(sectionId) && !targetsThisSection) return
       addElement(detail.key)
     }
     document.addEventListener('wiki-editor-add-element', onAddElement)
     return () => document.removeEventListener('wiki-editor-add-element', onAddElement)
-  }, [sectionId])
+  }, [sectionId, getPos, node.nodeSize])
 
   function isElementDrag(e: React.DragEvent) {
     return Array.from(e.dataTransfer.types).includes('application/x-wiki-element')
