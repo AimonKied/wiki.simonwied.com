@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
+import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import ImageExt from '@tiptap/extension-image'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
@@ -33,6 +34,47 @@ lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, g
 const SectionDocument = Document.extend({
   content: 'section+',
 })
+
+const TEXT_STYLE_MARK = 'wikiTextStyle'
+const EDITOR_SCHEMA_VERSION = 2
+
+const TextStyle = Mark.create({
+  name: TEXT_STYLE_MARK,
+
+  addAttributes() {
+    return {
+      fontFamily: { default: null, parseHTML: element => element.style.fontFamily || null },
+      fontSize: { default: null, parseHTML: element => element.style.fontSize || null },
+      color: { default: null, parseHTML: element => element.style.color || null },
+      backgroundColor: { default: null, parseHTML: element => element.style.backgroundColor || null },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'span[style]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const { fontFamily, fontSize, color, backgroundColor, ...attributes } = HTMLAttributes
+    const styles = [
+      fontFamily && `font-family:${fontFamily}`,
+      fontSize && `font-size:${fontSize}`,
+      color && `color:${color}`,
+      backgroundColor && `background-color:${backgroundColor}`,
+    ].filter(Boolean).join(';')
+    return ['span', mergeAttributes(attributes, { style: styles }), 0]
+  },
+})
+
+const FONT_FAMILIES = [
+  { label: 'Standard', value: null },
+  { label: 'Arial', value: 'Arial, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times', value: '"Times New Roman", serif' },
+  { label: 'Monospace', value: 'monospace' },
+]
+
+const FONT_SIZES = ['12px', '14px', '16px', '18px', '24px', '32px', '40px', '48px']
 
 const ELEMENT_PALETTE = [
   { key: 'paragraph',   label: 'Text',  icon: '¶'   },
@@ -288,6 +330,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         link: { openOnClick: !editable },
       }),
       SectionDocument,
+      TextStyle,
       ImageExt,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true }),
@@ -305,7 +348,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     onUpdate({ editor }) {
       onChange?.(editor.getJSON())
     },
-  })
+  }, [editable, EDITOR_SCHEMA_VERSION])
 
   useEffect(() => {
     if (!tableMenuOpen) return
@@ -483,21 +526,87 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     ...extra,
   } as React.CSSProperties)
 
+  const textStyleAttributes = editor.schema.marks[TEXT_STYLE_MARK]
+    ? editor.getAttributes(TEXT_STYLE_MARK)
+    : {}
+  const setTextStyle = (attributes: Record<string, string | null>) => {
+    if (!editor.schema.marks[TEXT_STYLE_MARK]) return
+    editor.chain().focus().setMark(TEXT_STYLE_MARK, attributes).run()
+  }
+  const clearTextStyle = () => {
+    const chain = editor.chain().focus()
+    if (editor.schema.marks[TEXT_STYLE_MARK]) chain.unsetMark(TEXT_STYLE_MARK)
+    chain.unsetAllMarks().run()
+  }
+
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       {/* Floating format menu on text selection */}
       {editable && (
-        <BubbleMenu editor={editor}>
+        <BubbleMenu
+          editor={editor}
+          pluginKey="text-format-menu"
+          appendTo={() => document.body}
+          options={{ strategy: 'fixed', placement: 'top', offset: 10, flip: true, shift: { padding: 8 } }}
+          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to}
+          style={{ zIndex: 100000 }}
+        >
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '2px',
+            flexWrap: 'wrap',
+            maxWidth: 'min(720px, calc(100vw - 24px))',
             background: '#1a1a2a',
             border: '1px solid #2e2e42',
             borderRadius: '8px',
             padding: '4px 6px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+            position: 'relative',
+            zIndex: 100000,
           }}>
+            <select
+              title="Schriftfamilie"
+              value={(textStyleAttributes.fontFamily as string | null) ?? ''}
+              onChange={e => setTextStyle({ fontFamily: e.target.value || null })}
+              style={{ ...bBtn(false), padding: '4px 6px', maxWidth: 112 }}
+            >
+              {FONT_FAMILIES.map(font => <option key={font.label} value={font.value ?? ''}>{font.label}</option>)}
+            </select>
+            <select
+              title="Schriftgröße"
+              value={(textStyleAttributes.fontSize as string | null) ?? ''}
+              onChange={e => setTextStyle({ fontSize: e.target.value || null })}
+              style={{ ...bBtn(false), padding: '4px 6px', width: 72 }}
+            >
+              <option value="">Größe</option>
+              {FONT_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
+            </select>
+            <label title="Textfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              A
+              <input
+                type="color"
+                value={(textStyleAttributes.color as string | null) ?? '#111827'}
+                onChange={e => setTextStyle({ color: e.target.value })}
+                style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
+              />
+            </label>
+            <label title="Hintergrundfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3,
+                background: (textStyleAttributes.backgroundColor as string | null) ?? '#fff59d',
+                color: (textStyleAttributes.color as string | null) ?? '#111827',
+                fontWeight: 700, lineHeight: 1,
+              }}>A</span>
+              <input
+                type="color"
+                value={(textStyleAttributes.backgroundColor as string | null) ?? '#fff59d'}
+                onChange={e => setTextStyle({ backgroundColor: e.target.value })}
+                style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
+              />
+            </label>
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
             <button style={bBtn(editor.isActive('bold'),      { fontWeight: 800 })}              onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
             <button style={bBtn(editor.isActive('italic'),    { fontStyle: 'italic' })}          onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
             <button style={bBtn(editor.isActive('underline'), { textDecoration: 'underline' })}  onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
@@ -507,6 +616,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
             <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
             <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+            <button
+              title="Formatierung löschen"
+              style={bBtn(false)}
+              onClick={clearTextStyle}
+            >
+              Tx
+            </button>
           </div>
         </BubbleMenu>
       )}
@@ -516,12 +632,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         <BubbleMenu
           editor={editor}
           shouldShow={({ editor }) => editor.isActive('tableCell') || editor.isActive('tableHeader')}
-          tippyOptions={{
+          getReferencedVirtualElement={() => ({ getBoundingClientRect: getTableRect })}
+          options={{
             placement: 'top-end',
-            offset: [0, 8],
-            hideOnClick: false,
+            offset: 8,
             onHide: () => setTableMenuOpen(false),
-            getReferenceClientRect: getTableRect,
           }}
         >
           <div style={{ position: 'relative' }}>
