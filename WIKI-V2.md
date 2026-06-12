@@ -37,7 +37,10 @@ wiki-v2/
 │   └── page.tsx                  -- Homepage
 ├── components/
 │   ├── editor/
-│   │   ├── Editor.tsx            -- TipTap Editor (mit Toolbar)
+│   │   ├── Editor.tsx            -- TipTap-Setup, Workspace-Viewport, Pan/Zoom/Lasso, Element-Palette
+│   │   ├── SectionNode.tsx       -- Section-NodeView: Verschieben, Resize, Snap, Ebenen, Auswahl
+│   │   ├── RightSidebar.tsx      -- Outline der Blöcke (Klick zentriert Block im Workspace)
+│   │   ├── EmojiPicker.tsx       -- Emoji-Auswahl für Notiz-Icons
 │   │   └── EditorViewer.tsx      -- Read-only Client-Wrapper
 │   └── sidebar/
 │       └── Sidebar.tsx
@@ -106,6 +109,16 @@ Noch nicht angelegt:
 - Öffentliche Notiz-Ansicht unter `/notes/[slug]`
 - Notiz löschen
 
+### ✅ Phase 4 — Canvas-Editor Ausbau
+- Element-Palette am Workspace-Rand (Klick fügt in markierten Block ein, Drag & Drop auf beliebigen Block)
+- Mehrfachauswahl: gemeinsames Verschieben, Resizen, Löschen, Kopieren (Lasso oder Shift+Klick)
+- Ebenen pro Block (`z`-Attribut) mit „In den Vordergrund / In den Hintergrund" (Ebene 0 ist der Boden)
+- Auto-Größe-Button; neue Blöcke passen sich dem Inhalt an (fit-content, max. 960px)
+- Layout-Migration alter Notizen: Blöcke werden nach dem ersten Render mit echten Höhen auf die Canvas übertragen (kein Überlappen, nicht im Undo-Verlauf)
+- Sidebar-Outline: Klick zentriert den Block animiert im Workspace
+- Auto-Save: 1,5 s Debounce, Statusanzeige (Gespeichert / fehlgeschlagen), Warnung beim Tab-Schließen, Strg+S speichert sofort
+- Copy/Cut/Paste für Blöcke und Elemente, globales Undo/Redo, Delete/Backspace entfernt Auswahl
+
 ---
 
 ## Offen — vor dem Go-Live
@@ -115,16 +128,18 @@ Noch nicht angelegt:
 - [ ] Kategorien / Collections für Notizen (Security, Development, Rezepte, …)
 - [ ] Notiz-Titel bei Erstellung als Slug vorschlagen (auto-generieren)
 - [ ] `updated_at` Trigger in Supabase (automatisch bei UPDATE setzen)
-- [ ] Fehlerbehandlung beim Speichern (was passiert wenn Supabase nicht erreichbar?)
+- [x] Fehlerbehandlung beim Speichern (Status „Speichern fehlgeschlagen", Auto-Save mit Debounce)
 - [ ] 404-Seite für nicht existierende Notizen
 
 ### Editor (muss)
 - [ ] Slash-Command Menü (`/heading`, `/code`, `/table`, …)
 - [ ] Mermaid Diagramme
-- [ ] Bilder einfügen (via Supabase Storage oder URL)
-- [x] Drag & Drop Blocks als Canvas-Bloecke
-- [x] Resize fuer Blocks in alle Richtungen
+- [x] Bilder per URL einfügen
+- [ ] Bild-Upload via Supabase Storage
+- [x] Drag & Drop Blocks als Canvas-Blöcke
+- [x] Resize für Blocks in alle Richtungen (auch Mehrfachauswahl)
 - [x] Workspace Pan/Zoom
+- [x] Auto-Save
 
 ### Design / UX (muss)
 - [ ] Mobile-Ansicht (Sidebar ausblendbar)
