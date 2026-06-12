@@ -43,30 +43,16 @@ const ELEMENT_PALETTE = [
   { key: 'image',       label: 'Bild',  icon: '▧'   },
 ]
 
-// Wrap flat content (old notes) in a section so it renders as a card
+// Wrap flat content (old notes) in a section so it renders as a card.
+// Sections without stored position render in normal flow first; the layout-pass
+// effect below converts them to canvas coordinates once real heights are known.
 function ensureSections(content: object | null | undefined): object | string {
   if (!content || typeof content !== 'object') return ''
-  const doc = content as { type?: string; content?: Array<{ type: string; attrs?: Record<string, unknown>; content?: unknown }> }
+  const doc = content as { type?: string; content?: Array<{ type: string }> }
   if (!doc.content?.length) return ''
   const hasSection = doc.content.some(n => n.type === 'section')
-  const sections = hasSection ? doc.content : [{ type: 'section', content: doc.content }]
-  let sectionIndex = 0
-  return {
-    ...doc,
-    content: sections.map(node => {
-      if (node.type !== 'section') return node
-      const attrs = node.attrs ?? {}
-      const hasCanvasPosition = attrs.x !== undefined && attrs.x !== null && attrs.y !== undefined && attrs.y !== null
-      const next = {
-        ...node,
-        attrs: hasCanvasPosition
-          ? attrs
-          : { ...attrs, x: 0, y: sectionIndex * 180, w: null, h: null },
-      }
-      sectionIndex += 1
-      return next
-    }),
-  }
+  if (hasSection) return content
+  return { ...doc, content: [{ type: 'section', content: doc.content }] }
 }
 
 function addSection(editor: TiptapEditor, attrs: Record<string, number | null> = {}) {
@@ -286,6 +272,71 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     const id = window.setTimeout(() => document.addEventListener('click', close), 0)
     return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
   }, [tableMenuOpen])
+
+  // Layout pass: sections without stored position rendered in flow get measured
+  // after paint and converted to canvas coordinates — real heights, no overlap
+  useEffect(() => {
+    if (!editor || !editable) return
+    const ed = editor
+    let frame = 0
+
+    function run() {
+      frame = 0
+      let hasUnpositioned = false
+      let minZ = 0
+      ed.state.doc.forEach(n => {
+        if (n.type.name !== 'section') return
+        if (n.attrs.x === null) hasUnpositioned = true
+        const z = (n.attrs.z as number | null) ?? 0
+        if (z < minZ) minZ = z
+      })
+      if (!hasUnpositioned && minZ >= 0) return
+      const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+      if (!canvas) return
+      const canvasRect = canvas.getBoundingClientRect()
+      const zoomRaw = Number(canvas.dataset.editorZoom)
+      const zoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? zoomRaw : 1
+      // Negative layers paint behind the editor surface where the mouse can't
+      // reach them — shift all stored layers up so the lowest one is 0
+      const zShift = minZ < 0 ? -minZ : 0
+      const tr = ed.state.tr
+      ed.state.doc.forEach((node, offset) => {
+        if (node.type.name !== 'section') return
+        const attrs = { ...node.attrs }
+        let changed = false
+        if (zShift && node.attrs.z !== null) {
+          attrs.z = (node.attrs.z as number) + zShift
+          changed = true
+        }
+        if (node.attrs.x === null) {
+          const dom = ed.view.nodeDOM(offset)
+          if (dom instanceof HTMLElement) {
+            const r = dom.getBoundingClientRect()
+            attrs.x = Math.round((r.left - canvasRect.left) / zoom)
+            attrs.y = Math.round((r.top - canvasRect.top) / zoom)
+            attrs.w = Math.round(r.width / zoom)
+            changed = true
+          }
+        }
+        if (changed) tr.setNodeMarkup(offset, undefined, attrs)
+      })
+      if (!tr.steps.length) return
+      // Migration, not a user action — must not land on the undo stack
+      tr.setMeta('addToHistory', false)
+      ed.view.dispatch(tr)
+    }
+
+    function schedule() {
+      if (!frame) frame = window.requestAnimationFrame(run)
+    }
+
+    schedule()
+    ed.on('update', schedule)
+    return () => {
+      ed.off('update', schedule)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [editor, editable])
 
   if (!editor) return null
 

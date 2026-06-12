@@ -979,6 +979,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             ...sNode.attrs,
             x: Math.round((r.left - canvasRect.left) / zoom),
             y: Math.round((r.top  - canvasRect.top) / zoom),
+            w: Math.round(r.width / zoom),
           })
         })
         editor.view.dispatch(tr)
@@ -990,6 +991,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const blockW  = Math.round(wrapRect.width / zoom)
       const blockH  = Math.round(wrapRect.height / zoom)
 
+      // React owns these styles — capture and restore them after the drag,
+      // otherwise the inline overrides shadow attr-driven values (z-layer, width)
+      const prevZ = wrapEl.style.zIndex
+      const prevW = wrapEl.style.width
+
       wrapEl.style.position = 'absolute'
       wrapEl.style.margin   = '0'
       wrapEl.style.zIndex   = '10'
@@ -998,7 +1004,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       wrapEl.style.width    = blockW  + 'px'
 
       const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
-      const multiStarts = new Map<string, { el: HTMLElement; bx: number; by: number }>()
+      const multiStarts = new Map<string, { el: HTMLElement; bx: number; by: number; prevZ: string }>()
       if (isMultiDrag) {
         sectionSel.setDrag(true)
         canvasEl.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
@@ -1008,7 +1014,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           const wr = wrap.getBoundingClientRect()
           const bx = Math.round((wr.left - canvasRect.left) / zoom)
           const by = Math.round((wr.top  - canvasRect.top) / zoom)
-          multiStarts.set(id, { el: wrap, bx, by })
+          multiStarts.set(id, { el: wrap, bx, by, prevZ: wrap.style.zIndex })
           wrap.style.position = 'absolute'
           wrap.style.margin   = '0'
           wrap.style.zIndex   = '10'
@@ -1059,6 +1065,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           if (freshNode) tr.setNodeMarkup(docPos, undefined, { ...freshNode.attrs, x: Math.round(parseFloat(wrapEl.style.left)), y: Math.round(parseFloat(wrapEl.style.top)) })
         }
         editor.view.dispatch(tr)
+        wrapEl.style.zIndex = prevZ
+        wrapEl.style.width  = prevW
+        if (isMultiDrag) multiStarts.forEach(s => { s.el.style.zIndex = s.prevZ })
         _fitCanvasToSections(canvasEl)
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup',   onUp)
@@ -1088,7 +1097,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
     // Multi-resize: same delta on every selected block when this block is part of the selection
     const isMulti = sectionSel.has(sectionId) && sectionSel.size() > 1
-    const targets = new Map<string, { el: HTMLElement; bx: number; by: number; w: number; h: number }>()
+    const targets = new Map<string, { el: HTMLElement; bx: number; by: number; w: number; h: number; prevZ: string }>()
     if (isMulti) {
       canvasEl.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
         const id = card.dataset.sectionId
@@ -1101,6 +1110,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           by: Math.round((wr.top  - canvasRect.top) / zoom),
           w:  Math.round(wr.width / zoom),
           h:  Math.round(wr.height / zoom),
+          prevZ: wrap.style.zIndex,
         })
       })
     } else {
@@ -1111,6 +1121,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         by: Math.round((wrapRect.top  - canvasRect.top) / zoom),
         w:  Math.round(wrapRect.width / zoom),
         h:  Math.round(wrapRect.height / zoom),
+        prevZ: wrapEl.style.zIndex,
       })
     }
     const current = new Map<string, { x: number; y: number; w: number; h: number }>()
@@ -1169,7 +1180,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       _clearSnapLines()
       document.body.style.cursor     = ''
       document.body.style.userSelect = ''
-      targets.forEach(t => { t.el.style.willChange = ''; t.el.style.zIndex = '' })
+      targets.forEach(t => { t.el.style.willChange = ''; t.el.style.zIndex = t.prevZ })
       if (latest) {
         const tr = editor.state.tr
         editor.state.doc.forEach((sNode, offset) => {
@@ -1226,6 +1237,40 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
       if (canvas) _fitCanvasToSections(canvas)
     })
+  }
+
+  function bringToLayer(front: boolean) {
+    if (typeof getPos !== 'function') return
+    const pos = getPos()
+    if (pos === undefined) return
+    const fresh = editor.state.doc.nodeAt(pos)
+    if (!fresh) return
+    let minZ = Infinity, maxZ = -Infinity
+    editor.state.doc.forEach((n, offset) => {
+      if (n.type.name !== 'section' || offset === pos) return
+      const z = (n.attrs.z as number | null) ?? 0
+      if (z < minZ) minZ = z
+      if (z > maxZ) maxZ = z
+    })
+    if (!Number.isFinite(minZ)) return  // only one section, nothing to stack against
+    const currentZ = (fresh.attrs.z as number | null) ?? 0
+    if (front && currentZ > maxZ) return
+    if (!front && currentZ < minZ) return
+    const target = front ? maxZ + 1 : minZ - 1
+    const tr = editor.state.tr
+    if (target < 0) {
+      // Negative z-index paints the block behind the editor surface where the mouse
+      // can't reach it — push all other blocks up instead and keep 0 as the floor
+      const shift = -target
+      editor.state.doc.forEach((n, offset) => {
+        if (n.type.name !== 'section' || offset === pos) return
+        tr.setNodeMarkup(offset, undefined, { ...n.attrs, z: ((n.attrs.z as number | null) ?? 0) + shift })
+      })
+      tr.setNodeMarkup(pos, undefined, { ...fresh.attrs, z: 0 })
+    } else {
+      tr.setNodeMarkup(pos, undefined, { ...fresh.attrs, z: target })
+    }
+    editor.view.dispatch(tr)
   }
 
   function deleteElement() {
@@ -1352,6 +1397,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const canvasY = node.attrs.y as number | null
   const canvasW = node.attrs.w as number | null
   const canvasH = node.attrs.h as number | null
+  const canvasZ = node.attrs.z as number | null
   const isCanvasBlock = canvasX !== null && canvasY !== null
 
   useEffect(() => {
@@ -1368,7 +1414,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         top: isCanvasBlock ? `${canvasY}px` : undefined,
         width: canvasW !== null ? `${canvasW}px` : (isCanvasBlock ? 'fit-content' : undefined),
         height: canvasH !== null ? `${canvasH}px` : undefined,
-        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : undefined,
+        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
       }}
     >
       <div
@@ -1517,6 +1563,42 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 </div>
               )}
             </div>
+
+            {/* Layer: bring to front / send to back */}
+            {isCanvasBlock && (
+              <>
+                <button
+                  title="In den Vordergrund"
+                  onClick={e => { e.stopPropagation(); bringToLayer(true) }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: '13px',
+                    width: '26px', height: '26px', borderRadius: '5px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'inherit', lineHeight: 1,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--accent)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+                >
+                  ⤒
+                </button>
+                <button
+                  title="In den Hintergrund"
+                  onClick={e => { e.stopPropagation(); bringToLayer(false) }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: '13px',
+                    width: '26px', height: '26px', borderRadius: '5px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'inherit', lineHeight: 1,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--accent)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+                >
+                  ⤓
+                </button>
+              </>
+            )}
 
             {/* Auto size */}
             {(canvasW !== null || canvasH !== null) && (
@@ -1707,6 +1789,7 @@ export const SectionExtension = Node.create({
       y: { default: null, parseHTML: el => el.hasAttribute('data-y') ? Number(el.getAttribute('data-y')) : null },
       w: { default: null, parseHTML: el => el.hasAttribute('data-w') ? Number(el.getAttribute('data-w')) : null },
       h: { default: null, parseHTML: el => el.hasAttribute('data-h') ? Number(el.getAttribute('data-h')) : null },
+      z: { default: null, parseHTML: el => el.hasAttribute('data-z') ? Number(el.getAttribute('data-z')) : null },
     }
   },
 
@@ -1718,6 +1801,7 @@ export const SectionExtension = Node.create({
     if (node.attrs.y !== null) attrs['data-y'] = String(node.attrs.y)
     if (node.attrs.w !== null) attrs['data-w'] = String(node.attrs.w)
     if (node.attrs.h !== null) attrs['data-h'] = String(node.attrs.h)
+    if (node.attrs.z !== null) attrs['data-z'] = String(node.attrs.z)
     return ['section', mergeAttributes(HTMLAttributes, attrs), 0]
   },
 
