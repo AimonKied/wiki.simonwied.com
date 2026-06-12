@@ -497,6 +497,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       >
         {editable && (
           <div
+            data-element-palette="true"
             style={{
               position: 'absolute',
               top: 64,

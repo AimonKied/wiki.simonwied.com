@@ -166,6 +166,7 @@ function _ensureGlobalHandlers() {
   document.addEventListener('mousedown', (e) => {
     if (_selSet.size === 0) return
     if ((e.target as Element).closest('[data-section-drag-handle]')) return
+    if ((e.target as Element).closest('[data-element-palette]')) return
     sectionSel.clear()
   })
 
@@ -1211,7 +1212,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (key === 'image') { setPickerOpen(false); setImageMode(true); return }
     const sectionPos = getPos()
     if (sectionPos === undefined) return
-    const insertPos = sectionPos + node.nodeSize - 1
+    const freshNode = editor.state.doc.nodeAt(sectionPos)
+    if (!freshNode) return
+    const insertPos = sectionPos + freshNode.nodeSize - 1
     if (key === 'hr') {
       editor.chain().focus().insertContentAt(insertPos, { type: 'horizontalRule' }).run()
       setPickerOpen(false); return
