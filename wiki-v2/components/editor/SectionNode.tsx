@@ -47,6 +47,8 @@ let _snapLineEls: HTMLElement[] = []
 const MIN_SECTION_W = 180
 const MIN_SECTION_H = 136
 const MAX_AUTO_SECTION_W = 960
+const CANVAS_W = 9000
+const CANVAS_H = 4000
 function _canvasZoom(canvas: HTMLElement) {
   const raw = canvas.dataset.editorZoom
   const zoom = raw ? Number(raw) : 1
@@ -145,16 +147,53 @@ function _computeResizeSnap(canvas: HTMLElement, selfId: string, dir: string, x:
 }
 
 function _fitCanvasToSections(canvas: HTMLElement) {
-  let maxBottom = 4000
-  const zoom = _canvasZoom(canvas)
-  canvas.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
-    const wrap = card.parentElement as HTMLElement | null
-    if (!wrap) return
-    const y = parseFloat(wrap.style.top || '0')
-    const h = wrap.getBoundingClientRect().height / zoom
-    if (Number.isFinite(y) && Number.isFinite(h)) maxBottom = Math.max(maxBottom, y + h + 48)
+  canvas.style.minHeight = `${CANVAS_H}px`
+}
+
+function _clampSectionBox(x: number, y: number, w: number, h: number) {
+  const cw = Math.max(MIN_SECTION_W, Math.min(CANVAS_W, w))
+  const ch = Math.max(MIN_SECTION_H, Math.min(CANVAS_H, h))
+  return {
+    x: Math.min(Math.max(0, x), Math.max(0, CANVAS_W - cw)),
+    y: Math.min(Math.max(0, y), Math.max(0, CANVAS_H - ch)),
+    w: cw,
+    h: ch,
+  }
+}
+
+function _clampResizeBox(dir: string, x: number, y: number, w: number, h: number) {
+  let nx = x
+  let ny = y
+  let nw = Math.max(MIN_SECTION_W, w)
+  let nh = Math.max(MIN_SECTION_H, h)
+
+  if (nx < 0) {
+    if (dir.includes('w')) nw = Math.max(MIN_SECTION_W, nw + nx)
+    nx = 0
+  }
+  if (ny < 0) {
+    if (dir.includes('n')) nh = Math.max(MIN_SECTION_H, nh + ny)
+    ny = 0
+  }
+  if (nx + nw > CANVAS_W) {
+    if (dir.includes('e')) nw = Math.max(MIN_SECTION_W, CANVAS_W - nx)
+    else nx = Math.max(0, CANVAS_W - nw)
+  }
+  if (ny + nh > CANVAS_H) {
+    if (dir.includes('s')) nh = Math.max(MIN_SECTION_H, CANVAS_H - ny)
+    else ny = Math.max(0, CANVAS_H - nh)
+  }
+
+  return _clampSectionBox(nx, ny, nw, nh)
+}
+
+function _nextSectionZ(editor: Editor) {
+  let maxZ = -1
+  editor.state.doc.forEach(node => {
+    if (node.type.name !== 'section') return
+    maxZ = Math.max(maxZ, (node.attrs.z as number | null) ?? 0)
   })
-  canvas.style.minHeight = `${Math.ceil(maxBottom)}px`
+  return maxZ + 1
 }
 
 let _globalHandlersInstalled = false
@@ -884,7 +923,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       ? Fragment.from(sourceChildren)
       : Fragment.from(editor.state.schema.nodes.paragraph.create())
 
-    const newSection = editor.state.schema.nodes.section.create(null, Fragment.from(movedNode))
+    const newSection = editor.state.schema.nodes.section.create({ z: _nextSectionZ(editor) }, Fragment.from(movedNode))
 
     const tr = editor.state.tr
     tr.replaceWith(sourceSectionPos + 1, sourceSectionPos + sourceNode.nodeSize - 1, sourceContent)
@@ -946,8 +985,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
     if (!sectionNode) return
     const newAttrs = sectionNode.attrs.x !== null
-      ? { ...sectionNode.attrs, x: (sectionNode.attrs.x as number) + 20, y: (sectionNode.attrs.y as number) + 20 }
-      : sectionNode.attrs
+      ? { ...sectionNode.attrs, x: (sectionNode.attrs.x as number) + 20, y: (sectionNode.attrs.y as number) + 20, z: _nextSectionZ(editor) }
+      : { ...sectionNode.attrs, z: _nextSectionZ(editor) }
     const copy = editor.state.schema.nodes.section.create(newAttrs, sectionNode.content)
     const tr = editor.state.tr
     tr.insert(editor.state.doc.content.size, copy)
@@ -1031,6 +1070,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
       const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
       const multiStarts = new Map<string, { el: HTMLElement; bx: number; by: number; prevZ: string }>()
+      let multiMinX = startBX
+      let multiMinY = startBY
+      let multiMaxX = startBX + blockW
+      let multiMaxY = startBY + blockH
       if (isMultiDrag) {
         sectionSel.setDrag(true)
         canvasEl.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
@@ -1040,7 +1083,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           const wr = wrap.getBoundingClientRect()
           const bx = Math.round((wr.left - canvasRect.left) / zoom)
           const by = Math.round((wr.top  - canvasRect.top) / zoom)
+          const bw = Math.round(wr.width / zoom)
+          const bh = Math.round(wr.height / zoom)
           multiStarts.set(id, { el: wrap, bx, by, prevZ: wrap.style.zIndex })
+          multiMinX = Math.min(multiMinX, bx)
+          multiMinY = Math.min(multiMinY, by)
+          multiMaxX = Math.max(multiMaxX, bx + bw)
+          multiMaxY = Math.max(multiMaxY, by + bh)
           wrap.style.position = 'absolute'
           wrap.style.margin   = '0'
           wrap.style.zIndex   = '10'
@@ -1057,12 +1106,18 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         const dx = (ev.clientX - downX) / zoom
         const dy = (ev.clientY - downY) / zoom
         if (isMultiDrag) {
-          multiStarts.forEach(({ el, bx, by }) => { el.style.left = (bx + dx) + 'px'; el.style.top = (by + dy) + 'px' })
+          const clampedDx = Math.min(CANVAS_W - multiMaxX, Math.max(-multiMinX, dx))
+          const clampedDy = Math.min(CANVAS_H - multiMaxY, Math.max(-multiMinY, dy))
+          multiStarts.forEach(({ el, bx, by }) => {
+            el.style.left = (bx + clampedDx) + 'px'
+            el.style.top = (by + clampedDy) + 'px'
+          })
           _fitCanvasToSections(canvasEl)
         } else {
           const snap = _computeSnap(canvasEl, sectionId, startBX + dx, startBY + dy, blockW, blockH)
-          wrapEl.style.left = snap.x + 'px'
-          wrapEl.style.top  = snap.y + 'px'
+          const clamped = _clampSectionBox(snap.x, snap.y, blockW, blockH)
+          wrapEl.style.left = clamped.x + 'px'
+          wrapEl.style.top  = clamped.y + 'px'
           _showSnapLines(canvasEl, snap.lines)
           _fitCanvasToSections(canvasEl)
         }
@@ -1177,6 +1232,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           nx = snap.x; ny = snap.y; nw = snap.w; nh = snap.h
           _showSnapLines(canvasEl, snap.lines)
         }
+        const clamped = _clampResizeBox(dir, nx, ny, nw, nh)
+        nx = clamped.x; ny = clamped.y; nw = clamped.w; nh = clamped.h
         current.set(id, { x: nx, y: ny, w: nw, h: nh })
         t.el.style.left = nx + 'px'
         t.el.style.top  = ny + 'px'
@@ -1257,10 +1314,76 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (pos === undefined) return
     const freshNode = editor.state.doc.nodeAt(pos)
     if (!freshNode) return
-    const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...freshNode.attrs, w: null, h: null })
+    const card = cardRef.current
+    const canvas = card?.closest('[data-editor-canvas]') as HTMLElement | null
+    if (!card || !canvas) return
+    const contentEl = card.querySelector('[data-node-view-content]') as HTMLElement | null
+    const cardStyle = window.getComputedStyle(card)
+    const padX = parseFloat(cardStyle.paddingLeft) + parseFloat(cardStyle.paddingRight)
+    const padY = parseFloat(cardStyle.paddingTop) + parseFloat(cardStyle.paddingBottom)
+    const borderX = parseFloat(cardStyle.borderLeftWidth) + parseFloat(cardStyle.borderRightWidth)
+    const borderY = parseFloat(cardStyle.borderTopWidth) + parseFloat(cardStyle.borderBottomWidth)
+    let contentW = 0
+    let contentH = 0
+
+    if (contentEl) {
+      const contentRect = contentEl.getBoundingClientRect()
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+
+      const includeRect = (r: DOMRect) => {
+        if (!r.width && !r.height) return
+        minX = Math.min(minX, r.left)
+        minY = Math.min(minY, r.top)
+        maxX = Math.max(maxX, r.right)
+        maxY = Math.max(maxY, r.bottom)
+      }
+
+      const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT)
+      let currentNode = walker.nextNode()
+      while (currentNode) {
+        if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent?.trim()) {
+          const range = document.createRange()
+          range.selectNodeContents(currentNode)
+          const rects = range.getClientRects()
+          for (let i = 0; i < rects.length; i += 1) includeRect(rects[i])
+          range.detach()
+        } else if (currentNode instanceof HTMLElement) {
+          const tag = currentNode.tagName.toLowerCase()
+          const isFilledWidget = ['img', 'table', 'hr', 'iframe', 'video', 'canvas', 'svg'].includes(tag)
+          const isFilledControl = ['input', 'textarea', 'select', 'button'].includes(tag)
+          if (isFilledWidget || isFilledControl) {
+            includeRect(currentNode.getBoundingClientRect())
+          }
+        }
+        currentNode = walker.nextNode()
+      }
+
+      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+        contentW = maxX - contentRect.left
+        contentH = maxY - contentRect.top
+      }
+    }
+
+    const nextW = Math.ceil(contentW + padX + borderX + 32)
+    const nextH = Math.ceil(contentH + padY + borderY)
+    const current = _clampSectionBox(
+      (freshNode.attrs.x as number | null) ?? 0,
+      (freshNode.attrs.y as number | null) ?? 0,
+      nextW,
+      nextH
+    )
+    const tr = editor.state.tr.setNodeMarkup(pos, undefined, {
+      ...freshNode.attrs,
+      x: current.x,
+      y: current.y,
+      w: current.w,
+      h: current.h,
+    })
     editor.view.dispatch(tr)
     window.requestAnimationFrame(() => {
-      const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
       if (canvas) _fitCanvasToSections(canvas)
     })
   }
@@ -1650,7 +1773,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             {/* Auto size */}
             {(canvasW !== null || canvasH !== null) && (
               <button
-                title="Groesse automatisch an Inhalt anpassen"
+                title="Groesse an Inhalt anpassen"
                 onClick={e => { e.stopPropagation(); setAutoSize() }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',

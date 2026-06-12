@@ -102,6 +102,37 @@ interface SlashMenuState {
   selected: number
 }
 
+interface MinimapBlock {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+interface MinimapViewport {
+  w: number
+  h: number
+}
+
+interface MinimapBounds {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+interface MinimapDragState {
+  grabOffsetX: number
+  grabOffsetY: number
+}
+
+const CANVAS_W = 9000
+const CANVAS_H = 4000
+const CANVAS_CENTER_X = CANVAS_W / 2
+const CANVAS_CENTER_Y = CANVAS_H / 2
+const MINIMAP_PADDING = 420
+
 function getSlashItems(query: string) {
   const normalized = query.trim().toLocaleLowerCase('de')
   if (!normalized) return ELEMENT_PALETTE
@@ -139,11 +170,20 @@ function ensureSections(content: object | null | undefined): object | string {
   return { ...doc, content: sections }
 }
 
+function nextSectionZ(editor: TiptapEditor) {
+  let maxZ = -1
+  editor.state.doc.forEach(node => {
+    if (node.type.name !== 'section') return
+    maxZ = Math.max(maxZ, (node.attrs.z as number | null) ?? 0)
+  })
+  return maxZ + 1
+}
+
 function addSection(editor: TiptapEditor, attrs: Record<string, number | null> = {}) {
   editor.chain().focus()
     .insertContentAt(editor.state.doc.content.size, {
       type: 'section',
-      attrs,
+      attrs: { ...attrs, z: attrs.z ?? nextSectionZ(editor) },
       content: [{ type: 'paragraph' }],
     })
     .run()
@@ -234,11 +274,138 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
   const [, refreshTextToolbar] = useState(0)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
+  const [spacePanVisible, setSpacePanVisible] = useState(false)
+  const [panMode, setPanMode] = useState(false)
+  const [minimapBlocks, setMinimapBlocks] = useState<MinimapBlock[]>([])
+  const [minimapViewport, setMinimapViewport] = useState<MinimapViewport>({ w: 1200, h: 700 })
+  const [minimapBounds, setMinimapBounds] = useState<MinimapBounds>({
+    x: CANVAS_CENTER_X - 1000,
+    y: CANVAS_CENTER_Y - 700,
+    w: 2000,
+    h: 1400,
+  })
+  const [minimapHovered, setMinimapHovered] = useState(false)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ x: 80, y: 48, zoom: 1 })
   const viewportRef = useRef(viewport)
   const spaceDownRef = useRef(false)
+  const panModeRef = useRef(false)
+  const lastPointerPanAtRef = useRef(0)
+  const latePanRef = useRef<{ x: number; y: number } | null>(null)
+  const minimapDragRef = useRef<MinimapDragState | null>(null)
+  const legacyTopLeftMigratedRef = useRef(false)
+
+  const minimapVisible = editable && panMode
+  const minimapSize = { w: 188, h: 112 }
+  const minimapScale = Math.min(minimapSize.w / minimapBounds.w, minimapSize.h / minimapBounds.h)
+  const minimapContent = {
+    w: minimapBounds.w * minimapScale,
+    h: minimapBounds.h * minimapScale,
+    x: (minimapSize.w - minimapBounds.w * minimapScale) / 2,
+    y: (minimapSize.h - minimapBounds.h * minimapScale) / 2,
+  }
+  const minimapView = {
+    x: -viewport.x / viewport.zoom,
+    y: -viewport.y / viewport.zoom,
+    w: minimapViewport.w / viewport.zoom,
+    h: minimapViewport.h / viewport.zoom,
+  }
+
+  function clampViewportPosition(x: number, y: number, zoom: number) {
+    const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    if (!workspace) return { x, y }
+    const rect = workspace.getBoundingClientRect()
+    const scaledW = CANVAS_W * zoom
+    const scaledH = CANVAS_H * zoom
+    const clampedX = scaledW <= rect.width
+      ? (rect.width - scaledW) / 2
+      : Math.min(0, Math.max(rect.width - scaledW, x))
+    const clampedY = scaledH <= rect.height
+      ? (rect.height - scaledH) / 2
+      : Math.min(0, Math.max(rect.height - scaledH, y))
+    return { x: clampedX, y: clampedY }
+  }
+
+  function refreshMinimapBlocks() {
+    const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+    const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    if (!canvas) return
+    if (workspace) {
+      const rect = workspace.getBoundingClientRect()
+      setMinimapViewport({ w: rect.width, h: rect.height })
+    }
+    const canvasRect = canvas.getBoundingClientRect()
+    const zoomRaw = Number(canvas.dataset.editorZoom)
+    const zoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? zoomRaw : 1
+    const blocks: MinimapBlock[] = []
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    const currentView = viewportRef.current
+    if (workspace) {
+      const rect = workspace.getBoundingClientRect()
+      const viewX = -currentView.x / currentView.zoom
+      const viewY = -currentView.y / currentView.zoom
+      minX = Math.min(minX, viewX)
+      minY = Math.min(minY, viewY)
+      maxX = Math.max(maxX, viewX + rect.width / currentView.zoom)
+      maxY = Math.max(maxY, viewY + rect.height / currentView.zoom)
+    }
+    canvas.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+      const id = card.dataset.sectionId
+      const wrap = card.parentElement as HTMLElement | null
+      if (!id || !wrap) return
+      const rect = wrap.getBoundingClientRect()
+      const x = (rect.left - canvasRect.left) / zoom
+      const y = (rect.top - canvasRect.top) / zoom
+      const w = rect.width / zoom
+      const h = rect.height / zoom
+      if (![x, y, w, h].every(Number.isFinite)) return
+      blocks.push({ id, x, y, w, h })
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x + w)
+      maxY = Math.max(maxY, y + h)
+    })
+    setMinimapBlocks(blocks)
+    if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+      const centerX = (minX + maxX) / 2
+      const centerY = (minY + maxY) / 2
+      const w = Math.min(CANVAS_W, Math.max(600, maxX - minX + MINIMAP_PADDING * 2))
+      const h = Math.min(CANVAS_H, Math.max(420, maxY - minY + MINIMAP_PADDING * 2))
+      const x = Math.min(Math.max(0, centerX - w / 2), Math.max(0, CANVAS_W - w))
+      const y = Math.min(Math.max(0, centerY - h / 2), Math.max(0, CANVAS_H - h))
+      setMinimapBounds({ x, y, w, h })
+    }
+  }
+
+  function panMinimapTo(clientX: number, clientY: number, minimapEl: HTMLElement, dragState: MinimapDragState) {
+    const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    if (!workspace) return
+    const rect = minimapEl.getBoundingClientRect()
+    const maxWorldX = Math.max(minimapBounds.x, minimapBounds.x + minimapBounds.w - minimapView.w)
+    const maxWorldY = Math.max(minimapBounds.y, minimapBounds.y + minimapBounds.h - minimapView.h)
+    const worldX = Math.max(
+      minimapBounds.x,
+      Math.min(
+        maxWorldX,
+        minimapBounds.x + (clientX - rect.left - minimapContent.x) / minimapScale - dragState.grabOffsetX
+      )
+    )
+    const worldY = Math.max(
+      minimapBounds.y,
+      Math.min(
+        maxWorldY,
+        minimapBounds.y + (clientY - rect.top - minimapContent.y) / minimapScale - dragState.grabOffsetY
+      )
+    )
+    setViewport(v => ({
+      ...v,
+      ...clampViewportPosition(-worldX * v.zoom, -worldY * v.zoom, v.zoom),
+    }))
+  }
 
   function syncSlashMenu(editor: TiptapEditor) {
     const { selection } = editor.state
@@ -287,17 +454,43 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     viewportRef.current = viewport
   }, [viewport])
 
+  useEffect(() => {
+    panModeRef.current = panMode
+    if (panMode) {
+      document.documentElement.style.cursor = 'grab'
+      document.body.style.cursor = 'grab'
+    } else if (!spaceDownRef.current) {
+      document.documentElement.style.cursor = ''
+      document.body.style.cursor = ''
+    }
+  }, [panMode])
+
+  useEffect(() => {
+    if (!minimapVisible) return
+    const id = window.requestAnimationFrame(refreshMinimapBlocks)
+    const interval = window.setInterval(refreshMinimapBlocks, 160)
+    return () => {
+      window.cancelAnimationFrame(id)
+      window.clearInterval(interval)
+    }
+  }, [minimapVisible, viewport.x, viewport.y, viewport.zoom])
+
   const panFrameRef = useRef(0)
 
   function animateViewportTo(targetX: number, targetY: number) {
     window.cancelAnimationFrame(panFrameRef.current)
     const start = { ...viewportRef.current }
+    const target = clampViewportPosition(targetX, targetY, start.zoom)
     const t0 = performance.now()
     const duration = 350
     function step(now: number) {
       const t = Math.min(1, (now - t0) / duration)
       const ease = 1 - Math.pow(1 - t, 3)
-      setViewport(v => ({ ...v, x: start.x + (targetX - start.x) * ease, y: start.y + (targetY - start.y) * ease }))
+      setViewport(v => ({
+        ...v,
+        x: start.x + (target.x - start.x) * ease,
+        y: start.y + (target.y - start.y) * ease,
+      }))
       if (t < 1) panFrameRef.current = window.requestAnimationFrame(step)
     }
     panFrameRef.current = window.requestAnimationFrame(step)
@@ -307,7 +500,10 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     window.cancelAnimationFrame(panFrameRef.current)
     const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
     if (!viewportEl) {
-      setViewport(v => ({ ...v, zoom: nextZoom }))
+      setViewport(v => {
+        const zoom = Math.max(0.25, Math.min(2.5, nextZoom))
+        return { ...v, ...clampViewportPosition(v.x, v.y, zoom), zoom }
+      })
       return
     }
     const rect = viewportEl.getBoundingClientRect()
@@ -315,9 +511,14 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       const zoom = Math.max(0.25, Math.min(2.5, nextZoom))
       const worldX = (clientX - rect.left - v.x) / v.zoom
       const worldY = (clientY - rect.top - v.y) / v.zoom
+      const next = clampViewportPosition(
+        clientX - rect.left - worldX * zoom,
+        clientY - rect.top - worldY * zoom,
+        zoom
+      )
       return {
-        x: clientX - rect.left - worldX * zoom,
-        y: clientY - rect.top - worldY * zoom,
+        x: next.x,
+        y: next.y,
         zoom,
       }
     })
@@ -400,8 +601,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     function onKeyDown(e: KeyboardEvent) {
       if (e.code !== 'Space') return
       const target = e.target as HTMLElement | null
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      const isTextInput = target?.closest('input, textarea, select, [contenteditable="true"]')
+      if (isTextInput) return
       spaceDownRef.current = true
+      setSpacePanVisible(true)
+      document.documentElement.style.cursor = 'grab'
       document.body.style.cursor = 'grab'
       e.preventDefault()
     }
@@ -409,34 +613,134 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     function onKeyUp(e: KeyboardEvent) {
       if (e.code !== 'Space') return
       spaceDownRef.current = false
-      document.body.style.cursor = ''
+      setSpacePanVisible(false)
+      latePanRef.current = null
+      document.documentElement.style.cursor = panModeRef.current ? 'grab' : ''
+      document.body.style.cursor = panModeRef.current ? 'grab' : ''
     }
 
-    function onMouseDown(e: MouseEvent) {
-      if (!spaceDownRef.current || e.button !== 0) return
-      const target = e.target as Element
-      if (!target.closest('[data-editor-workspace]')) return
+    function onBlur() {
+      spaceDownRef.current = false
+      setSpacePanVisible(false)
+      latePanRef.current = null
+      document.documentElement.style.cursor = panModeRef.current ? 'grab' : ''
+      document.body.style.cursor = panModeRef.current ? 'grab' : ''
+      document.body.style.userSelect = ''
+    }
+
+    function startPanDrag(
+      e: MouseEvent | PointerEvent,
+      addEndListeners: (onMove: (ev: MouseEvent | PointerEvent) => void, onUp: () => void) => void,
+      removeEndListeners: (onMove: (ev: MouseEvent | PointerEvent) => void, onUp: () => void) => void,
+      releasePointer?: () => void
+    ) {
       e.preventDefault()
       window.cancelAnimationFrame(panFrameRef.current)
       const startX = e.clientX
       const startY = e.clientY
       const startView = viewportRef.current
+      document.documentElement.style.cursor = 'grabbing'
       document.body.style.cursor = 'grabbing'
       document.body.style.userSelect = 'none'
 
-      function onMove(ev: MouseEvent) {
-        setViewport(v => ({ ...v, x: startView.x + ev.clientX - startX, y: startView.y + ev.clientY - startY }))
+      function onMove(ev: MouseEvent | PointerEvent) {
+        setViewport(v => ({
+          ...v,
+          ...clampViewportPosition(startView.x + ev.clientX - startX, startView.y + ev.clientY - startY, v.zoom),
+        }))
       }
 
       function onUp() {
-        document.body.style.cursor = spaceDownRef.current ? 'grab' : ''
+        releasePointer?.()
+        const stillPanning = spaceDownRef.current || panModeRef.current
+        document.documentElement.style.cursor = stillPanning ? 'grab' : ''
+        document.body.style.cursor = stillPanning ? 'grab' : ''
         document.body.style.userSelect = ''
-        document.removeEventListener('mousemove', onMove)
-        document.removeEventListener('mouseup', onUp)
+        removeEndListeners(onMove, onUp)
       }
 
-      document.addEventListener('mousemove', onMove)
-      document.addEventListener('mouseup', onUp)
+      addEndListeners(onMove, onUp)
+    }
+
+    function onPointerDown(e: PointerEvent) {
+      if (!(spaceDownRef.current || panModeRef.current) || e.button !== 0) return
+      if (!e.isPrimary) return
+      const target = e.target as Element
+      if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
+      const workspace = target.closest('[data-editor-workspace]') as HTMLElement | null
+      if (!workspace) return
+      lastPointerPanAtRef.current = Date.now()
+      try { workspace.setPointerCapture?.(e.pointerId) } catch {}
+      startPanDrag(
+        e,
+        (onMove, onUp) => {
+          document.addEventListener('pointermove', onMove as (ev: PointerEvent) => void)
+          document.addEventListener('pointerup', onUp)
+          document.addEventListener('pointercancel', onUp)
+        },
+        (onMove, onUp) => {
+          document.removeEventListener('pointermove', onMove as (ev: PointerEvent) => void)
+          document.removeEventListener('pointerup', onUp)
+          document.removeEventListener('pointercancel', onUp)
+        },
+        () => { try { workspace.releasePointerCapture?.(e.pointerId) } catch {} }
+      )
+    }
+
+    function onMouseDown(e: MouseEvent) {
+      if (!(spaceDownRef.current || panModeRef.current) || e.button !== 0) return
+      if (Date.now() - lastPointerPanAtRef.current < 500) return
+      const target = e.target as Element
+      if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
+      const workspace = target.closest('[data-editor-workspace]') as HTMLElement | null
+      if (!workspace) return
+      startPanDrag(
+        e,
+        (onMove, onUp) => {
+          document.addEventListener('mousemove', onMove as (ev: MouseEvent) => void)
+          document.addEventListener('mouseup', onUp)
+        },
+        (onMove, onUp) => {
+          document.removeEventListener('mousemove', onMove as (ev: MouseEvent) => void)
+          document.removeEventListener('mouseup', onUp)
+        }
+      )
+    }
+
+    function onLatePanMove(e: MouseEvent) {
+      if (!(spaceDownRef.current || panModeRef.current) || e.buttons !== 1) {
+        latePanRef.current = null
+        return
+      }
+
+      const active = document.activeElement as HTMLElement | null
+      if (active?.closest('[contenteditable="true"], input, textarea, select')) {
+        latePanRef.current = null
+        return
+      }
+
+      const target = e.target as Element
+      if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) {
+        latePanRef.current = null
+        return
+      }
+      if (!target.closest('[data-editor-workspace]')) {
+        latePanRef.current = null
+        return
+      }
+
+      e.preventDefault()
+      document.documentElement.style.cursor = 'grabbing'
+      document.body.style.cursor = 'grabbing'
+
+      const last = latePanRef.current
+      latePanRef.current = { x: e.clientX, y: e.clientY }
+      if (!last) return
+
+      setViewport(v => ({
+        ...v,
+        ...clampViewportPosition(v.x + e.clientX - last.x, v.y + e.clientY - last.y, v.zoom),
+      }))
     }
 
     function onWheel(e: WheelEvent) {
@@ -449,15 +753,22 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       zoomAt(e.clientX, e.clientY, current * factor)
     }
 
-    document.addEventListener('keydown', onKeyDown)
-    document.addEventListener('keyup', onKeyUp)
-    document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('wheel', onWheel, { passive: false })
+    document.addEventListener('keydown', onKeyDown, true)
+    document.addEventListener('keyup', onKeyUp, true)
+    window.addEventListener('blur', onBlur)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('mousedown', onMouseDown, true)
+    document.addEventListener('mousemove', onLatePanMove, true)
+    document.addEventListener('wheel', onWheel, { passive: false, capture: true })
     return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('keyup', onKeyUp)
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('wheel', onWheel)
+      document.removeEventListener('keydown', onKeyDown, true)
+      document.removeEventListener('keyup', onKeyUp, true)
+      window.removeEventListener('blur', onBlur)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('mousedown', onMouseDown, true)
+      document.removeEventListener('mousemove', onLatePanMove, true)
+      document.removeEventListener('wheel', onWheel, true)
+      document.documentElement.style.cursor = ''
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -618,22 +929,85 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       frame = 0
       let hasUnpositioned = false
       let minZ = 0
+      let sectionCount = 0
+      let positionedCount = 0
+      let boundsMinX = Infinity
+      let boundsMinY = Infinity
+      let boundsMaxX = -Infinity
+      let boundsMaxY = -Infinity
       ed.state.doc.forEach(n => {
         if (n.type.name !== 'section') return
+        sectionCount += 1
         if (n.attrs.x === null) hasUnpositioned = true
+        else {
+          positionedCount += 1
+          const x = n.attrs.x as number
+          const y = (n.attrs.y as number | null) ?? 0
+          const w = (n.attrs.w as number | null) ?? 320
+          const h = (n.attrs.h as number | null) ?? 220
+          boundsMinX = Math.min(boundsMinX, x)
+          boundsMinY = Math.min(boundsMinY, y)
+          boundsMaxX = Math.max(boundsMaxX, x + w)
+          boundsMaxY = Math.max(boundsMaxY, y + h)
+        }
         const z = (n.attrs.z as number | null) ?? 0
         if (z < minZ) minZ = z
       })
-      if (!hasUnpositioned && minZ >= 0) return
+      const shouldCenterLegacyTopLeft =
+        !legacyTopLeftMigratedRef.current &&
+        !hasUnpositioned &&
+        sectionCount > 0 &&
+        positionedCount === sectionCount &&
+        Number.isFinite(boundsMinX) &&
+        boundsMinX >= 0 &&
+        boundsMinY >= 0 &&
+        boundsMaxX < CANVAS_CENTER_X &&
+        boundsMaxY < CANVAS_CENTER_Y
+      if (!hasUnpositioned && minZ >= 0 && !shouldCenterLegacyTopLeft) return
       const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
       if (!canvas) return
-      const canvasRect = canvas.getBoundingClientRect()
       const zoomRaw = Number(canvas.dataset.editorZoom)
       const zoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? zoomRaw : 1
       // Negative layers paint behind the editor surface where the mouse can't
       // reach them — shift all stored layers up so the lowest one is 0
       const zShift = minZ < 0 ? -minZ : 0
       const tr = ed.state.tr
+      const unpositionedLayouts = new Map<number, { x: number; y: number; w: number }>()
+      if (hasUnpositioned) {
+        const measured: Array<{ offset: number; w: number; h: number }> = []
+        ed.state.doc.forEach((node, offset) => {
+          if (node.type.name !== 'section' || node.attrs.x !== null) return
+          const dom = ed.view.nodeDOM(offset)
+          if (!(dom instanceof HTMLElement)) return
+          const r = dom.getBoundingClientRect()
+          measured.push({
+            offset,
+            w: Math.round(r.width / zoom),
+            h: Math.round(r.height / zoom),
+          })
+        })
+        const gap = 28
+        const totalH = measured.reduce((sum, item, index) => sum + item.h + (index > 0 ? gap : 0), 0)
+        let nextY = CANVAS_CENTER_Y - totalH / 2
+        measured.forEach(item => {
+          unpositionedLayouts.set(item.offset, {
+            x: Math.round(CANVAS_CENTER_X - item.w / 2),
+            y: Math.round(nextY),
+            w: item.w,
+          })
+          nextY += item.h + gap
+        })
+      }
+      let legacyShiftX = 0
+      let legacyShiftY = 0
+      if (shouldCenterLegacyTopLeft) {
+        const boundsW = boundsMaxX - boundsMinX
+        const boundsH = boundsMaxY - boundsMinY
+        const targetMinX = Math.min(Math.max(0, CANVAS_CENTER_X - boundsW / 2), Math.max(0, CANVAS_W - boundsW))
+        const targetMinY = Math.min(Math.max(0, CANVAS_CENTER_Y - boundsH / 2), Math.max(0, CANVAS_H - boundsH))
+        legacyShiftX = Math.round(targetMinX - boundsMinX)
+        legacyShiftY = Math.round(targetMinY - boundsMinY)
+      }
       ed.state.doc.forEach((node, offset) => {
         if (node.type.name !== 'section') return
         const attrs = { ...node.attrs }
@@ -643,14 +1017,18 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           changed = true
         }
         if (node.attrs.x === null) {
-          const dom = ed.view.nodeDOM(offset)
-          if (dom instanceof HTMLElement) {
-            const r = dom.getBoundingClientRect()
-            attrs.x = Math.round((r.left - canvasRect.left) / zoom)
-            attrs.y = Math.round((r.top - canvasRect.top) / zoom)
-            attrs.w = Math.round(r.width / zoom)
+          const layout = unpositionedLayouts.get(offset)
+          if (layout) {
+            attrs.x = layout.x
+            attrs.y = layout.y
+            attrs.w = layout.w
             changed = true
           }
+        }
+        if (shouldCenterLegacyTopLeft && node.attrs.x !== null) {
+          attrs.x = Math.round((node.attrs.x as number) + legacyShiftX)
+          attrs.y = Math.round(((node.attrs.y as number | null) ?? 0) + legacyShiftY)
+          changed = true
         }
         if (changed) tr.setNodeMarkup(offset, undefined, attrs)
       })
@@ -658,6 +1036,21 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       // Migration, not a user action — must not land on the undo stack
       tr.setMeta('addToHistory', false)
       ed.view.dispatch(tr)
+      if (shouldCenterLegacyTopLeft) legacyTopLeftMigratedRef.current = true
+      if (hasUnpositioned || shouldCenterLegacyTopLeft) {
+        const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+        const rect = workspace?.getBoundingClientRect()
+        if (rect) {
+          setViewport(v => ({
+            ...v,
+            ...clampViewportPosition(
+              rect.width / 2 - CANVAS_CENTER_X * v.zoom,
+              rect.height / 2 - CANVAS_CENTER_Y * v.zoom,
+              v.zoom
+            ),
+          }))
+        }
+      }
     }
 
     function schedule() {
@@ -1115,6 +1508,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           backgroundSize: `${40 * viewport.zoom}px ${40 * viewport.zoom}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
           border: '1px solid var(--border)',
+          touchAction: 'none',
+          cursor: panMode ? 'grab' : undefined,
         }}
       >
         {editable && (
@@ -1135,6 +1530,65 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
             }}
           >
+            <button
+              type="button"
+              title="Cursor-Modus"
+              aria-pressed={!panMode}
+              onPointerDown={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setPanMode(false)
+              }}
+              style={{
+                width: 34,
+                height: 34,
+                border: `1px solid ${!panMode ? 'var(--accent)' : 'transparent'}`,
+                borderRadius: '6px',
+                background: !panMode ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'none',
+                color: !panMode ? 'var(--accent)' : 'var(--text)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 17,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+              }}
+              onMouseEnter={e => { if (panMode) { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
+              onMouseLeave={e => { if (panMode) { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' } }}
+            >
+              ↖
+            </button>
+            <button
+              type="button"
+              title="Hand-Modus"
+              aria-pressed={panMode}
+              onPointerDown={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setPanMode(true)
+              }}
+              style={{
+                width: 34,
+                height: 34,
+                border: `1px solid ${panMode ? 'var(--accent)' : 'transparent'}`,
+                borderRadius: '6px',
+                background: panMode ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'none',
+                color: panMode ? 'var(--accent)' : 'var(--text)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+              }}
+              onMouseEnter={e => { if (!panMode) { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
+              onMouseLeave={e => { if (!panMode) { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' } }}
+            >
+              ✋
+            </button>
+            <div style={{ gridColumn: '1 / -1', height: 1, background: 'var(--border)', margin: '1px 0' }} />
             <button
               type="button"
               draggable
@@ -1195,6 +1649,106 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           </div>
         )}
 
+        {minimapVisible && (
+          <div
+            data-editor-minimap="true"
+            title="Workspace-Navigation"
+            onPointerEnter={() => setMinimapHovered(true)}
+            onPointerLeave={() => setMinimapHovered(false)}
+            onPointerDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              const rect = e.currentTarget.getBoundingClientRect()
+              const worldX = minimapBounds.x + (e.clientX - rect.left - minimapContent.x) / minimapScale
+              const worldY = minimapBounds.y + (e.clientY - rect.top - minimapContent.y) / minimapScale
+              const insideView =
+                worldX >= minimapView.x &&
+                worldX <= minimapView.x + minimapView.w &&
+                worldY >= minimapView.y &&
+                worldY <= minimapView.y + minimapView.h
+              const dragState = insideView
+                ? { grabOffsetX: worldX - minimapView.x, grabOffsetY: worldY - minimapView.y }
+                : { grabOffsetX: minimapView.w / 2, grabOffsetY: minimapView.h / 2 }
+              minimapDragRef.current = dragState
+              e.currentTarget.setPointerCapture(e.pointerId)
+              panMinimapTo(e.clientX, e.clientY, e.currentTarget, dragState)
+            }}
+            onPointerMove={e => {
+              const dragState = minimapDragRef.current
+              if (!dragState) return
+              e.preventDefault()
+              panMinimapTo(e.clientX, e.clientY, e.currentTarget, dragState)
+            }}
+            onPointerUp={e => {
+              minimapDragRef.current = null
+              try { e.currentTarget.releasePointerCapture(e.pointerId) } catch {}
+            }}
+            onPointerCancel={e => {
+              minimapDragRef.current = null
+              try { e.currentTarget.releasePointerCapture(e.pointerId) } catch {}
+            }}
+            style={{
+              position: 'absolute',
+              left: 12,
+              bottom: 12,
+              zIndex: 60,
+              width: minimapSize.w,
+              height: minimapSize.h,
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              background: 'var(--surface)',
+              opacity: minimapHovered ? 1 : 0.42,
+              boxShadow: '0 4px 18px rgba(0,0,0,0.14)',
+              cursor: 'crosshair',
+              overflow: 'hidden',
+              touchAction: 'none',
+              userSelect: 'none',
+              transition: 'opacity 0.14s ease',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: minimapContent.x,
+                top: minimapContent.y,
+                width: minimapContent.w,
+                height: minimapContent.h,
+                background: 'var(--surface)',
+                boxSizing: 'border-box',
+              }}
+            />
+            {minimapBlocks.map(block => (
+              <div
+                key={block.id}
+                style={{
+                  position: 'absolute',
+                  left: minimapContent.x + (block.x - minimapBounds.x) * minimapScale,
+                  top: minimapContent.y + (block.y - minimapBounds.y) * minimapScale,
+                  width: Math.max(3, block.w * minimapScale),
+                  height: Math.max(3, block.h * minimapScale),
+                  borderRadius: '2px',
+                  background: 'var(--accent)',
+                  opacity: 0.72,
+                }}
+              />
+            ))}
+            <div
+              style={{
+                position: 'absolute',
+                left: minimapContent.x + (minimapView.x - minimapBounds.x) * minimapScale,
+                top: minimapContent.y + (minimapView.y - minimapBounds.y) * minimapScale,
+                width: Math.max(12, minimapView.w * minimapScale),
+                height: Math.max(10, minimapView.h * minimapScale),
+                border: '2px solid var(--accent2)',
+                borderRadius: '3px',
+                boxSizing: 'border-box',
+                background: 'color-mix(in srgb, var(--accent2) 9%, transparent)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+        )}
+
         <div
           data-editor-canvas="true"
           data-editor-zoom={viewport.zoom}
@@ -1202,9 +1756,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             position: 'absolute',
             left: 0,
             top: 0,
-            width: '9000px',
-            height: '4000px',
-            minHeight: '4000px',
+            width: `${CANVAS_W}px`,
+            height: `${CANVAS_H}px`,
+            minHeight: `${CANVAS_H}px`,
             transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
             transformOrigin: '0 0',
             overflow: 'visible',
@@ -1215,7 +1769,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             style={{
               width: '1200px',
               height: '100%',
-              minHeight: '4000px',
+              minHeight: `${CANVAS_H}px`,
               fontSize: '14px',
               lineHeight: 1.75,
             }}
