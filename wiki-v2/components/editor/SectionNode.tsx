@@ -1080,41 +1080,72 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const wrapEl = maybeWrap as HTMLElement
     const canvasRect = canvasEl.getBoundingClientRect()
     const zoom = _canvasZoom(canvasEl)
-    const wrapRect   = wrapEl.getBoundingClientRect()
-    const startBX = Math.round((wrapRect.left - canvasRect.left) / zoom)
-    const startBY = Math.round((wrapRect.top  - canvasRect.top) / zoom)
-    const startW  = Math.round(wrapRect.width / zoom)
-    const startH  = Math.round(wrapRect.height / zoom)
     const startMX = e.clientX, startMY = e.clientY
     const resizesWidth = dir.includes('e') || dir.includes('w')
     const resizesHeight = dir.includes('n') || dir.includes('s')
     let frame = 0
     let latest: MouseEvent | null = null
-    let current = { x: startBX, y: startBY, w: startW, h: startH }
+
+    // Multi-resize: same delta on every selected block when this block is part of the selection
+    const isMulti = sectionSel.has(sectionId) && sectionSel.size() > 1
+    const targets = new Map<string, { el: HTMLElement; bx: number; by: number; w: number; h: number }>()
+    if (isMulti) {
+      canvasEl.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+        const id = card.dataset.sectionId
+        if (!id || !sectionSel.has(id)) return
+        const wrap = card.parentElement as HTMLElement
+        const wr = wrap.getBoundingClientRect()
+        targets.set(id, {
+          el: wrap,
+          bx: Math.round((wr.left - canvasRect.left) / zoom),
+          by: Math.round((wr.top  - canvasRect.top) / zoom),
+          w:  Math.round(wr.width / zoom),
+          h:  Math.round(wr.height / zoom),
+        })
+      })
+    } else {
+      const wrapRect = wrapEl.getBoundingClientRect()
+      targets.set(sectionId, {
+        el: wrapEl,
+        bx: Math.round((wrapRect.left - canvasRect.left) / zoom),
+        by: Math.round((wrapRect.top  - canvasRect.top) / zoom),
+        w:  Math.round(wrapRect.width / zoom),
+        h:  Math.round(wrapRect.height / zoom),
+      })
+    }
+    const current = new Map<string, { x: number; y: number; w: number; h: number }>()
+    targets.forEach((t, id) => current.set(id, { x: t.bx, y: t.by, w: t.w, h: t.h }))
 
     setResizing(true)
     setActiveResizeDir(dir)
     document.body.style.cursor     = dir + '-resize'
     document.body.style.userSelect = 'none'
-    wrapEl.style.willChange = 'left, top, width, height'
-    wrapEl.style.zIndex = '120'
+    targets.forEach(t => {
+      t.el.style.willChange = 'left, top, width, height'
+      t.el.style.zIndex = '120'
+    })
 
     function applyResize(ev: MouseEvent) {
       const dx = (ev.clientX - startMX) / zoom
       const dy = (ev.clientY - startMY) / zoom
-      let nx = startBX, ny = startBY, nw = startW, nh = startH
-      if (dir.includes('e')) nw = Math.max(MIN_SECTION_W, startW + dx)
-      if (dir.includes('w')) { nw = Math.max(MIN_SECTION_W, startW - dx); nx = startBX + startW - nw }
-      if (dir.includes('s')) nh = Math.max(MIN_SECTION_H, startH + dy)
-      if (dir.includes('n')) { nh = Math.max(MIN_SECTION_H, startH - dy); ny = startBY + startH - nh }
-      const snap = _computeResizeSnap(canvasEl, sectionId, dir, nx, ny, nw, nh)
-      nx = snap.x; ny = snap.y; nw = snap.w; nh = snap.h
-      current = { x: nx, y: ny, w: nw, h: nh }
-      wrapEl.style.left = nx + 'px'
-      wrapEl.style.top = ny + 'px'
-      if (resizesWidth) wrapEl.style.width = nw + 'px'
-      if (resizesHeight) wrapEl.style.height = nh + 'px'
-      _showSnapLines(canvasEl, snap.lines)
+      targets.forEach((t, id) => {
+        let nx = t.bx, ny = t.by, nw = t.w, nh = t.h
+        if (dir.includes('e')) nw = Math.max(MIN_SECTION_W, t.w + dx)
+        if (dir.includes('w')) { nw = Math.max(MIN_SECTION_W, t.w - dx); nx = t.bx + t.w - nw }
+        if (dir.includes('s')) nh = Math.max(MIN_SECTION_H, t.h + dy)
+        if (dir.includes('n')) { nh = Math.max(MIN_SECTION_H, t.h - dy); ny = t.by + t.h - nh }
+        // Snapping only for single resize — with several moving blocks the lines would fight each other
+        if (!isMulti) {
+          const snap = _computeResizeSnap(canvasEl, id, dir, nx, ny, nw, nh)
+          nx = snap.x; ny = snap.y; nw = snap.w; nh = snap.h
+          _showSnapLines(canvasEl, snap.lines)
+        }
+        current.set(id, { x: nx, y: ny, w: nw, h: nh })
+        t.el.style.left = nx + 'px'
+        t.el.style.top  = ny + 'px'
+        if (resizesWidth)  t.el.style.width  = nw + 'px'
+        if (resizesHeight) t.el.style.height = nh + 'px'
+      })
       _fitCanvasToSections(canvasEl)
     }
 
@@ -1138,22 +1169,25 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       _clearSnapLines()
       document.body.style.cursor     = ''
       document.body.style.userSelect = ''
-      wrapEl.style.willChange = ''
-      wrapEl.style.zIndex = ''
-      const docPos = typeof getPos === 'function' ? getPos() as number : null
-      if (docPos !== null) {
-        const freshNode = editor.state.doc.nodeAt(docPos)
-        if (freshNode) {
-          const tr = editor.state.tr
-          tr.setNodeMarkup(docPos, undefined, {
-            ...freshNode.attrs,
-            x: Math.round(current.x),
-            y: Math.round(current.y),
-            w: resizesWidth ? Math.round(current.w) : freshNode.attrs.w,
-            h: resizesHeight ? Math.round(current.h) : freshNode.attrs.h,
+      targets.forEach(t => { t.el.style.willChange = ''; t.el.style.zIndex = '' })
+      if (latest) {
+        const tr = editor.state.tr
+        editor.state.doc.forEach((sNode, offset) => {
+          if (sNode.type.name !== 'section') return
+          const dom = editor.view.nodeDOM(offset) as HTMLElement | null
+          const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+          if (!id) return
+          const cur = current.get(id)
+          if (!cur) return
+          tr.setNodeMarkup(offset, undefined, {
+            ...sNode.attrs,
+            x: Math.round(cur.x),
+            y: Math.round(cur.y),
+            w: resizesWidth  ? Math.round(cur.w) : sNode.attrs.w,
+            h: resizesHeight ? Math.round(cur.h) : sNode.attrs.h,
           })
-          editor.view.dispatch(tr)
-        }
+        })
+        editor.view.dispatch(tr)
       }
       _fitCanvasToSections(canvasEl)
       document.removeEventListener('mousemove', onMove)
@@ -1361,12 +1395,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           overflow: 'visible',
           display: canvasH !== null ? 'flex' : undefined,
           flexDirection: canvasH !== null ? 'column' : undefined,
-          outline: isSelected || resizing || elementDropTarget ? '2px solid var(--accent)' : 'none',
-          outlineOffset: resizing || elementDropTarget ? '4px' : '2px',
-          boxShadow: resizing || elementDropTarget ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)' : undefined,
+          outline: isSelected || elementDropTarget ? '2px solid var(--accent)' : 'none',
+          outlineOffset: elementDropTarget ? '4px' : '2px',
+          boxShadow: elementDropTarget ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)' : undefined,
           cursor: resizing ? 'inherit' : (dragging ? 'grabbing' : undefined),
-          opacity: sectionDragging || (sectionSel.dragging() && isSelected) ? 0.08 : undefined,
-          transition: sectionDragging || resizing ? undefined : 'opacity 0.15s, outline 0.1s, box-shadow 0.12s',
+          transition: sectionDragging || resizing ? undefined : 'outline 0.1s, box-shadow 0.12s',
         }}
       >
         {/* Handle buttons: ⠿ drag + ✕ delete */}
