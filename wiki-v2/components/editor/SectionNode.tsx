@@ -1805,6 +1805,20 @@ export const SectionExtension = Node.create({
 
         if (!this.editor.commands.setHardBreak()) return false
 
+        // Copy the carried text-style marks onto the break node itself: stored
+        // marks die with the next click, but marks on the hardBreak keep feeding
+        // $from.marks() whenever the cursor returns to the new line.
+        {
+          const { state, view } = this.editor
+          const $from = state.selection.$from
+          const brPos = $from.pos - 1
+          const brNode = brPos >= 0 ? state.doc.nodeAt(brPos) : null
+          const marks = state.storedMarks ?? $from.marks()
+          if (brNode?.type.name === 'hardBreak' && marks.length) {
+            view.dispatch(marks.reduce((tr, mark) => tr.addMark(brPos, brPos + 1, mark), state.tr))
+          }
+        }
+
         const { state, view } = this.editor
         const currentFrom = state.selection.$from
         for (let depth = currentFrom.depth; depth >= 0; depth--) {
