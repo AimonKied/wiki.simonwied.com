@@ -18,6 +18,8 @@ const sectionSel = {
   size:     () => _selSet.size,
   ids:      () => new Set(_selSet),
   dragging: () => _selDragging,
+  add:      (id: string) => { if (!_selSet.has(id)) { _selSet.add(id); _fireSel() } },
+  setExact: (ids: string[]) => { _selSet.clear(); ids.forEach(id => _selSet.add(id)); _fireSel() },
   toggle:   (id: string, additive: boolean) => {
     if (!additive) {
       const onlyThis = _selSet.size === 1 && _selSet.has(id)
@@ -1340,6 +1342,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     </NodeViewWrapper>
   )
 }
+
+export { sectionSel }
 
 export const SectionExtension = Node.create({
   name: 'section',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -24,7 +24,7 @@ import go from 'highlight.js/lib/languages/go'
 import rust from 'highlight.js/lib/languages/rust'
 import java from 'highlight.js/lib/languages/java'
 import markdown from 'highlight.js/lib/languages/markdown'
-import { SectionExtension } from './SectionNode'
+import { SectionExtension, sectionSel } from './SectionNode'
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
@@ -57,6 +57,72 @@ interface EditorProps {
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
   const initialContent = ensureSections(content)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
+  useEffect(() => {
+    if (!editable) return
+
+    const lasso = document.createElement('div')
+    lasso.style.cssText = [
+      'display:none', 'position:fixed', 'pointer-events:none', 'z-index:9999',
+      'border:1px solid var(--accent)', 'border-radius:3px',
+      'background:color-mix(in srgb,var(--accent) 10%,transparent)',
+    ].join(';')
+    document.body.appendChild(lasso)
+
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as Element
+      if (!target.closest('[data-editor-canvas]')) return
+      if (target.closest('[data-node-view-content]')) return
+      if (target.closest('button')) return
+      if (target.closest('input') || target.closest('select') || target.closest('textarea')) return
+      if (target.closest('a[href]')) return
+      if (target.closest('[data-section-drag-handle]')) return
+
+      const startX = e.clientX, startY = e.clientY
+      let lassoActive = false
+
+      function onMove(ev: MouseEvent) {
+        if (!lassoActive) {
+          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return
+          lassoActive = true
+          sectionSel.clear()
+          document.body.style.userSelect = 'none'
+        }
+        const x1 = Math.min(startX, ev.clientX)
+        const y1 = Math.min(startY, ev.clientY)
+        const w = Math.abs(ev.clientX - startX)
+        const h = Math.abs(ev.clientY - startY)
+        lasso.style.display = 'block'
+        lasso.style.left = x1 + 'px'
+        lasso.style.top = y1 + 'px'
+        lasso.style.width = w + 'px'
+        lasso.style.height = h + 'px'
+        const intersecting: string[] = []
+        document.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+          const r = card.getBoundingClientRect()
+          const id = card.dataset.sectionId
+          if (!id) return
+          if (r.left < x1 + w && r.right > x1 && r.top < y1 + h && r.bottom > y1) intersecting.push(id)
+        })
+        sectionSel.setExact(intersecting)
+      }
+
+      function onUp() {
+        lasso.style.display = 'none'
+        document.body.style.userSelect = ''
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+      }
+
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    }
+
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.body.removeChild(lasso)
+    }
+  }, [editable])
 
   const editor = useEditor({
     extensions: [
@@ -233,45 +299,54 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Editor area — transparent background, sections render as cards inside */}
-      <EditorContent
-        editor={editor}
+      {/* Editor canvas — owns the background, anchor for future block resizing/positioning */}
+      <div
+        data-editor-canvas="true"
         style={{
-          fontSize: '14px',
-          lineHeight: 1.75,
-          minHeight: '120px',
+          position: 'relative',
+          minHeight: '320px',
+          borderRadius: '12px',
+          padding: '12px 0 8px',
         }}
-      />
-
-      {/* Global: Add new block (section/card) */}
-      {editable && (
-        <button
-          data-new-block-btn="true"
-          onClick={() => addSection(editor)}
+      >
+        <EditorContent
+          editor={editor}
           style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '10px',
-            marginTop: '4px',
-            background: 'none',
-            border: '1px dashed var(--border)',
-            borderRadius: '10px',
-            color: 'var(--muted)',
-            fontSize: '13px',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
+            fontSize: '14px',
+            lineHeight: 1.75,
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>+</span>
-          Neuer Block
-        </button>
-      )}
+        />
+
+        {/* Add new block */}
+        {editable && (
+          <button
+            data-new-block-btn="true"
+            onClick={() => addSection(editor)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px',
+              marginTop: '4px',
+              background: 'none',
+              border: '1px dashed var(--border)',
+              borderRadius: '10px',
+              color: 'var(--muted)',
+              fontSize: '13px',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)' }}
+          >
+            <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>+</span>
+            Neuer Block
+          </button>
+        )}
+      </div>
 
       <style>{`
         /* Content inside section cards */
