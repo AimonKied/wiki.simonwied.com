@@ -45,7 +45,7 @@ let _elementClipboard: PMNode | null = null
 interface SnapLine { axis: 'x' | 'y'; pos: number; from: number; to: number }
 let _snapLineEls: HTMLElement[] = []
 const MIN_SECTION_W = 180
-const MIN_SECTION_H = 96
+const MIN_SECTION_H = 136
 const MAX_AUTO_SECTION_W = 960
 function _canvasZoom(canvas: HTMLElement) {
   const raw = canvas.dataset.editorZoom
@@ -1430,7 +1430,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           background: bgColor ?? 'var(--surface)',
           border: `1px solid ${borderColor ?? 'var(--border)'}`,
           borderRadius: '12px',
-          padding: '20px 28px 16px 44px',
+          padding: editable ? '42px 28px 16px 44px' : '20px 28px 16px 44px',
           position: 'relative',
           width: canvasW === null && isCanvasBlock ? 'fit-content' : undefined,
           minWidth: `${MIN_SECTION_W}px`,
@@ -1705,7 +1705,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
         {/* Element picker */}
         {editable && (
-          <div style={{ position: 'relative', marginTop: '12px' }} ref={pickerRef}>
+          <div style={{ position: 'relative', marginTop: '12px', flexShrink: 0 }} ref={pickerRef}>
             <button
               onClick={() => setPickerOpen(p => !p)}
               style={{
@@ -1767,7 +1767,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       <style>{`
         .wiki-section-delete { opacity: 0; transition: opacity 0.1s; }
         [data-node-view-wrapper]:hover .wiki-section-delete { opacity: 1; }
-        .wiki-section-delete:hover { color: var(--accent2) !important; background: #fff0f2 !important; }
+        .wiki-section-delete:hover { color: var(--accent2) !important; }
       `}</style>
     </NodeViewWrapper>
   )
@@ -1777,9 +1777,38 @@ export { sectionSel }
 
 export const SectionExtension = Node.create({
   name: 'section',
+  priority: 1000,
   group: 'block',
   content: 'block+',
   defining: true,
+
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { $from } = this.editor.state.selection
+        const sectionDepth = $from.depth - 1
+
+        if (
+          $from.parent.type.name !== 'paragraph' ||
+          sectionDepth < 0 ||
+          $from.node(sectionDepth).type.name !== 'section'
+        ) return false
+
+        if (!this.editor.commands.splitBlock()) return false
+
+        const { state, view } = this.editor
+        const currentFrom = state.selection.$from
+        for (let depth = currentFrom.depth; depth >= 0; depth--) {
+          const section = currentFrom.node(depth)
+          if (section.type.name !== 'section' || section.attrs.h === null) continue
+          const sectionPos = currentFrom.before(depth)
+          view.dispatch(state.tr.setNodeMarkup(sectionPos, undefined, { ...section.attrs, h: null }))
+          break
+        }
+        return true
+      },
+    }
+  },
 
   addAttributes() {
     return {

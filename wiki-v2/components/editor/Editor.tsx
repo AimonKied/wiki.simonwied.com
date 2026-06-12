@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
+import Document from '@tiptap/extension-document'
 import ImageExt from '@tiptap/extension-image'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
@@ -29,6 +30,10 @@ import { SectionExtension, sectionSel } from './SectionNode'
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
 
+const SectionDocument = Document.extend({
+  content: 'section+',
+})
+
 const ELEMENT_PALETTE = [
   { key: 'paragraph',   label: 'Text',  icon: '¶'   },
   { key: 'h1',          label: 'H1',    icon: 'H1'  },
@@ -50,9 +55,26 @@ function ensureSections(content: object | null | undefined): object | string {
   if (!content || typeof content !== 'object') return ''
   const doc = content as { type?: string; content?: Array<{ type: string }> }
   if (!doc.content?.length) return ''
-  const hasSection = doc.content.some(n => n.type === 'section')
-  if (hasSection) return content
-  return { ...doc, content: [{ type: 'section', content: doc.content }] }
+  if (doc.content.every(n => n.type === 'section')) return content
+
+  const sections: Array<{ type: string; content?: Array<{ type: string }> }> = []
+  let looseBlocks: Array<{ type: string }> = []
+  const flushLooseBlocks = () => {
+    if (!looseBlocks.length) return
+    sections.push({ type: 'section', content: looseBlocks })
+    looseBlocks = []
+  }
+
+  doc.content.forEach(node => {
+    if (node.type === 'section') {
+      flushLooseBlocks()
+      sections.push(node)
+    } else {
+      looseBlocks.push(node)
+    }
+  })
+  flushLooseBlocks()
+  return { ...doc, content: sections }
 }
 
 function addSection(editor: TiptapEditor, attrs: Record<string, number | null> = {}) {
@@ -132,6 +154,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     function onDocMouseDown(e: MouseEvent) {
       const target = e.target as Element
       if (!target.closest('[data-editor-workspace]')) return
+      if (target.closest('[data-section-card]')) return
       if (spaceDownRef.current) return
       if (target.closest('button')) return
       if (target.closest('input') || target.closest('select') || target.closest('textarea')) return
@@ -260,9 +283,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        document: false,
         codeBlock: false,
         link: { openOnClick: !editable },
       }),
+      SectionDocument,
       ImageExt,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true }),
@@ -605,6 +630,31 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
             }}
           >
+            <button
+              type="button"
+              title="Neuen Block hinzufügen"
+              onClick={addSectionAtViewportCenter}
+              style={{
+                width: 34,
+                height: 34,
+                border: '1px solid transparent',
+                borderRadius: '6px',
+                background: 'none',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 20,
+                fontWeight: 400,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}
+            >
+              +
+            </button>
             {ELEMENT_PALETTE.map(item => (
               <button
                 key={item.key}
