@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -22,9 +22,11 @@ export default function EditNotePage() {
   const [content, setContent] = useState<object>({})
   const [isPublic, setIsPublic] = useState(false)
   const [slug, setSlug] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [loading, setLoading] = useState(true)
+  const saveChain = useRef(Promise.resolve())
+  const debounceRef = useRef(0)
+  const hydratedRef = useRef(false)
 
   useEffect(() => {
     async function load() {
@@ -44,28 +46,29 @@ export default function EditNotePage() {
     load()
   }, [id])
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(() => {
     if (!title.trim()) return
-    setSaving(true)
-    setSaved(false)
-
-    const supabase = createClient()
-    await supabase
-      .from('notes')
-      .update({
-        title: title.trim(),
-        emoji: emoji || null,
-        description: description.trim() || null,
-        content,
-        is_public: isPublic,
-        slug: isPublic && slug.trim() ? slug.trim() : null,
-        updated_at: new Date().toISOString(),
+    window.clearTimeout(debounceRef.current)
+    debounceRef.current = 0
+    // Payload is captured now; the chain serializes writes so they can't
+    // arrive at the database out of order
+    const payload = {
+      title: title.trim(),
+      emoji: emoji || null,
+      description: description.trim() || null,
+      content,
+      is_public: isPublic,
+      slug: isPublic && slug.trim() ? slug.trim() : null,
+      updated_at: new Date().toISOString(),
+    }
+    setSaveStatus('saving')
+    saveChain.current = saveChain.current
+      .then(async () => {
+        const supabase = createClient()
+        const { error } = await supabase.from('notes').update(payload).eq('id', id)
+        setSaveStatus(error ? 'error' : 'saved')
       })
-      .eq('id', id)
-
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+      .catch(() => setSaveStatus('error'))
   }, [id, title, description, emoji, content, isPublic, slug])
 
   async function handleDelete() {
@@ -85,6 +88,30 @@ export default function EditNotePage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [handleSave])
+
+  // Auto-save: debounce after the last change. The first run after load() only
+  // marks hydration — loading a note must not immediately write it back
+  useEffect(() => {
+    if (loading || !note) return
+    if (!hydratedRef.current) { hydratedRef.current = true; return }
+    setSaveStatus('idle')
+    debounceRef.current = window.setTimeout(handleSave, 1500)
+    return () => {
+      window.clearTimeout(debounceRef.current)
+      debounceRef.current = 0
+    }
+  }, [loading, note, handleSave])
+
+  // Warn before closing the tab while a save is pending or running
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (debounceRef.current === 0 && saveStatus !== 'saving') return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [saveStatus])
 
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Lädt…</div>
   if (!note) return (
@@ -152,7 +179,8 @@ export default function EditNotePage() {
 
           {/* Action buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginTop: '4px' }}>
-            {saved && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
+            {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
+            {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
             <button
               onClick={handleDelete}
               style={{
@@ -165,15 +193,15 @@ export default function EditNotePage() {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saveStatus === 'saving'}
               style={{
                 padding: '9px 20px', background: 'var(--accent)', color: '#fff',
                 border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.6 : 1,
+                fontFamily: 'inherit', cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
+                opacity: saveStatus === 'saving' ? 0.6 : 1,
               }}
             >
-              {saving ? 'Speichert…' : 'Speichern'}
+              {saveStatus === 'saving' ? 'Speichert…' : 'Speichern'}
             </button>
           </div>
 
@@ -222,7 +250,7 @@ export default function EditNotePage() {
             </div>
           )}
           <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
-            Strg+S zum Speichern
+            Speichert automatisch · Strg+S für sofort
           </span>
         </div>
 
