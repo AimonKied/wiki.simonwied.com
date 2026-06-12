@@ -78,6 +78,12 @@ function _ensureGlobalHandlers() {
     const ctrl = e.ctrlKey || e.metaKey
     if (!ctrl) return
 
+    if (e.key === 'z' || e.key === 'y') {
+      if (_activeEditor?.view.hasFocus()) return
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); _activeEditor?.commands.undo(); return }
+      if (e.key === 'y' || e.shiftKey) { e.preventDefault(); _activeEditor?.commands.redo(); return }
+    }
+
     // Ctrl+C / Ctrl+X: copy or cut selected sections (always takes priority when blocks are selected)
     if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0) {
       e.preventDefault()
