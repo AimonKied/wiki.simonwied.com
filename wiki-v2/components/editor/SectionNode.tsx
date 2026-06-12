@@ -1434,9 +1434,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (canvas) _fitCanvasToSections(canvas)
   }, [canvasX, canvasY, canvasW, canvasH])
 
+  // ProseMirror registers TipTap's .react-renderer div as the section's DOM node.
+  // With the NodeViewWrapper absolutely positioned, that div collapses to height 0,
+  // which makes view.posAtCoords() resolve any point below it to the section end
+  // (posFromCaret bails out with posAfter when coords.top > rect.bottom). Stretch
+  // it over the canvas — hit-test disabled — so PM sees real bounds.
+  useEffect(() => {
+    const outer = cardRef.current?.closest('.react-renderer') as HTMLElement | null
+    if (!outer) return
+    outer.style.position      = isCanvasBlock ? 'absolute' : ''
+    outer.style.inset         = isCanvasBlock ? '0' : ''
+    outer.style.pointerEvents = isCanvasBlock ? 'none' : ''
+  }, [isCanvasBlock])
+
   return (
     <NodeViewWrapper
       style={{
+        pointerEvents: 'auto',
         margin: isCanvasBlock ? 0 : '0 0 12px',
         position: isCanvasBlock ? 'absolute' : 'relative',
         left: isCanvasBlock ? `${canvasX}px` : undefined,

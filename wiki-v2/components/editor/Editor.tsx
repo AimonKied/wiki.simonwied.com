@@ -1214,6 +1214,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             editor={editor}
             style={{
               width: '1200px',
+              height: '100%',
               minHeight: '4000px',
               fontSize: '14px',
               lineHeight: 1.75,
@@ -1253,8 +1254,14 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       </div>
 
       <style>{`
-        /* Content inside section cards */
-        .ProseMirror { outline: none; }
+        /* Content inside section cards.
+           height: PM's posAtCoords needs the editor root (and each section's
+           .react-renderer wrapper, see SectionNode) to have real vertical bounds —
+           with absolutely positioned sections it collapses to 0 and every coords
+           lookup resolves to the doc end, breaking element drag & drop.
+           pointer-events: none keeps empty-canvas clicks hitting the canvas, not
+           the contenteditable; cards re-enable pointer events on their wrapper. */
+        .ProseMirror { outline: none; height: 100%; pointer-events: none; }
         [data-node-view-content] { outline: none; }
         [data-node-view-content] > * + * { margin-top: 6px; }
 
