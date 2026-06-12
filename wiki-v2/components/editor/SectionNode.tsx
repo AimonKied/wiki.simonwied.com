@@ -54,6 +54,27 @@ function _ensureGlobalHandlers() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { sectionSel.clear(); return }
 
+    if ((e.key === 'Delete' || e.key === 'Backspace') && _selSet.size > 0) {
+      if (window.getSelection()?.type === 'Range') return
+      e.preventDefault()
+      const doc = _activeEditor!.state.doc
+      const tr = _activeEditor!.state.tr
+      const toDelete: { pos: number; size: number }[] = []
+      doc.forEach((node: PMNode, offset: number) => {
+        if (node.type.name !== 'section') return
+        const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
+        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+        if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
+      })
+      toDelete.reverse().forEach(({ pos, size }) => {
+        const mapped = tr.mapping.map(pos)
+        tr.delete(mapped, mapped + size)
+      })
+      _activeEditor!.view.dispatch(tr)
+      sectionSel.clear()
+      return
+    }
+
     const ctrl = e.ctrlKey || e.metaKey
     if (!ctrl) return
 
