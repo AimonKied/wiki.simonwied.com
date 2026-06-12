@@ -259,20 +259,6 @@ function _ensureGlobalHandlers() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ELEMENTS = [
-  { key: 'paragraph',   label: 'Text',         icon: '¶'   },
-  { key: 'h1',          label: 'Überschrift 1', icon: 'H1'  },
-  { key: 'h2',          label: 'Überschrift 2', icon: 'H2'  },
-  { key: 'h3',          label: 'Überschrift 3', icon: 'H3'  },
-  { key: 'bulletList',  label: 'Aufzählung',    icon: '•'   },
-  { key: 'orderedList', label: 'Nummeriert',    icon: '1.'  },
-  { key: 'codeBlock',   label: 'Code',          icon: '</>' },
-  { key: 'blockquote',  label: 'Zitat',         icon: '"'   },
-  { key: 'hr',          label: 'Trennlinie',    icon: '—'   },
-  { key: 'table',       label: 'Tabelle',       icon: '⊞'  },
-  { key: 'image',       label: 'Bild',          icon: '⬜'  },
-]
-
 interface HandleInfo {
   top: number
   height: number
@@ -306,13 +292,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [sectionDragging, setSectionDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
   const [activeResizeDir, setActiveResizeDir] = useState<string | null>(null)
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
   const [elementDropTarget, setElementDropTarget] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
-  const pickerRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragRefState | null>(null)
   const ghostRef = useRef<HTMLElement | null>(null)
   const origElRef = useRef<HTMLElement | null>(null)
@@ -410,16 +394,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [handle, getPos, editor])
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as HTMLElement)) {
-        setPickerOpen(false)
-      }
-    }
-    if (pickerOpen) document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [pickerOpen])
 
   function calcElBounds(sectionPos: number, cardTop: number): ElBound[] {
     const sectionNode = editor.state.doc.nodeAt(sectionPos)
@@ -1288,7 +1262,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   function addElement(key: string) {
     if (!editor || typeof getPos !== 'function') return
-    if (key === 'image') { setPickerOpen(false); setImageMode(true); return }
+    if (key === 'image') { setImageMode(true); return }
     const sectionPos = getPos()
     if (sectionPos === undefined) return
     const freshNode = editor.state.doc.nodeAt(sectionPos)
@@ -1296,11 +1270,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const insertPos = sectionPos + freshNode.nodeSize - 1
     if (key === 'hr') {
       editor.chain().focus().insertContentAt(insertPos, { type: 'horizontalRule' }).run()
-      setPickerOpen(false); return
+      return
     }
     if (key === 'table') {
       editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-      setPickerOpen(false); return
+      return
     }
     const nodes: Record<string, object> = {
       paragraph:   { type: 'paragraph' },
@@ -1314,7 +1288,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     }
     const n = nodes[key]
     if (n) editor.chain().focus().insertContentAt(insertPos, n).run()
-    setPickerOpen(false)
   }
 
   useEffect(() => {
@@ -1414,7 +1387,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         top: isCanvasBlock ? `${canvasY}px` : undefined,
         width: canvasW !== null ? `${canvasW}px` : (isCanvasBlock ? 'fit-content' : undefined),
         height: canvasH !== null ? `${canvasH}px` : undefined,
-        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
+        zIndex: imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
       }}
     >
       <div
@@ -1703,63 +1676,17 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           }}
         />
 
-        {/* Element picker */}
-        {editable && (
-          <div style={{ position: 'relative', marginTop: '12px', flexShrink: 0 }} ref={pickerRef}>
-            <button
-              onClick={() => setPickerOpen(p => !p)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                padding: '4px 10px', background: 'none',
-                border: '1px dashed var(--border)', borderRadius: '6px',
-                color: 'var(--muted)', fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer',
-              }}
-            >
-              <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
-              Element
-            </button>
-
-            {pickerOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: '10px', padding: '8px',
-                display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '3px',
-                zIndex: 200, width: '360px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              }}>
-                {ELEMENTS.map(el => (
-                  <button
-                    key={el.key}
-                    onClick={() => addElement(el.key)}
-                    style={{
-                      padding: '8px 10px', background: 'none',
-                      border: '1px solid transparent', borderRadius: '6px',
-                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                      display: 'flex', flexDirection: 'column', gap: '2px',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}
-                  >
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>{el.icon}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{el.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {imageMode && (
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                <input
-                  autoFocus value={imageUrl}
-                  onChange={e => setImageUrl(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') insertImage(); if (e.key === 'Escape') setImageMode(false) }}
-                  placeholder="https://..."
-                  style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
-                />
-                <button onClick={insertImage} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
-                <button onClick={() => setImageMode(false)} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
-              </div>
-            )}
+        {editable && imageMode && (
+          <div style={{ display: 'flex', gap: '6px', marginTop: '12px', flexShrink: 0 }}>
+            <input
+              autoFocus value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') insertImage(); if (e.key === 'Escape') setImageMode(false) }}
+              placeholder="https://..."
+              style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
+            />
+            <button onClick={insertImage} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
+            <button onClick={() => setImageMode(false)} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
           </div>
         )}
       </div>
@@ -1786,15 +1713,23 @@ export const SectionExtension = Node.create({
     return {
       Enter: () => {
         const { $from } = this.editor.state.selection
-        const sectionDepth = $from.depth - 1
+        const parentType = $from.parent.type.name
+        let sectionDepth = -1
+        for (let depth = $from.depth - 1; depth >= 0; depth--) {
+          if ($from.node(depth).type.name === 'section') {
+            sectionDepth = depth
+            break
+          }
+        }
 
         if (
-          $from.parent.type.name !== 'paragraph' ||
+          !$from.parent.isTextblock ||
+          parentType === 'codeBlock' ||
           sectionDepth < 0 ||
           $from.node(sectionDepth).type.name !== 'section'
         ) return false
 
-        if (!this.editor.commands.splitBlock()) return false
+        if (!this.editor.commands.setHardBreak()) return false
 
         const { state, view } = this.editor
         const currentFrom = state.selection.$from

@@ -423,6 +423,26 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     e.dataTransfer.effectAllowed = 'copy'
   }
 
+  function startBlockDrag(e: React.DragEvent) {
+    e.dataTransfer.setData('application/x-wiki-section', 'new')
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  function onWorkspaceDragOver(e: React.DragEvent) {
+    if (!Array.from(e.dataTransfer.types).includes('application/x-wiki-section')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  function onWorkspaceDrop(e: React.DragEvent) {
+    if (!Array.from(e.dataTransfer.types).includes('application/x-wiki-section')) return
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left - viewport.x) / viewport.zoom - 120
+    const y = (e.clientY - rect.top - viewport.y) / viewport.zoom - 80
+    addSection(editor, { x: Math.round(x), y: Math.round(y), w: null, h: null })
+  }
+
   const getTableRect = () => {
     try {
       const { node } = editor.view.domAtPos(editor.state.selection.from)
@@ -596,6 +616,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
       <div
         data-editor-workspace="true"
+        onDragOver={onWorkspaceDragOver}
+        onDrop={onWorkspaceDrop}
         style={{
           position: 'relative',
           height: 'calc(100vh - 180px)',
@@ -632,8 +654,10 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           >
             <button
               type="button"
+              draggable
               title="Neuen Block hinzufügen"
               onClick={addSectionAtViewportCenter}
+              onDragStart={startBlockDrag}
               style={{
                 width: 34,
                 height: 34,
@@ -641,7 +665,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
                 borderRadius: '6px',
                 background: 'none',
                 color: 'var(--text)',
-                cursor: 'pointer',
+                cursor: 'grab',
                 fontFamily: 'inherit',
                 fontSize: 20,
                 fontWeight: 400,
