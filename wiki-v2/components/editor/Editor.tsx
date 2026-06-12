@@ -82,7 +82,24 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     viewportRef.current = viewport
   }, [viewport])
 
+  const panFrameRef = useRef(0)
+
+  function animateViewportTo(targetX: number, targetY: number) {
+    window.cancelAnimationFrame(panFrameRef.current)
+    const start = { ...viewportRef.current }
+    const t0 = performance.now()
+    const duration = 350
+    function step(now: number) {
+      const t = Math.min(1, (now - t0) / duration)
+      const ease = 1 - Math.pow(1 - t, 3)
+      setViewport(v => ({ ...v, x: start.x + (targetX - start.x) * ease, y: start.y + (targetY - start.y) * ease }))
+      if (t < 1) panFrameRef.current = window.requestAnimationFrame(step)
+    }
+    panFrameRef.current = window.requestAnimationFrame(step)
+  }
+
   function zoomAt(clientX: number, clientY: number, nextZoom: number) {
+    window.cancelAnimationFrame(panFrameRef.current)
     const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
     if (!viewportEl) {
       setViewport(v => ({ ...v, zoom: nextZoom }))
@@ -194,6 +211,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       const target = e.target as Element
       if (!target.closest('[data-editor-workspace]')) return
       e.preventDefault()
+      window.cancelAnimationFrame(panFrameRef.current)
       const startX = e.clientX
       const startY = e.clientY
       const startView = viewportRef.current
@@ -337,6 +355,29 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       if (frame) window.cancelAnimationFrame(frame)
     }
   }, [editor, editable])
+
+  // Center a section in the workspace when the outline sidebar asks for it
+  useEffect(() => {
+    function onFocusSection(e: Event) {
+      const idx = (e as CustomEvent<{ idx?: number }>).detail?.idx
+      if (typeof idx !== 'number') return
+      const workspaceEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+      const canvasEl = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+      const card = document.querySelectorAll<HTMLElement>('[data-section-card]')[idx]
+      if (!workspaceEl || !canvasEl || !card) return
+      const wsRect = workspaceEl.getBoundingClientRect()
+      const canvasRect = canvasEl.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      const zoom = viewportRef.current.zoom
+      // Card center in world (unscaled canvas) coordinates, then pan so it lands mid-workspace
+      const worldCX = (cardRect.left + cardRect.width / 2 - canvasRect.left) / zoom
+      const worldCY = (cardRect.top + cardRect.height / 2 - canvasRect.top) / zoom
+      animateViewportTo(wsRect.width / 2 - worldCX * zoom, wsRect.height / 2 - worldCY * zoom)
+    }
+    document.addEventListener('wiki-editor-focus-section', onFocusSection)
+    return () => document.removeEventListener('wiki-editor-focus-section', onFocusSection)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (!editor) return null
 

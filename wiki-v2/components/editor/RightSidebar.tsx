@@ -64,8 +64,9 @@ export default function RightSidebar({ content }: { content: object }) {
   }, [])
 
   function scrollTo(idx: number) {
-    const cards = document.querySelectorAll('[data-section-card]')
-    cards[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveIdx(idx)
+    // The editor pans its canvas viewport so the section lands centered in the workspace
+    document.dispatchEvent(new CustomEvent('wiki-editor-focus-section', { detail: { idx } }))
   }
 
   if (!sections.length) return null
