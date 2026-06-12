@@ -46,6 +46,7 @@ interface SnapLine { axis: 'x' | 'y'; pos: number; from: number; to: number }
 let _snapLineEls: HTMLElement[] = []
 const MIN_SECTION_W = 180
 const MIN_SECTION_H = 96
+const MAX_AUTO_SECTION_W = 960
 function _canvasZoom(canvas: HTMLElement) {
   const raw = canvas.dataset.editorZoom
   const zoom = raw ? Number(raw) : 1
@@ -92,6 +93,55 @@ function _computeSnap(canvas: HTMLElement, selfId: string, x: number, y: number,
     else if (Math.abs(myB - oB) < T) { sy = oB - h; lines.push({ axis: 'y', pos: oB, ...ext(x, myR, oL, oR) }) }
   })
   return { x: sx, y: sy, lines }
+}
+
+function _computeResizeSnap(canvas: HTMLElement, selfId: string, dir: string, x: number, y: number, w: number, h: number): { x: number; y: number; w: number; h: number; lines: SnapLine[] } {
+  const T = 8
+  const cr = canvas.getBoundingClientRect()
+  const zoom = _canvasZoom(canvas)
+  let sx = x, sy = y, sw = w, sh = h
+  const lines: SnapLine[] = []
+  const right = () => sx + sw
+  const bottom = () => sy + sh
+  canvas.querySelectorAll<HTMLElement>('[data-section-card]').forEach(card => {
+    if (card.dataset.sectionId === selfId) return
+    const wr = (card.parentElement as HTMLElement).getBoundingClientRect()
+    const oL = (wr.left - cr.left) / zoom, oR = (wr.right - cr.left) / zoom
+    const oT = (wr.top - cr.top) / zoom, oB = (wr.bottom - cr.top) / zoom
+    const yExt = (pos: number) => ({ axis: 'x' as const, pos, from: Math.min(sy, oT) - 20, to: Math.max(bottom(), oB) + 20 })
+    const xExt = (pos: number) => ({ axis: 'y' as const, pos, from: Math.min(sx, oL) - 20, to: Math.max(right(), oR) + 20 })
+    ;[oL, oR].some(edge => {
+      if (dir.includes('e') && Math.abs(right() - edge) < T) {
+        sw = Math.max(MIN_SECTION_W, edge - sx)
+        lines.push(yExt(edge))
+        return true
+      }
+      if (dir.includes('w') && Math.abs(sx - edge) < T) {
+        const fixedRight = right()
+        sx = Math.min(edge, fixedRight - MIN_SECTION_W)
+        sw = fixedRight - sx
+        lines.push(yExt(edge))
+        return true
+      }
+      return false
+    })
+    ;[oT, oB].some(edge => {
+      if (dir.includes('s') && Math.abs(bottom() - edge) < T) {
+        sh = Math.max(MIN_SECTION_H, edge - sy)
+        lines.push(xExt(edge))
+        return true
+      }
+      if (dir.includes('n') && Math.abs(sy - edge) < T) {
+        const fixedBottom = bottom()
+        sy = Math.min(edge, fixedBottom - MIN_SECTION_H)
+        sh = fixedBottom - sy
+        lines.push(xExt(edge))
+        return true
+      }
+      return false
+    })
+  })
+  return { x: sx, y: sy, w: sw, h: sh, lines }
 }
 
 function _fitCanvasToSections(canvas: HTMLElement) {
@@ -253,9 +303,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sectionDragging, setSectionDragging] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const [activeResizeDir, setActiveResizeDir] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
   const [imageMode, setImageMode] = useState(false)
+  const [elementDropTarget, setElementDropTarget] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -393,6 +446,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   function onMouseMove(e: React.MouseEvent) {
+    if (resizing) return
     if (dragRef.current) return
     if (!cardRef.current || !editor.isEditable || typeof getPos !== 'function') return
     const cardRect = cardRef.current.getBoundingClientRect()
@@ -924,7 +978,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             ...sNode.attrs,
             x: Math.round((r.left - canvasRect.left) / zoom),
             y: Math.round((r.top  - canvasRect.top) / zoom),
-            w: Math.round(r.width / zoom),
           })
         })
         editor.view.dispatch(tr)
@@ -1032,10 +1085,20 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const startW  = Math.round(wrapRect.width / zoom)
     const startH  = Math.round(wrapRect.height / zoom)
     const startMX = e.clientX, startMY = e.clientY
+    const resizesWidth = dir.includes('e') || dir.includes('w')
+    const resizesHeight = dir.includes('n') || dir.includes('s')
+    let frame = 0
+    let latest: MouseEvent | null = null
+    let current = { x: startBX, y: startBY, w: startW, h: startH }
+
+    setResizing(true)
+    setActiveResizeDir(dir)
     document.body.style.cursor     = dir + '-resize'
     document.body.style.userSelect = 'none'
+    wrapEl.style.willChange = 'left, top, width, height'
+    wrapEl.style.zIndex = '120'
 
-    function onMove(ev: MouseEvent) {
+    function applyResize(ev: MouseEvent) {
       const dx = (ev.clientX - startMX) / zoom
       const dy = (ev.clientY - startMY) / zoom
       let nx = startBX, ny = startBY, nw = startW, nh = startH
@@ -1043,16 +1106,39 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       if (dir.includes('w')) { nw = Math.max(MIN_SECTION_W, startW - dx); nx = startBX + startW - nw }
       if (dir.includes('s')) nh = Math.max(MIN_SECTION_H, startH + dy)
       if (dir.includes('n')) { nh = Math.max(MIN_SECTION_H, startH - dy); ny = startBY + startH - nh }
-      wrapEl.style.left  = nx + 'px'
-      wrapEl.style.top   = ny + 'px'
-      wrapEl.style.width = nw + 'px'
-      wrapEl.style.height = nh + 'px'
+      const snap = _computeResizeSnap(canvasEl, sectionId, dir, nx, ny, nw, nh)
+      nx = snap.x; ny = snap.y; nw = snap.w; nh = snap.h
+      current = { x: nx, y: ny, w: nw, h: nh }
+      wrapEl.style.left = nx + 'px'
+      wrapEl.style.top = ny + 'px'
+      if (resizesWidth) wrapEl.style.width = nw + 'px'
+      if (resizesHeight) wrapEl.style.height = nh + 'px'
+      _showSnapLines(canvasEl, snap.lines)
       _fitCanvasToSections(canvasEl)
     }
 
+    function onMove(ev: MouseEvent) {
+      latest = ev
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        if (latest) applyResize(latest)
+      })
+    }
+
     function onUp() {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+        frame = 0
+      }
+      if (latest) applyResize(latest)
+      setResizing(false)
+      setActiveResizeDir(null)
+      _clearSnapLines()
       document.body.style.cursor     = ''
       document.body.style.userSelect = ''
+      wrapEl.style.willChange = ''
+      wrapEl.style.zIndex = ''
       const docPos = typeof getPos === 'function' ? getPos() as number : null
       if (docPos !== null) {
         const freshNode = editor.state.doc.nodeAt(docPos)
@@ -1060,10 +1146,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           const tr = editor.state.tr
           tr.setNodeMarkup(docPos, undefined, {
             ...freshNode.attrs,
-            x: Math.round(parseFloat(wrapEl.style.left)),
-            y: Math.round(parseFloat(wrapEl.style.top)),
-            w: Math.round(parseFloat(wrapEl.style.width)),
-            h: Math.round(parseFloat(wrapEl.style.height)),
+            x: Math.round(current.x),
+            y: Math.round(current.y),
+            w: resizesWidth ? Math.round(current.w) : freshNode.attrs.w,
+            h: resizesHeight ? Math.round(current.h) : freshNode.attrs.h,
           })
           editor.view.dispatch(tr)
         }
@@ -1091,6 +1177,20 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(
       editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, bgColor, borderColor })
     )
+  }
+
+  function setAutoSize() {
+    if (typeof getPos !== 'function') return
+    const pos = getPos()
+    if (pos === undefined) return
+    const freshNode = editor.state.doc.nodeAt(pos)
+    if (!freshNode) return
+    const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...freshNode.attrs, w: null, h: null })
+    editor.view.dispatch(tr)
+    window.requestAnimationFrame(() => {
+      const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+      if (canvas) _fitCanvasToSections(canvas)
+    })
   }
 
   function deleteElement() {
@@ -1133,6 +1233,36 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const n = nodes[key]
     if (n) editor.chain().focus().insertContentAt(insertPos, n).run()
     setPickerOpen(false)
+  }
+
+  useEffect(() => {
+    function onAddElement(e: Event) {
+      const detail = (e as CustomEvent<{ key?: string }>).detail
+      if (!detail?.key || !sectionSel.has(sectionId)) return
+      addElement(detail.key)
+    }
+    document.addEventListener('wiki-editor-add-element', onAddElement)
+    return () => document.removeEventListener('wiki-editor-add-element', onAddElement)
+  }, [sectionId])
+
+  function isElementDrag(e: React.DragEvent) {
+    return Array.from(e.dataTransfer.types).includes('application/x-wiki-element')
+  }
+
+  function onElementDragOver(e: React.DragEvent) {
+    if (!isElementDrag(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setElementDropTarget(true)
+  }
+
+  function onElementDrop(e: React.DragEvent) {
+    if (!isElementDrag(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    const key = e.dataTransfer.getData('application/x-wiki-element')
+    setElementDropTarget(false)
+    if (key) addElement(key)
   }
 
   function insertImage() {
@@ -1199,9 +1329,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         position: isCanvasBlock ? 'absolute' : 'relative',
         left: isCanvasBlock ? `${canvasX}px` : undefined,
         top: isCanvasBlock ? `${canvasY}px` : undefined,
-        width: canvasW !== null ? `${canvasW}px` : undefined,
+        width: canvasW !== null ? `${canvasW}px` : (isCanvasBlock ? 'fit-content' : undefined),
         height: canvasH !== null ? `${canvasH}px` : undefined,
-        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging ? 100 : undefined,
+        zIndex: pickerOpen || imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : undefined,
       }}
     >
       <div
@@ -1210,21 +1340,30 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         data-section-id={sectionId}
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
+        onDragOver={onElementDragOver}
+        onDragLeave={() => setElementDropTarget(false)}
+        onDrop={onElementDrop}
         style={{
           background: bgColor ?? 'var(--surface)',
           border: `1px solid ${borderColor ?? 'var(--border)'}`,
           borderRadius: '12px',
           padding: '20px 28px 16px 44px',
           position: 'relative',
+          width: canvasW === null && isCanvasBlock ? 'fit-content' : undefined,
+          minWidth: `${MIN_SECTION_W}px`,
+          maxWidth: canvasW === null && isCanvasBlock ? `${MAX_AUTO_SECTION_W}px` : undefined,
           height: canvasH !== null ? '100%' : undefined,
-          minHeight: canvasH !== null ? `${MIN_SECTION_H}px` : undefined,
+          minHeight: `${MIN_SECTION_H}px`,
           boxSizing: 'border-box',
-          overflow: canvasH !== null ? 'auto' : undefined,
-          outline: isSelected ? '2px solid var(--accent)' : 'none',
-          outlineOffset: '2px',
-          cursor: dragging ? 'grabbing' : undefined,
+          overflow: 'visible',
+          display: canvasH !== null ? 'flex' : undefined,
+          flexDirection: canvasH !== null ? 'column' : undefined,
+          outline: isSelected || resizing || elementDropTarget ? '2px solid var(--accent)' : 'none',
+          outlineOffset: resizing || elementDropTarget ? '4px' : '2px',
+          boxShadow: resizing || elementDropTarget ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)' : undefined,
+          cursor: resizing ? 'inherit' : (dragging ? 'grabbing' : undefined),
           opacity: sectionDragging || (sectionSel.dragging() && isSelected) ? 0.08 : undefined,
-          transition: sectionDragging ? undefined : 'opacity 0.15s, outline 0.1s',
+          transition: sectionDragging || resizing ? undefined : 'opacity 0.15s, outline 0.1s, box-shadow 0.12s',
         }}
       >
         {/* Handle buttons: ⠿ drag + ✕ delete */}
@@ -1343,6 +1482,25 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               )}
             </div>
 
+            {/* Auto size */}
+            {(canvasW !== null || canvasH !== null) && (
+              <button
+                title="Groesse automatisch an Inhalt anpassen"
+                onClick={e => { e.stopPropagation(); setAutoSize() }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: '10px', fontWeight: 700,
+                  width: '38px', height: '26px', borderRadius: '5px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'inherit', lineHeight: 1,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--accent)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+              >
+                Auto
+              </button>
+            )}
+
             {/* Drag handle */}
             <div
               data-section-drag-handle="true"
@@ -1384,23 +1542,27 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             {(['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'] as const).map(dir => {
               const isCorner = dir.length === 2
               const cursor = `${dir}-resize`
+              const showHandle = isSelected || resizing
+              const isActiveCorner = dir.length === 2 && activeResizeDir === dir
               const style = {
                 position: 'absolute' as const,
                 zIndex: 20,
-                background: isSelected ? 'var(--accent)' : 'transparent',
-                border: isCorner && isSelected ? '1px solid #fff' : undefined,
-                boxShadow: isCorner && isSelected ? '0 0 0 1px var(--accent)' : undefined,
-                opacity: isSelected ? 1 : 0,
-                transition: 'opacity 0.1s',
+                background: isCorner && showHandle ? 'var(--accent)' : 'transparent',
+                border: isCorner && showHandle ? '1px solid #fff' : undefined,
+                boxShadow: isCorner && showHandle
+                  ? (isActiveCorner ? '0 0 0 2px var(--accent), 0 0 0 5px color-mix(in srgb, var(--accent) 18%, transparent)' : '0 0 0 1px var(--accent)')
+                  : undefined,
+                opacity: isCorner && showHandle ? 1 : 0,
+                transition: resizing ? undefined : 'opacity 0.1s',
                 cursor,
-                ...(dir === 'n' ? { left: 10, right: 10, top: -4, height: 8 } : {}),
-                ...(dir === 's' ? { left: 10, right: 10, bottom: -4, height: 8 } : {}),
-                ...(dir === 'e' ? { top: 10, right: -4, bottom: 10, width: 8 } : {}),
-                ...(dir === 'w' ? { top: 10, left: -4, bottom: 10, width: 8 } : {}),
-                ...(dir === 'ne' ? { top: -6, right: -6, width: 12, height: 12, borderRadius: 6 } : {}),
-                ...(dir === 'se' ? { right: -6, bottom: -6, width: 12, height: 12, borderRadius: 6 } : {}),
-                ...(dir === 'sw' ? { left: -6, bottom: -6, width: 12, height: 12, borderRadius: 6 } : {}),
-                ...(dir === 'nw' ? { top: -6, left: -6, width: 12, height: 12, borderRadius: 6 } : {}),
+                ...(dir === 'n' ? { left: 12, right: 12, top: -7, height: 14, borderRadius: 7 } : {}),
+                ...(dir === 's' ? { left: 12, right: 12, bottom: -7, height: 14, borderRadius: 7 } : {}),
+                ...(dir === 'e' ? { top: 12, right: -7, bottom: 12, width: 14, borderRadius: 7 } : {}),
+                ...(dir === 'w' ? { top: 12, left: -7, bottom: 12, width: 14, borderRadius: 7 } : {}),
+                ...(dir === 'ne' ? { top: -8, right: -8, width: isActiveCorner ? 18 : 14, height: isActiveCorner ? 18 : 14, borderRadius: 9 } : {}),
+                ...(dir === 'se' ? { right: -8, bottom: -8, width: isActiveCorner ? 18 : 14, height: isActiveCorner ? 18 : 14, borderRadius: 9 } : {}),
+                ...(dir === 'sw' ? { left: -8, bottom: -8, width: isActiveCorner ? 18 : 14, height: isActiveCorner ? 18 : 14, borderRadius: 9 } : {}),
+                ...(dir === 'nw' ? { top: -8, left: -8, width: isActiveCorner ? 18 : 14, height: isActiveCorner ? 18 : 14, borderRadius: 9 } : {}),
               }
               return (
                 <div
@@ -1415,7 +1577,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </>
         )}
 
-        <NodeViewContent />
+        <NodeViewContent
+          style={{
+            minHeight: 0,
+            flex: canvasH !== null ? '1 1 auto' : undefined,
+            overflow: canvasH !== null ? 'auto' : undefined,
+          }}
+        />
 
         {/* Element picker */}
         {editable && (

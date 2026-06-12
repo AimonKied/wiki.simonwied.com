@@ -29,14 +29,44 @@ import { SectionExtension, sectionSel } from './SectionNode'
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
 
+const ELEMENT_PALETTE = [
+  { key: 'paragraph',   label: 'Text',  icon: '¶'   },
+  { key: 'h1',          label: 'H1',    icon: 'H1'  },
+  { key: 'h2',          label: 'H2',    icon: 'H2'  },
+  { key: 'h3',          label: 'H3',    icon: 'H3'  },
+  { key: 'bulletList',  label: 'Liste', icon: '•'   },
+  { key: 'orderedList', label: '1.',    icon: '1.'  },
+  { key: 'codeBlock',   label: 'Code',  icon: '</>' },
+  { key: 'blockquote',  label: 'Zitat', icon: '"'   },
+  { key: 'hr',          label: 'Linie', icon: '—'   },
+  { key: 'table',       label: 'Table', icon: '⊞'   },
+  { key: 'image',       label: 'Bild',  icon: '▧'   },
+]
+
 // Wrap flat content (old notes) in a section so it renders as a card
 function ensureSections(content: object | null | undefined): object | string {
   if (!content || typeof content !== 'object') return ''
-  const doc = content as { type?: string; content?: Array<{ type: string }> }
+  const doc = content as { type?: string; content?: Array<{ type: string; attrs?: Record<string, unknown>; content?: unknown }> }
   if (!doc.content?.length) return ''
   const hasSection = doc.content.some(n => n.type === 'section')
-  if (hasSection) return content
-  return { ...doc, content: [{ type: 'section', content: doc.content }] }
+  const sections = hasSection ? doc.content : [{ type: 'section', content: doc.content }]
+  let sectionIndex = 0
+  return {
+    ...doc,
+    content: sections.map(node => {
+      if (node.type !== 'section') return node
+      const attrs = node.attrs ?? {}
+      const hasCanvasPosition = attrs.x !== undefined && attrs.x !== null && attrs.y !== undefined && attrs.y !== null
+      const next = {
+        ...node,
+        attrs: hasCanvasPosition
+          ? attrs
+          : { ...attrs, x: 0, y: sectionIndex * 180, w: null, h: null },
+      }
+      sectionIndex += 1
+      return next
+    }),
+  }
 }
 
 function addSection(editor: TiptapEditor, attrs: Record<string, number | null> = {}) {
@@ -262,9 +292,18 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   function addSectionAtViewportCenter() {
     const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
     const rect = viewportEl?.getBoundingClientRect()
-    const x = rect ? (rect.width / 2 - viewport.x) / viewport.zoom - 280 : 0
+    const x = rect ? (rect.width / 2 - viewport.x) / viewport.zoom - 120 : 0
     const y = rect ? (rect.height / 2 - viewport.y) / viewport.zoom - 80 : 0
-    addSection(editor, { x: Math.round(x), y: Math.round(y), w: 560, h: null })
+    addSection(editor, { x: Math.round(x), y: Math.round(y), w: null, h: null })
+  }
+
+  function addElementToSelectedSection(key: string) {
+    document.dispatchEvent(new CustomEvent('wiki-editor-add-element', { detail: { key } }))
+  }
+
+  function startPaletteDrag(e: React.DragEvent, key: string) {
+    e.dataTransfer.setData('application/x-wiki-element', key)
+    e.dataTransfer.effectAllowed = 'copy'
   }
 
   const getTableRect = () => {
@@ -456,6 +495,56 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           border: '1px solid var(--border)',
         }}
       >
+        {editable && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 64,
+              right: 10,
+              zIndex: 55,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 34px)',
+              gap: '5px',
+              padding: '8px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+            }}
+          >
+            {ELEMENT_PALETTE.map(item => (
+              <button
+                key={item.key}
+                type="button"
+                draggable
+                title={`${item.label} hinzufügen`}
+                onClick={() => addElementToSelectedSection(item.key)}
+                onDragStart={e => startPaletteDrag(e, item.key)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  border: '1px solid transparent',
+                  borderRadius: '6px',
+                  background: 'none',
+                  color: 'var(--text)',
+                  cursor: 'grab',
+                  fontFamily: 'inherit',
+                  fontSize: item.icon.length > 2 ? 10 : 12,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}
+              >
+                {item.icon}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div
           data-editor-canvas="true"
           data-editor-zoom={viewport.zoom}
