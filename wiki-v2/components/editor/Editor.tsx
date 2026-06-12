@@ -77,7 +77,7 @@ const FONT_FAMILIES = [
   { label: 'Monospace', value: 'monospace' },
 ]
 
-const FONT_SIZES = ['12px', '14px', '16px', '18px', '24px', '32px', '40px', '48px']
+const FONT_SIZES = ['12px', '14px', '15px', '16px', '18px', '19px', '24px', '26px', '32px', '40px', '48px']
 
 const ELEMENT_PALETTE = [
   { key: 'paragraph',   label: 'Text',          icon: '¶',   description: 'Normaler Text' },
@@ -231,6 +231,8 @@ interface EditorProps {
 export default function Editor({ content, onChange, editable = true }: EditorProps) {
   const initialContent = ensureSections(content)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
+  const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
+  const [, refreshTextToolbar] = useState(0)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
@@ -487,14 +489,32 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     onUpdate({ editor }) {
       onChange?.(editor.getJSON())
       syncSlashMenu(editor)
+      refreshTextToolbar(version => version + 1)
     },
     onSelectionUpdate({ editor }) {
       syncSlashMenu(editor)
+      refreshTextToolbar(version => version + 1)
     },
     onBlur() {
       window.setTimeout(() => setSlashMenu(null), 120)
     },
   }, [editable, EDITOR_SCHEMA_VERSION])
+
+  useEffect(() => {
+    if (!editor || !editable) return
+
+    function leaveTextMode(e: MouseEvent) {
+      const target = e.target as Element
+      if (!target.closest('[data-editor-workspace]')) return
+      if (target.closest('[data-section-card], [data-element-palette], button, input, select, textarea')) return
+      editor.commands.blur()
+      window.getSelection()?.removeAllRanges()
+      setSlashMenu(null)
+    }
+
+    document.addEventListener('mousedown', leaveTextMode, true)
+    return () => document.removeEventListener('mousedown', leaveTextMode, true)
+  }, [editor, editable])
 
   useEffect(() => {
     slashMenuRef.current = slashMenu
@@ -568,8 +588,12 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     else if (key === 'table') chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
   }
 
-  function changeSelectedLineType(key: 'h1' | 'h2' | 'h3') {
+  function changeSelectedLineType(key: 'paragraph' | 'h1' | 'h2' | 'h3') {
     if (transformVisualLine(editor, key)) return
+    if (key === 'paragraph') {
+      editor.chain().focus().setParagraph().run()
+      return
+    }
     const level = key === 'h1' ? 1 : key === 'h2' ? 2 : 3
     editor.chain().focus().toggleHeading({ level }).run()
   }
@@ -754,14 +778,18 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const textStyleAttributes = editor.schema.marks[TEXT_STYLE_MARK]
     ? editor.getAttributes(TEXT_STYLE_MARK)
     : {}
+  const effectiveFontSize = (textStyleAttributes.fontSize as string | null)
+    ?? (editor.isActive('heading', { level: 1 }) ? '26px'
+      : editor.isActive('heading', { level: 2 }) ? '19px'
+        : editor.isActive('heading', { level: 3 }) ? '15px'
+          : '14px')
   const setTextStyle = (attributes: Record<string, string | null>) => {
     if (!editor.schema.marks[TEXT_STYLE_MARK]) return
     editor.chain().focus().setMark(TEXT_STYLE_MARK, attributes).run()
   }
-  const clearTextStyle = () => {
-    const chain = editor.chain().focus()
-    if (editor.schema.marks[TEXT_STYLE_MARK]) chain.unsetMark(TEXT_STYLE_MARK)
-    chain.unsetAllMarks().run()
+  const closeTextToolbar = () => {
+    editor.commands.setTextSelection(editor.state.selection.to)
+    editor.commands.blur()
   }
 
   return (
@@ -837,19 +865,75 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               title="Schriftfamilie"
               value={(textStyleAttributes.fontFamily as string | null) ?? ''}
               onChange={e => setTextStyle({ fontFamily: e.target.value || null })}
-              style={{ ...bBtn(false), padding: '4px 6px', maxWidth: 112 }}
+              style={{ ...bBtn(false), padding: '4px 6px', maxWidth: 112, background: '#242438', colorScheme: 'dark' }}
             >
-              {FONT_FAMILIES.map(font => <option key={font.label} value={font.value ?? ''}>{font.label}</option>)}
+              {FONT_FAMILIES.map(font => <option key={font.label} value={font.value ?? ''} style={{ background: '#242438', color: '#f4f4f8' }}>{font.label}</option>)}
             </select>
-            <select
+            <div
               title="Schriftgröße"
-              value={(textStyleAttributes.fontSize as string | null) ?? ''}
-              onChange={e => setTextStyle({ fontSize: e.target.value || null })}
-              style={{ ...bBtn(false), padding: '4px 6px', width: 72 }}
+              style={{
+                position: 'relative', display: 'inline-flex', alignItems: 'stretch',
+                height: 26, background: '#242438', borderRadius: 5,
+              }}
             >
-              <option value="">Größe</option>
-              {FONT_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
-            </select>
+              <input
+                key={effectiveFontSize}
+                type="text"
+                inputMode="numeric"
+                defaultValue={parseFloat(effectiveFontSize)}
+                onFocus={e => e.currentTarget.select()}
+                onInput={e => {
+                  const size = Number(e.currentTarget.value)
+                  if (Number.isFinite(size) && size >= 6 && size <= 200) setTextStyle({ fontSize: `${size}px` })
+                }}
+                onBlur={e => {
+                  const size = Number(e.currentTarget.value)
+                  if (!Number.isFinite(size) || size < 6 || size > 200) {
+                    e.currentTarget.value = String(parseFloat(effectiveFontSize))
+                  }
+                }}
+                style={{
+                  width: 34, padding: '4px 2px 4px 7px', border: 0, outline: 'none',
+                  background: 'transparent', color: '#e8e8f0', fontFamily: 'inherit', fontSize: 12,
+                }}
+              />
+              <button
+                type="button"
+                aria-label="Schriftgrößen anzeigen"
+                aria-expanded={fontSizeMenuOpen}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setFontSizeMenuOpen(open => !open)}
+                style={{
+                  width: 22, padding: 0, border: 0, borderRadius: '0 5px 5px 0',
+                  background: 'transparent', color: '#a9a9b8', cursor: 'pointer', fontSize: 10,
+                }}
+              >▼</button>
+              {fontSizeMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100001,
+                  minWidth: '100%', maxHeight: 190, overflowY: 'auto', padding: 4,
+                  background: '#242438', border: '1px solid #3a3a50', borderRadius: 6,
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.4)',
+                }}>
+                  {FONT_SIZES.map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        setTextStyle({ fontSize: size })
+                        setFontSizeMenuOpen(false)
+                      }}
+                      style={{
+                        display: 'block', width: '100%', padding: '5px 8px', border: 0,
+                        borderRadius: 4, background: size === effectiveFontSize ? 'rgba(255,255,255,0.16)' : 'transparent',
+                        color: '#f4f4f8', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12,
+                      }}
+                    >{parseFloat(size)}</button>
+                  ))}
+                </div>
+              )}
+            </div>
             <label title="Textfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               A
               <input
@@ -863,17 +947,32 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               <span style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3,
-                background: (textStyleAttributes.backgroundColor as string | null) ?? '#fff59d',
+                background: (textStyleAttributes.backgroundColor as string | null) ?? 'transparent',
                 color: (textStyleAttributes.color as string | null) ?? '#111827',
                 fontWeight: 700, lineHeight: 1,
-              }}>A</span>
-              <input
-                type="color"
-                value={(textStyleAttributes.backgroundColor as string | null) ?? '#fff59d'}
-                onChange={e => setTextStyle({ backgroundColor: e.target.value })}
-                style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
-              />
+              }}>
+                A
+              </span>
+              <span style={{ position: 'relative', width: 18, height: 18, overflow: 'hidden', borderRadius: 3 }}>
+                <input
+                  type="color"
+                  value={(textStyleAttributes.backgroundColor as string | null) ?? '#fff59d'}
+                  onChange={e => setTextStyle({ backgroundColor: e.target.value })}
+                  style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
+                />
+                {!textStyleAttributes.backgroundColor && <span style={{
+                  position: 'absolute', left: -4, top: 8, width: 26, height: 2,
+                  background: '#ef4444', transform: 'rotate(-45deg)', pointerEvents: 'none',
+                }} />}
+              </span>
             </label>
+            <button
+              title="Hintergrundfarbe entfernen"
+              style={bBtn(false, { color: '#ef4444', padding: '4px 6px' })}
+              onClick={() => setTextStyle({ backgroundColor: null })}
+            >
+              ×
+            </button>
             <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
             <button style={bBtn(editor.isActive('bold'),      { fontWeight: 800 })}              onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
             <button style={bBtn(editor.isActive('italic'),    { fontStyle: 'italic' })}          onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
@@ -885,12 +984,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => changeSelectedLineType('h2')}>H2</button>
             <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => changeSelectedLineType('h3')}>H3</button>
             <button
-              title="Formatierung löschen"
-              style={bBtn(false)}
-              onClick={clearTextStyle}
+              title="Normaler Text"
+              style={bBtn(editor.isActive('paragraph'))}
+              onClick={() => changeSelectedLineType('paragraph')}
             >
               Tx
             </button>
+            <button title="Markierungsleiste schließen" style={bBtn(false)} onClick={closeTextToolbar}>×</button>
           </div>
         </BubbleMenu>
       )}
