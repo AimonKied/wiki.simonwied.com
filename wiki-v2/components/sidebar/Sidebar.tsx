@@ -1,41 +1,70 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
-const navSections = [
-  {
-    title: 'Navigation',
-    items: [{ label: 'Startseite', href: '/', color: '#009955' }],
-  },
-  {
-    title: 'Dashboard',
-    items: [{ label: 'Alle Notizen', href: '/dashboard', color: '#009955' }],
-  },
-  {
-    title: 'Security',
-    items: [
-      { label: 'Web Hacking', href: '/notes/web-hacking', color: '#ff4466' },
-      { label: 'CyberTools',  href: '/notes/cybertools',  color: '#4488ff' },
-    ],
-  },
-  {
-    title: 'Development',
-    items: [
-      { label: 'Git Commands', href: '/notes/git-commands', color: '#f05033' },
-    ],
-  },
-  {
-    title: 'Rezepte',
-    items: [
-      { label: 'Linsen mit Spätzle',  href: '/notes/linsen-mit-spaetzle',  color: '#bb7700' },
-      { label: 'Butter Chicken',      href: '/notes/buttermilk-chicken',    color: '#bb7700' },
-      { label: 'Spanische Kroketten', href: '/notes/croquetas',             color: '#bb7700' },
-    ],
-  },
+const primaryNav = [
+  { label: 'Startseite', href: '/', color: '#009955' },
+  { label: 'Oeffentlich', href: '/#oeffentlich', color: '#4488ff' },
+  { label: 'Kategorien', href: '/#kategorien', color: '#bb7700' },
 ]
+
+const creationNav = [
+  { label: 'Neuer Artikel', href: '/create?type=article', color: '#009955' },
+  { label: 'Neuer Workspace', href: '/create?type=workspace', color: '#4488ff' },
+]
+
+const categoryNav = [
+  { label: 'Rezepte', href: '/?category=rezepte', color: '#bb7700' },
+  { label: 'Security', href: '/?category=security', color: '#ff4466' },
+  { label: 'Development', href: '/?category=development', color: '#f05033' },
+  { label: 'Ressourcen', href: '/?category=ressourcen', color: '#7c3aed' },
+]
+
+function SidebarSection({
+  title,
+  items,
+  pathname,
+}: {
+  title: string
+  items: Array<{ label: string; href: string; color: string }>
+  pathname: string
+}) {
+  return (
+    <div style={{ padding: '0 12px', marginBottom: '10px' }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
+        {title}
+      </div>
+      {items.map(item => {
+        const itemPath = item.href.split('?')[0].split('#')[0] || '/'
+        const isFilteredLink = item.href.includes('?') || item.href.includes('#')
+        const isActive = !isFilteredLink && (itemPath === '/' ? pathname === '/' : pathname.startsWith(itemPath))
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '7px 8px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: isActive ? 'var(--text)' : 'var(--muted)',
+              background: isActive ? 'var(--surface2)' : 'transparent',
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0, display: 'inline-block' }} />
+            {item.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function Sidebar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname()
@@ -63,51 +92,34 @@ export default function Sidebar({ isLoggedIn }: { isLoggedIn: boolean }) {
       flexDirection: 'column',
       zIndex: 1,
     }}>
-      {/* Logo */}
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
         <Link href="/" style={{ textDecoration: 'none', color: 'var(--text)', fontSize: '22px', fontWeight: 800 }}>
           Wiki<span style={{ color: 'var(--accent)' }}>.</span>
         </Link>
+        <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
+          Artikel und Canvas-Workspaces
+        </div>
       </div>
 
-      {/* Nav sections */}
       <div style={{ flex: 1 }}>
-        {navSections.map(section => (
-          <div key={section.title} style={{ padding: '0 12px', marginBottom: '8px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
-              {section.title}
-            </div>
-            {section.items.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '7px 8px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: pathname === item.href ? 'var(--text)' : 'var(--muted)',
-                  background: pathname === item.href ? 'var(--surface2)' : 'transparent',
-                  textDecoration: 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0, display: 'inline-block' }} />
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ))}
+        <SidebarSection title="Navigation" items={primaryNav} pathname={pathname} />
+        {isLoggedIn && (
+          <>
+            <SidebarSection title="Erstellen" items={creationNav} pathname={pathname} />
+            <SidebarSection title="Privat" items={[{ label: 'Dashboard', href: '/dashboard', color: '#009955' }]} pathname={pathname} />
+          </>
+        )}
+        <SidebarSection title="Kategorien" items={categoryNav} pathname={pathname} />
       </div>
 
-      {/* Bottom */}
       <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
         {isLoggedIn ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <Link href="/notes/new" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
-              + Neue Notiz
+            <Link href="/create?type=article" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
+              + Artikel
+            </Link>
+            <Link href="/create?type=workspace" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
+              + Workspace
             </Link>
             <button onClick={handleLogout} style={{ fontSize: '11px', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
               Abmelden
@@ -115,7 +127,7 @@ export default function Sidebar({ isLoggedIn }: { isLoggedIn: boolean }) {
           </div>
         ) : (
           <Link href="/login" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-            Anmelden →
+            Anmelden
           </Link>
         )}
         <div style={{ marginTop: '12px', fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.06em' }}>
