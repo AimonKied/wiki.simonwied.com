@@ -994,7 +994,110 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   function handleSectionDragDown(e: React.MouseEvent) {
-    startFreeMove(e)
+    if (isCanvasBlock) startFreeMove(e)
+    else startLinearReorder(e)
+  }
+
+  function startLinearReorder(e: React.MouseEvent) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const nativeEvent = e.nativeEvent
+    const downX = e.clientX
+    const downY = e.clientY
+    let didDrag = false
+    let targetIdx = -1
+    let indicator: HTMLDivElement | null = null
+
+    function articleRoot() {
+      return cardRef.current?.closest('[data-article-editor]') as HTMLElement | null
+    }
+
+    function sectionCards() {
+      const root = articleRoot()
+      if (!root) return []
+      return Array.from(root.querySelectorAll<HTMLElement>('[data-section-card]'))
+    }
+
+    function ensureIndicator() {
+      if (indicator) return indicator
+      const root = articleRoot()
+      if (!root) return null
+      indicator = document.createElement('div')
+      indicator.style.cssText = [
+        'height:3px',
+        'border-radius:999px',
+        'background:var(--accent)',
+        'box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)',
+        'margin:6px 0',
+        'pointer-events:none',
+      ].join(';')
+      root.appendChild(indicator)
+      return indicator
+    }
+
+    function updateTarget(clientY: number) {
+      const cards = sectionCards()
+      if (!cards.length) return
+      const ownCard = cardRef.current
+      let nextIdx = cards.length
+      for (let i = 0; i < cards.length; i += 1) {
+        const rect = cards[i].getBoundingClientRect()
+        if (clientY < rect.top + rect.height / 2) {
+          nextIdx = i
+          break
+        }
+      }
+      targetIdx = nextIdx
+
+      const line = ensureIndicator()
+      if (!line) return
+      const beforeCard = cards[nextIdx]
+      if (beforeCard) beforeCard.parentElement?.before(line)
+      else cards[cards.length - 1].parentElement?.after(line)
+      if (ownCard) ownCard.style.opacity = '0.45'
+    }
+
+    function beginDrag(ev: MouseEvent) {
+      didDrag = true
+      setSectionDragging(true)
+      document.body.style.userSelect = 'none'
+      document.body.style.cursor = 'grabbing'
+      updateTarget(ev.clientY)
+    }
+
+    function onMove(ev: MouseEvent) {
+      if (!didDrag) {
+        if (Math.hypot(ev.clientX - downX, ev.clientY - downY) < 4) return
+        beginDrag(ev)
+        return
+      }
+      updateTarget(ev.clientY)
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      cardRef.current?.style.removeProperty('opacity')
+      indicator?.remove()
+      indicator = null
+      setSectionDragging(false)
+
+      if (!didDrag) {
+        sectionSel.toggle(sectionId, nativeEvent.shiftKey)
+        return
+      }
+
+      if (targetIdx < 0) return
+      const isMultiDrag = sectionSel.has(sectionId) && sectionSel.size() > 1
+      if (isMultiDrag) moveSelectedSectionsTo(sectionId, targetIdx)
+      else moveSectionTo(targetIdx)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }
 
   function startFreeMove(e: React.MouseEvent) {
@@ -1344,7 +1447,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT)
       let currentNode = walker.nextNode()
       while (currentNode) {
-        if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent?.trim()) {
+        if (currentNode.nodeType === globalThis.Node.TEXT_NODE && currentNode.textContent?.trim()) {
           const range = document.createRange()
           range.selectNodeContents(currentNode)
           const rects = range.getClientRects()
@@ -1663,7 +1766,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               >
                 <span style={{
                   display: 'inline-block', width: '13px', height: '13px', borderRadius: '50%',
-                  background: bgColor === 'transparent' ? 'transparent' : (bgColor ?? 'var(--surface)'),
+                  backgroundColor: bgColor === 'transparent' ? 'transparent' : (bgColor ?? 'var(--surface)'),
                   border: `2.5px solid ${borderColor === 'transparent' ? 'transparent' : (borderColor ?? 'var(--border)')}`,
                   outline: '1.5px solid var(--border)',
                   outlineOffset: '1px',
