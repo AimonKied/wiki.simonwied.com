@@ -10,6 +10,13 @@ import RightSidebar from '@/components/editor/RightSidebar'
 import EmojiPicker from '@/components/editor/EmojiPicker'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
+const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
+
+function isArticleContent(content: object | null | undefined) {
+  if (!content || typeof content !== 'object') return false
+  const doc = content as { attrs?: { wikiMode?: string }, content?: Array<{ type?: string }> }
+  return doc.attrs?.wikiMode === 'article' || (!!doc.content?.length && doc.content.some(node => node.type !== 'section'))
+}
 
 export default function EditNotePage() {
   const { id } = useParams<{ id: string }>()
@@ -119,6 +126,7 @@ export default function EditNotePage() {
       Notiz nicht gefunden. <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Zurück</Link>
     </div>
   )
+  const isArticle = isArticleContent(content)
 
   return (
     <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both' }}>
@@ -208,7 +216,9 @@ export default function EditNotePage() {
         </div>
 
         {/* Editor */}
-        <Editor content={content} onChange={setContent} />
+        {isArticle
+          ? <ArticleEditor content={content} onChange={setContent} />
+          : <Editor content={content} onChange={setContent} />}
 
         {/* Metadaten */}
         <div style={{
@@ -256,8 +266,7 @@ export default function EditNotePage() {
 
       </div>
 
-      {/* Right sidebar */}
-      <RightSidebar content={content} />
+      {!isArticle && <RightSidebar content={content} />}
 
     </div>
   )
