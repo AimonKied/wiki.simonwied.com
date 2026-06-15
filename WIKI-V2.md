@@ -1,9 +1,13 @@
-# Wiki v2 — Persönliches Knowledge Management System
+# Wiki v2 - Persoenliches Knowledge Management System
 
 ## Vision
 
-Eigenes Notion-ähnliches Wiki, vollständig im Browser bedienbar.
-Notizen von überall erstellen, bearbeiten und verwalten — mit Login und privaten/öffentlichen Inhalten.
+Eigenes Wiki fuer private und oeffentliche Inhalte. Nutzer koennen zwei Arten von Inhalten erstellen:
+
+- **Artikel**: klassische, lineare Seiten wie in Wiki v1, optimiert fuer Lesen, Rezepte, Guides und Referenzen.
+- **Workspace Canvas**: freie Arbeitsflaechen wie der aktuelle v2-Editor mit verschiebbaren Bloecken, Pan und Zoom.
+
+Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien haben, damit sie auf der Homepage gefiltert und unter Kategorien gefunden werden koennen, zum Beispiel `Rezepte`, `Security` oder `Development`.
 
 ---
 
@@ -14,164 +18,205 @@ Notizen von überall erstellen, bearbeiten und verwalten — mit Login und priva
 | Framework | **Next.js 16** (App Router, Turbopack) |
 | Editor | **TipTap v3** |
 | Auth + DB | **Supabase** (PostgreSQL + Row Level Security) |
-| Styling | CSS Variables + JetBrains Mono (kein Tailwind-Utility-First) |
+| Styling | CSS Variables + JetBrains Mono |
 | Hosting | **Vercel** |
 | Diagramme | **Mermaid** (geplant) |
 
 ---
 
-## Projektstruktur (aktuell)
+## Inhaltsmodell
 
+### Inhaltstypen
+
+```text
+article
+  Klassische Wiki-Seite wie v1.
+  Soll als ruhiger Lesemodus erscheinen und keine Canvas-Navigation brauchen.
+
+workspace
+  Canvas-basierter Editor wie aktuell in v2.
+  Bloecke liegen frei auf einer grossen Arbeitsflaeche.
 ```
+
+### Sichtbarkeit
+
+```text
+private
+  Nur der eingeloggte Besitzer sieht und bearbeitet den Inhalt.
+
+public
+  Jeder kann den Inhalt unter /notes/[slug] lesen.
+  Public setzt voraus: slug + mindestens eine Kategorie.
+```
+
+### Kategorien
+
+Kategorien sind kuratierte Filter fuer oeffentliche Inhalte. Startkategorien:
+
+- Rezepte
+- Security
+- Development
+- Ressourcen
+
+Kategorien sollen nicht nur Freitext sein, sondern als eigene Datensaetze existieren, damit Filter, Slugs und spaetere Kategorie-Seiten stabil bleiben.
+
+---
+
+## Projektstruktur
+
+```text
 wiki-v2/
-├── app/
-│   ├── (auth)/login/             -- Login-Seite
-│   ├── (dashboard)/              -- Nur eingeloggt
-│   │   ├── dashboard/            -- Notizen-Übersicht
-│   │   └── notes/
-│   │       ├── new/              -- Neue Notiz
-│   │       └── [id]/edit/        -- Notiz bearbeiten
-│   ├── (public)/
-│   │   └── notes/[id]/           -- Öffentliche Notiz-Ansicht (via Slug)
-│   ├── layout.tsx
-│   └── page.tsx                  -- Homepage
-├── components/
-│   ├── editor/
-│   │   ├── Editor.tsx            -- TipTap-Setup, Workspace-Viewport, Pan/Zoom/Lasso, Element-Palette
-│   │   ├── SectionNode.tsx       -- Section-NodeView: Verschieben, Resize, Snap, Ebenen, Auswahl
-│   │   ├── RightSidebar.tsx      -- Outline der Blöcke (Klick zentriert Block im Workspace)
-│   │   ├── EmojiPicker.tsx       -- Emoji-Auswahl für Notiz-Icons
-│   │   └── EditorViewer.tsx      -- Read-only Client-Wrapper
-│   └── sidebar/
-│       └── Sidebar.tsx
-├── lib/
-│   ├── supabase/client.ts
-│   ├── supabase/server.ts
-│   └── types.ts
-└── proxy.ts                      -- Auth-Middleware (Next.js 16)
+  app/
+    (auth)/login/             Login-Seite
+    (dashboard)/              Nur eingeloggt
+      create/                 Neuer Artikel oder Workspace
+      dashboard/              Private Inhaltsuebersicht
+      notes/
+        [id]/edit/            Inhalt bearbeiten
+    (public)/
+      notes/[id]/             Oeffentliche Ansicht per Slug
+    layout.tsx
+    page.tsx                  Homepage mit Discovery und Kategorie-Filtern
+  components/
+    editor/
+      Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
+      SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer
+      RightSidebar.tsx        Workspace-Outline
+      EmojiPicker.tsx
+      EditorViewer.tsx        Read-only Darstellung
+    sidebar/
+      Sidebar.tsx             Linke Navigation
+  lib/
+    supabase/client.ts
+    supabase/server.ts
+    types.ts
+  proxy.ts                    Auth-Middleware
 ```
 
 ---
 
-## Datenbankschema (Supabase)
+## Datenbankschema
+
+Aktuell vorhanden:
 
 ```sql
 notes (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid REFERENCES auth.users NOT NULL,
   title       text NOT NULL DEFAULT 'Untitled',
+  emoji       text,
+  description text,
   content     jsonb,
   slug        text UNIQUE,
   is_public   boolean DEFAULT false,
   created_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now()
 )
--- Row Level Security aktiv
 ```
 
-Noch nicht angelegt:
+Geplante Erweiterung:
+
 ```sql
--- categories (geplant)
--- tags (geplant)
+alter table notes
+  add column content_type text not null default 'workspace'
+    check (content_type in ('article', 'workspace'));
+
+create table categories (
+  id          uuid primary key default gen_random_uuid(),
+  slug        text unique not null,
+  title       text not null,
+  color       text,
+  created_at  timestamptz default now()
+);
+
+create table note_categories (
+  note_id     uuid references notes(id) on delete cascade,
+  category_id uuid references categories(id) on delete cascade,
+  primary key (note_id, category_id)
+);
 ```
+
+Public-Regel:
+
+```text
+Wenn is_public = true:
+  slug muss gesetzt sein
+  mindestens eine Kategorie muss verknuepft sein
+```
+
+Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constraint abgesichert werden.
 
 ---
 
 ## Fortschritt
 
-### ✅ Phase 1 — Grundgerüst
+### Erledigt
+
 - Next.js 16 Projekt aufgesetzt
 - Supabase SSR Client (Browser + Server)
-- Auth Middleware (proxy.ts) — schützt /dashboard und /notes/*/edit
-- Login-Seite (E-Mail + Passwort)
-- Dashboard-Layout mit Session-Guard
-- Sidebar-Komponente mit Nav-Sektionen
-- Homepage mit Kategorie-Karten
-- Design-System (CSS Variables, JetBrains Mono, Grid-Hintergrund)
+- Auth Middleware schuetzt Dashboard und Edit-Routen
+- Login-Seite
+- Dashboard-Layout
+- Sidebar-Komponente
+- Homepage auf Artikel/Workspace + Kategorien/Discovery ausgerichtet
+- TipTap v3 Editor
+- Canvas-Workspace fuer Notizen
+- Verschiebbare und skalierbare Section-Bloecke
+- Lasso-Auswahl
+- Panning und Zoom
+- Snap-Linien
+- Neue Notiz erstellen
+- Notiz laden, bearbeiten und loeschen
+- Oeffentlich/Privat Toggle
+- Slug-Feld fuer oeffentliche Notizen
+- Oeffentliche Ansicht unter `/notes/[slug]`
+- Auto-Save mit Statusanzeige
+- Workspace oeffnet beim Laden zentriert auf vorhandene Inhalte
+- `npm run dev` ist durch `cross-env` Windows-kompatibel
 
-### ✅ Phase 2 — Editor
-- TipTap v3 Editor mit Toolbar (Bold, Italic, Underline, Strike, H1–H3, Listen, Code, Blockquote)
-- Syntax Highlighting via lowlight
-- Tabellen-Support
-- Canvas-Workspace fuer Notizen:
-  - grosse Arbeitsflaeche mit verschiebbaren und skalierbaren Section-Bloecken
-  - Lasso-Auswahl fuer mehrere Bloecke auf der Workspace-Flaeche
-  - Panning mit Space + linker Maustaste
-  - Zoom per Ctrl/Cmd + Mausrad sowie Zoom-Buttons
-  - Snap-Linien beim Ausrichten an anderen Bloecken
-- Neue Notiz erstellen + in Supabase speichern
-- Notiz laden und bearbeiten
-- Strg+S zum Speichern
+### Als Naechstes
 
-### ✅ Phase 3 — Basis-Features
-- Öffentlich/Privat Toggle pro Notiz
-- Slug-Feld für öffentliche Notizen
-- Öffentliche Notiz-Ansicht unter `/notes/[slug]`
-- Notiz löschen
-
-### ✅ Phase 4 — Canvas-Editor Ausbau
-- Element-Palette am Workspace-Rand (Klick fügt in markierten Block ein, Drag & Drop auf beliebigen Block)
-- Mehrfachauswahl: gemeinsames Verschieben, Resizen, Löschen, Kopieren (Lasso oder Shift+Klick)
-- Ebenen pro Block (`z`-Attribut) mit „In den Vordergrund / In den Hintergrund" (Ebene 0 ist der Boden)
-- Auto-Größe-Button; neue Blöcke passen sich dem Inhalt an (fit-content, max. 960px)
-- Layout-Migration alter Notizen: Blöcke werden nach dem ersten Render mit echten Höhen auf die Canvas übertragen (kein Überlappen, nicht im Undo-Verlauf)
-- Sidebar-Outline: Klick zentriert den Block animiert im Workspace
-- Auto-Save: 1,5 s Debounce, Statusanzeige (Gespeichert / fehlgeschlagen), Warnung beim Tab-Schließen, Strg+S speichert sofort
-- Copy/Cut/Paste für Blöcke und Elemente, globales Undo/Redo, Delete/Backspace entfernt Auswahl
+- [ ] Supabase-Migration fuer `content_type`, `categories`, `note_categories`
+- [ ] New-Note-Flow: Auswahl zwischen Artikel und Workspace speichern
+- [ ] Artikel-Editor/Artikel-Layout wie v1 ohne Canvas-Chrome
+- [ ] Kategorie-Pflicht bei oeffentlichen Inhalten
+- [ ] Kategorie-Auswahl im Edit-Screen
+- [ ] Homepage aus echten oeffentlichen DB-Inhalten laden statt statischer Platzhalter
+- [ ] Kategorie-Seiten oder Query-Filter fuer echte Daten
+- [ ] Sidebar zeigt echte private und oeffentliche Inhalte dynamisch
+- [ ] Slug aus Titel vorschlagen
+- [ ] `updated_at` Trigger in Supabase
+- [ ] 404-Seite fuer nicht existierende Notizen
 
 ---
 
-## Offen — vor dem Go-Live
+## UX-Regeln
 
-### Funktional (muss)
-- [ ] Sidebar zeigt echte Notizen aus der DB (dynamisch, nicht hardcoded)
-- [ ] Kategorien / Collections für Notizen (Security, Development, Rezepte, …)
-- [ ] Notiz-Titel bei Erstellung als Slug vorschlagen (auto-generieren)
-- [ ] `updated_at` Trigger in Supabase (automatisch bei UPDATE setzen)
-- [x] Fehlerbehandlung beim Speichern (Status „Speichern fehlgeschlagen", Auto-Save mit Debounce)
-- [ ] 404-Seite für nicht existierende Notizen
+- Private Inhalte erscheinen im Dashboard.
+- Oeffentliche Inhalte erscheinen auf der Homepage und in Kategorie-Filtern.
+- Artikel sollen beim Lesen wie klassische Wiki-Seiten wirken.
+- Workspaces sollen ihre Canvas-Natur behalten: Pan, Zoom, Outline, frei platzierte Bloecke.
+- Beim Veroeffentlichen muss klar sichtbar sein, ob ein Inhalt privat oder oeffentlich ist.
+- Kategorie-Auswahl soll beim Veroeffentlichen verpflichtend sein, aber bei privaten Inhalten optional bleiben.
 
-### Editor (muss)
-- [ ] Slash-Command Menü (`/heading`, `/code`, `/table`, …)
-- [ ] Mermaid Diagramme
-- [x] Bilder per URL einfügen
-- [ ] Bild-Upload via Supabase Storage
-- [x] Drag & Drop Blocks als Canvas-Blöcke
-- [x] Resize für Blocks in alle Richtungen (auch Mehrfachauswahl)
-- [x] Workspace Pan/Zoom
-- [x] Auto-Save
+---
 
-### Design / UX (muss)
-- [ ] Mobile-Ansicht (Sidebar ausblendbar)
-- [ ] Ladeanimation / Skeleton beim Laden von Notizen
-- [ ] Öffentliche Notizen-Ansicht: schöneres Layout (kein Editor-Chrome)
-- [ ] Dashboard: Suche über Notizen
-- [ ] Hover-Effekte auf Dashboard-Notiz-Karten
+## Migration bestehender Inhalte
 
-### Sicherheit (muss vor Go-Live)
-- [ ] Supabase User nur manuell über Dashboard anlegen (kein öffentliches Signup)
-- [ ] RLS Policies testen (kann ein fremder User meine Notizen lesen/schreiben?)
-- [ ] `.env.local` niemals committen (bereits in .gitignore)
+| Aktuelle Seite | Zieltyp | Kategorie | Oeffentlich |
+|---|---|---|---|
+| git-commands.html | Artikel | Development | Ja |
+| web-hacking.html | Artikel | Security | Ja |
+| cybertools.html | Artikel | Security | Ja |
+| awesome-list.html | Artikel | Ressourcen | Ja |
+| linsen-mit-spaetzle.html | Artikel | Rezepte | Ja |
+| buttermilk-chicken.html | Artikel | Rezepte | Ja |
+| croquetas.html | Artikel | Rezepte | Ja |
 
-### Migration (kann warten)
-- [ ] Bestehende HTML-Seiten als Notizen migrieren
-- [ ] Wiki v1 (wiki.simonwied.com) auf Wiki v2 umleiten
+---
 
-### Deploy
-- [ ] Vercel Projekt anlegen und mit GitHub verknüpfen
+## Deploy
+
+- [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
 - [ ] Supabase-Credentials als Vercel Environment Variables setzen
 - [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
-
----
-
-## Migration bestehender Inhalte (später)
-
-| Aktuelle Seite | Kategorie | Öffentlich |
-|---|---|---|
-| git-commands.html | Development | ✅ |
-| web-hacking.html | Security | ✅ |
-| cybertools.html | Security | ✅ |
-| awesome-list.html | Ressourcen | ✅ |
-| linsen-mit-spaetzle.html | Rezepte | ✅ |
-| buttermilk-chicken.html | Rezepte | ✅ |
-| croquetas.html | Rezepte | ✅ |
