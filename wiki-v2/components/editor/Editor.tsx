@@ -295,6 +295,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const latePanRef = useRef<{ x: number; y: number } | null>(null)
   const minimapDragRef = useRef<MinimapDragState | null>(null)
   const legacyTopLeftMigratedRef = useRef(false)
+  const initialContentCenteredRef = useRef(false)
 
   const minimapVisible = editable && panMode
   const minimapSize = { w: 188, h: 112 }
@@ -494,6 +495,52 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       if (t < 1) panFrameRef.current = window.requestAnimationFrame(step)
     }
     panFrameRef.current = window.requestAnimationFrame(step)
+  }
+
+  function centerViewportOnRenderedContent() {
+    const workspaceEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+    const canvasEl = document.querySelector('[data-editor-canvas]') as HTMLElement | null
+    if (!workspaceEl || !canvasEl) return false
+
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-section-card]'))
+    if (!cards.length) return false
+
+    const wsRect = workspaceEl.getBoundingClientRect()
+    const canvasRect = canvasEl.getBoundingClientRect()
+    const zoom = viewportRef.current.zoom
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    cards.forEach(card => {
+      const wrap = card.parentElement as HTMLElement | null
+      if (!wrap) return
+      const rect = wrap.getBoundingClientRect()
+      const x = (rect.left - canvasRect.left) / zoom
+      const y = (rect.top - canvasRect.top) / zoom
+      const w = rect.width / zoom
+      const h = rect.height / zoom
+      if (![x, y, w, h].every(Number.isFinite)) return
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x + w)
+      maxY = Math.max(maxY, y + h)
+    })
+
+    if (![minX, minY, maxX, maxY].every(Number.isFinite)) return false
+
+    const contentCenterX = (minX + maxX) / 2
+    const contentCenterY = (minY + maxY) / 2
+    setViewport(v => ({
+      ...v,
+      ...clampViewportPosition(
+        wsRect.width / 2 - contentCenterX * v.zoom,
+        wsRect.height / 2 - contentCenterY * v.zoom,
+        v.zoom
+      ),
+    }))
+    return true
   }
 
   function zoomAt(clientX: number, clientY: number, nextZoom: number) {
@@ -810,6 +857,32 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       window.setTimeout(() => setSlashMenu(null), 120)
     },
   }, [editable, EDITOR_SCHEMA_VERSION])
+
+  useEffect(() => {
+    if (!editor || initialContentCenteredRef.current) return
+    let frame = 0
+    let attempts = 0
+    const maxAttempts = 12
+
+    function tryCenter() {
+      frame = 0
+      attempts += 1
+      if (initialContentCenteredRef.current) return
+      if (centerViewportOnRenderedContent()) {
+        initialContentCenteredRef.current = true
+        return
+      }
+      if (attempts < maxAttempts) frame = window.requestAnimationFrame(tryCenter)
+    }
+
+    frame = window.requestAnimationFrame(tryCenter)
+    editor.on('update', tryCenter)
+    return () => {
+      editor.off('update', tryCenter)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
 
   useEffect(() => {
     if (!editor || !editable) return
