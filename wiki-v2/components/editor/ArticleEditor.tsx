@@ -2,6 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Document from '@tiptap/extension-document'
 import ImageExt from '@tiptap/extension-image'
@@ -31,16 +32,17 @@ const ArticleDocument = Document.extend({
 })
 
 const ELEMENT_PALETTE = [
-  { key: 'paragraph', label: 'Text', icon: 'P' },
-  { key: 'h2', label: 'Abschnitt', icon: 'H2' },
-  { key: 'h3', label: 'Eintrag', icon: 'H3' },
+  { key: 'paragraph', label: 'Textblock', icon: 'T' },
+  { key: 'h1', label: 'Titel', icon: 'H1' },
+  { key: 'h2', label: 'Ueberschrift', icon: 'H2' },
+  { key: 'h3', label: 'Untertitel', icon: 'H3' },
+  { key: 'blockquote', label: 'Zitat', icon: '"' },
   { key: 'bulletList', label: 'Liste', icon: 'UL' },
-  { key: 'orderedList', label: 'Nummern', icon: '1.' },
-  { key: 'codeBlock', label: 'Code', icon: '</>' },
-  { key: 'blockquote', label: 'Hinweis', icon: '"' },
-  { key: 'hr', label: 'Linie', icon: '-' },
+  { key: 'orderedList', label: 'Nummerierte Liste', icon: '1.' },
   { key: 'table', label: 'Tabelle', icon: 'TB' },
   { key: 'image', label: 'Bild', icon: 'IMG' },
+  { key: 'codeBlock', label: 'Codeblock', icon: '</>' },
+  { key: 'hr', label: 'Trennlinie', icon: '-' },
 ]
 
 const EMPTY_ARTICLE = {
@@ -97,14 +99,16 @@ function dispatchAddElement(key: string, targetPos?: number) {
 
 export default function ArticleEditor({ content, onChange, editable = true }: ArticleEditorProps) {
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
+  const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
+  const lastInsertPosRef = useRef<number | null>(null)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
       ArticleDocument,
       ImageExt,
       CodeBlockLowlight.configure({ lowlight }),
-      Table.configure({ resizable: true }),
+      Table.configure({ resizable: true, cellMinWidth: 80 }),
       TableRow,
       TableHeader,
       TableCell,
@@ -157,10 +161,18 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     return () => document.removeEventListener('keydown', onKeyDown, true)
   }, [editor, editable])
 
+  useEffect(() => {
+    if (!tableMenuOpen) return
+    function close() { setTableMenuOpen(false) }
+    setTimeout(() => document.addEventListener('click', close), 0)
+    return () => document.removeEventListener('click', close)
+  }, [tableMenuOpen])
+
   if (!editor) return null
 
   function syncSlashMenu(ed: TiptapEditor) {
     const { selection } = ed.state
+    if (selection.empty) lastInsertPosRef.current = selection.from
     if (!selection.empty || !ed.isEditable) {
       setSlashMenu(null)
       return
@@ -220,6 +232,56 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     e.dataTransfer.effectAllowed = 'copy'
   }
 
+  function getBottomBlockInsertPos() {
+    let insertPos: number | null = null
+    editor.state.doc.forEach((node, offset) => {
+      if (node.type.name === 'section') insertPos = offset + node.nodeSize - 1
+    })
+    return insertPos
+  }
+
+  function insertPaletteElement(key: string) {
+    const targetPos = lastInsertPosRef.current ?? getBottomBlockInsertPos()
+    dispatchAddElement(key, targetPos ?? undefined)
+  }
+
+  function getTableRect() {
+    try {
+      const { node } = editor.view.domAtPos(editor.state.selection.from)
+      let el: Element | null = node instanceof Element ? node : (node as Node).parentElement
+      while (el && el.tagName !== 'TABLE') el = el.parentElement
+      if (el) return el.getBoundingClientRect()
+    } catch {}
+    return editor.view.dom.getBoundingClientRect()
+  }
+
+  function tableMenuItem(label: string, onClick: () => void, destructive = false) {
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={() => { onClick(); setTableMenuOpen(false) }}
+        style={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'left',
+          padding: '6px 10px',
+          background: 'none',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: '13px',
+          color: destructive ? 'var(--accent2)' : 'var(--text)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = destructive ? '#fff0f2' : 'var(--surface2)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+      >
+        {label}
+      </button>
+    )
+  }
+
   const items = slashMenu ? slashItems(slashMenu.query) : []
 
   return (
@@ -270,6 +332,79 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         </div>
       )}
 
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ editor }) => editor.isActive('tableCell') || editor.isActive('tableHeader')}
+          getReferencedVirtualElement={() => ({ getBoundingClientRect: getTableRect })}
+          options={{
+            placement: 'top-end',
+            offset: 8,
+            onHide: () => setTableMenuOpen(false),
+          }}
+        >
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setTableMenuOpen(open => !open) }}
+              title="Tabelle bearbeiten"
+              style={{
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                border: '1px solid var(--border)',
+                background: tableMenuOpen ? 'var(--accent)' : 'var(--surface)',
+                color: tableMenuOpen ? '#fff' : 'var(--muted)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                lineHeight: 1,
+                fontWeight: 300,
+                boxShadow: '0 1px 6px rgba(0,0,0,0.1)',
+              }}
+            >
+              +
+            </button>
+
+            {tableMenuOpen && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '6px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                  minWidth: '200px',
+                  zIndex: 100001,
+                }}
+              >
+                <div style={tableMenuLabelStyle}>ZEILE</div>
+                {tableMenuItem('Zeile davor einfuegen', () => editor.chain().focus().addRowBefore().run())}
+                {tableMenuItem('Zeile danach einfuegen', () => editor.chain().focus().addRowAfter().run())}
+                {tableMenuItem('Zeile loeschen', () => editor.chain().focus().deleteRow().run(), true)}
+
+                <div style={tableMenuDividerStyle} />
+
+                <div style={tableMenuLabelStyle}>SPALTE</div>
+                {tableMenuItem('Spalte davor einfuegen', () => editor.chain().focus().addColumnBefore().run())}
+                {tableMenuItem('Spalte danach einfuegen', () => editor.chain().focus().addColumnAfter().run())}
+                {tableMenuItem('Spalte loeschen', () => editor.chain().focus().deleteColumn().run(), true)}
+
+                <div style={tableMenuDividerStyle} />
+
+                {tableMenuItem('Tabelle loeschen', () => editor.chain().focus().deleteTable().run(), true)}
+              </div>
+            )}
+          </div>
+        </BubbleMenu>
+      )}
+
       <div data-article-editor="true">
         <EditorContent editor={editor} />
         {editable && (
@@ -301,7 +436,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
               type="button"
               draggable
               title={`${item.label} einfuegen`}
-              onClick={() => dispatchAddElement(item.key)}
+              onClick={() => insertPaletteElement(item.key)}
               onDragStart={e => startPaletteDrag(e, item.key)}
               style={{
                 width: 34,
@@ -340,42 +475,24 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           padding: 24px 28px 22px 44px !important;
           box-shadow: none !important;
         }
-        [data-article-editor] [data-section-card] h1 { display: none; }
+        [data-article-editor] [data-section-card] h1 {
+          font-size: 30px;
+          line-height: 1.2;
+          font-weight: 800;
+          margin: 0 0 18px;
+        }
         [data-article-editor] [data-section-card] h2 {
-          display: flex;
-          align-items: center;
-          gap: 12px;
           font-size: 22px;
           line-height: 1.3;
           font-weight: 700;
           letter-spacing: -0.01em;
-          margin: 0 0 18px;
-        }
-        [data-article-editor] [data-section-card] h2::before {
-          content: '';
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--accent);
-          flex-shrink: 0;
-        }
-        [data-article-editor] [data-section-card] h2::after {
-          content: '';
-          height: 1px;
-          background: var(--border);
-          flex: 1;
+          margin: 0 0 14px;
         }
         [data-article-editor] [data-section-card] h3 {
           font-size: 18px;
           line-height: 1.4;
           font-weight: 700;
           margin: 0 0 10px;
-        }
-        [data-article-editor] [data-section-card] h3::before {
-          content: '#';
-          color: var(--accent);
-          margin-right: 10px;
-          font-size: 14px;
         }
         [data-article-editor] [data-section-card] p { margin: 0; }
         [data-article-editor] [data-section-card] ul,
@@ -416,28 +533,61 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         }
         [data-article-editor] [data-section-card] table {
           border-collapse: collapse;
+          table-layout: fixed;
           width: 100%;
           margin: 12px 0;
+          overflow: hidden;
+          border: 1px solid var(--border);
         }
         [data-article-editor] [data-section-card] td,
         [data-article-editor] [data-section-card] th {
-          border-bottom: 1px solid var(--border);
+          border: 1px solid var(--border);
           padding: 9px 12px;
           text-align: left;
           font-size: 14px;
           line-height: 1.65;
+          min-width: 120px;
+          vertical-align: top;
         }
+        [data-article-editor] [data-section-card] td p,
+        [data-article-editor] [data-section-card] th p { min-height: 24px; }
         [data-article-editor] [data-section-card] th {
           font-size: 10px;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           color: var(--muted);
-          background: transparent;
+          background: var(--surface2);
           font-weight: 700;
+        }
+        [data-article-editor] .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: -2px;
+          width: 4px;
+          background: var(--accent);
+          pointer-events: none;
+        }
+        [data-article-editor] .resize-cursor {
+          cursor: col-resize;
         }
       `}</style>
     </div>
   )
+}
+
+const tableMenuLabelStyle = {
+  fontSize: '9px',
+  fontWeight: 700,
+  color: 'var(--muted)',
+  padding: '2px 6px 4px',
+  letterSpacing: '0.07em',
+}
+
+const tableMenuDividerStyle = {
+  height: '1px',
+  background: 'var(--border)',
+  margin: '4px 0',
 }
 
 const appendButtonStyle = {

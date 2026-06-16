@@ -337,6 +337,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [imageMode, setImageMode] = useState(false)
   const [elementDropTarget, setElementDropTarget] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
+  const imageInsertPosRef = useRef<number | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragRefState | null>(null)
   const ghostRef = useRef<HTMLElement | null>(null)
@@ -1538,20 +1539,54 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     }
   }
 
-  function addElement(key: string) {
+  function sectionChildBoundaryFor(sectionPos: number, sectionNode: typeof node, requestedInsertPos?: number) {
+    const sectionEnd = sectionPos + sectionNode.nodeSize - 1
+    if (typeof requestedInsertPos !== 'number' || requestedInsertPos <= sectionPos || requestedInsertPos >= sectionEnd) {
+      return sectionEnd
+    }
+
+    let childPos = sectionPos + 1
+    for (let i = 0; i < sectionNode.childCount; i++) {
+      const child = sectionNode.child(i)
+      const childEnd = childPos + child.nodeSize
+      if (requestedInsertPos <= childPos) return childPos
+      if (requestedInsertPos < childEnd) return childEnd
+      childPos = childEnd
+    }
+    return sectionEnd
+  }
+
+  function createTableNode(rows = 3, cols = 3) {
+    return {
+      type: 'table',
+      content: Array.from({ length: rows }, (_, rowIndex) => ({
+        type: 'tableRow',
+        content: Array.from({ length: cols }, () => ({
+          type: rowIndex === 0 ? 'tableHeader' : 'tableCell',
+          content: [{ type: 'paragraph' }],
+        })),
+      })),
+    }
+  }
+
+  function addElement(key: string, requestedInsertPos?: number) {
     if (!editor || typeof getPos !== 'function') return
-    if (key === 'image') { setImageMode(true); return }
     const sectionPos = getPos()
     if (sectionPos === undefined) return
     const freshNode = editor.state.doc.nodeAt(sectionPos)
     if (!freshNode) return
-    const insertPos = sectionPos + freshNode.nodeSize - 1
+    const elementInsertPos = sectionChildBoundaryFor(sectionPos, freshNode, requestedInsertPos)
+    if (key === 'image') {
+      imageInsertPosRef.current = elementInsertPos
+      setImageMode(true)
+      return
+    }
     if (key === 'hr') {
-      editor.chain().focus().insertContentAt(insertPos, { type: 'horizontalRule' }).run()
+      editor.chain().focus().insertContentAt(elementInsertPos, { type: 'horizontalRule' }).run()
       return
     }
     if (key === 'table') {
-      editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+      editor.chain().focus().insertContentAt(elementInsertPos, createTableNode()).run()
       return
     }
     const nodes: Record<string, object> = {
@@ -1565,7 +1600,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       blockquote:  { type: 'blockquote',  content: [{ type: 'paragraph' }] },
     }
     const n = nodes[key]
-    if (n) editor.chain().focus().insertContentAt(insertPos, n).run()
+    if (n) editor.chain().focus().insertContentAt(elementInsertPos, n).run()
   }
 
   useEffect(() => {
@@ -1576,7 +1611,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const targetsThisSection = typeof detail.targetPos === 'number' && sectionPos !== undefined
         && detail.targetPos > sectionPos && detail.targetPos < sectionPos + node.nodeSize
       if (!sectionSel.has(sectionId) && !targetsThisSection) return
-      addElement(detail.key)
+      addElement(detail.key, targetsThisSection ? detail.targetPos : undefined)
     }
     document.addEventListener('wiki-editor-add-element', onAddElement)
     return () => document.removeEventListener('wiki-editor-add-element', onAddElement)
@@ -1599,16 +1634,24 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     e.stopPropagation()
     const key = e.dataTransfer.getData('application/x-wiki-element')
     setElementDropTarget(false)
-    if (key) addElement(key)
+    const dropPos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })?.pos
+    if (key) addElement(key, dropPos)
   }
 
   function insertImage() {
     if (!editor || !imageUrl.trim() || typeof getPos !== 'function') return
     const sectionPos = getPos()
     if (sectionPos === undefined) return
+    const freshNode = editor.state.doc.nodeAt(sectionPos)
+    const sectionEnd = freshNode ? sectionPos + freshNode.nodeSize - 1 : sectionPos + node.nodeSize - 1
+    const requestedInsertPos = imageInsertPosRef.current
+    const insertPos = typeof requestedInsertPos === 'number' && requestedInsertPos > sectionPos && requestedInsertPos < sectionEnd
+      ? requestedInsertPos
+      : sectionEnd
     editor.chain().focus()
-      .insertContentAt(sectionPos + node.nodeSize - 1, { type: 'image', attrs: { src: imageUrl.trim() } })
+      .insertContentAt(insertPos, { type: 'image', attrs: { src: imageUrl.trim() } })
       .run()
+    imageInsertPosRef.current = null
     setImageUrl('')
     setImageMode(false)
   }
@@ -1981,7 +2024,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             <input
               autoFocus value={imageUrl}
               onChange={e => setImageUrl(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') insertImage(); if (e.key === 'Escape') setImageMode(false) }}
+              onKeyDown={e => { if (e.key === 'Enter') insertImage(); if (e.key === 'Escape') { imageInsertPosRef.current = null; setImageMode(false) } }}
               placeholder="https://..."
               style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
             />
