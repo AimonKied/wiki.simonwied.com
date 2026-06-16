@@ -62,18 +62,18 @@ export default function EmojiPicker({ onSelect, onClose }: { onSelect: (e: strin
         scrollbarWidth: 'thin',
       }}
     >
-      {EMOJIS.map(emoji => (
+      {EMOJIS.map((emoji, index) => (
         <button
-          key={emoji}
+          key={`${emoji}-${index}`}
           onClick={() => { onSelect(emoji); onClose() }}
           style={{
             width: '34px', height: '34px', fontSize: '20px',
-            background: 'none', border: 'none', borderRadius: '6px',
+            backgroundColor: 'transparent', border: 'none', borderRadius: '6px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background 0.1s',
+            transition: 'background-color 0.1s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface2)' }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >
           {emoji}
         </button>
