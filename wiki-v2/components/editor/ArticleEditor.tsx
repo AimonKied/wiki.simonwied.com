@@ -266,9 +266,32 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   }
 
   function executeSlashCommand(ed: TiptapEditor, key: string, menu: SlashMenuState) {
-    ed.chain().focus().deleteRange({ from: menu.from, to: menu.to }).run()
-    window.requestAnimationFrame(() => dispatchAddElement(key, menu.from))
     setSlashMenu(null)
+    const chain = ed.chain().focus().deleteRange({ from: menu.from, to: menu.to })
+    if (key === 'paragraph')   { chain.setParagraph().run(); return }
+    if (key === 'h1')          { chain.setHeading({ level: 1 }).run(); return }
+    if (key === 'h2')          { chain.setHeading({ level: 2 }).run(); return }
+    if (key === 'h3')          { chain.setHeading({ level: 3 }).run(); return }
+    if (key === 'bulletList')  { chain.toggleBulletList().run(); return }
+    if (key === 'orderedList') { chain.toggleOrderedList().run(); return }
+    if (key === 'codeBlock')   { chain.setCodeBlock().run(); return }
+    if (key === 'blockquote')  { chain.toggleBlockquote().run(); return }
+    if (key === 'hr')          { chain.setHorizontalRule().run(); return }
+    if (key === 'table')       { chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); return }
+    // image / video: delete the slash text, then remove the empty paragraph if it
+    // has siblings so the media element is inserted exactly where the line was.
+    chain.run()
+    const $from = ed.state.doc.resolve(menu.from)
+    const parentSection = $from.depth >= 2 ? $from.node($from.depth - 1) : null
+    if (parentSection?.type.name === 'section' && parentSection.childCount > 1
+        && $from.parent.content.size === 0) {
+      const blockStart = $from.before($from.depth)
+      const blockEnd = $from.after($from.depth)
+      ed.chain().focus().deleteRange({ from: blockStart, to: blockEnd }).run()
+      window.requestAnimationFrame(() => dispatchAddElement(key, blockStart))
+    } else {
+      window.requestAnimationFrame(() => dispatchAddElement(key, menu.from))
+    }
   }
 
   function appendBlock() {
