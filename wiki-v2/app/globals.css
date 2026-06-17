@@ -57,5 +57,17 @@ body::before {
   margin-left: 2px;
 }
 .wiki-toggle[data-open="false"] .wiki-toggle-content > *:not(:first-child) { display: none; }
-.wiki-toggle > div > button { transition: color 0.1s, transform 0.15s; }
-.wiki-toggle > div > button:hover { color: var(--text) !important; }
+
+/* Button base — color + transition here so inline styles don't override */
+.wiki-toggle > div > button {
+  color: var(--muted);
+  transition: color 0.1s, transform 0.15s;
+  /* vertical center with the first-block text line (line-height 1.75, font-size 15px) */
+  margin-top: 8px;
+}
+.wiki-toggle > div > button:hover { color: var(--text); }
+
+/* Adjust margin-top when the title block is a heading (browser-default font sizes) */
+.wiki-toggle > div:has(> .wiki-toggle-content > h3:first-child) > button { margin-top: 10px; }
+.wiki-toggle > div:has(> .wiki-toggle-content > h2:first-child) > button { margin-top: 15px; }
+.wiki-toggle > div:has(> .wiki-toggle-content > h1:first-child) > button { margin-top: 21px; }

@@ -76,7 +76,7 @@ export const ToggleExtension = Node.create({
 
       // Flex row: button + content
       const row = document.createElement('div')
-      row.style.cssText = 'display:flex;align-items:baseline;gap:4px;'
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:4px;'
 
       // Toggle button — native listener, no React events
       const btn = document.createElement('button')
@@ -84,9 +84,9 @@ export const ToggleExtension = Node.create({
       btn.textContent = '▶'
       btn.style.cssText = [
         'background:none', 'border:none', 'cursor:pointer',
-        'padding:0 2px', 'color:var(--muted)', 'line-height:1',
+        'padding:0 2px', 'line-height:1',
         'font-size:0.65em', 'flex-shrink:0',
-        'user-select:none', 'transition:transform 0.15s',
+        'user-select:none',
         'transform:' + (currentNode.attrs.open !== false ? 'rotate(90deg)' : 'none'),
       ].join(';')
 
