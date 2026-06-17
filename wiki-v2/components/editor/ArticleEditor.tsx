@@ -158,6 +158,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
+  const slashMenuListRef = useRef<HTMLDivElement>(null)
   const lastInsertPosRef = useRef<number | null>(null)
   const editor = useEditor({
     extensions: [
@@ -193,6 +194,12 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     slashMenuRef.current = slashMenu
   }, [slashMenu])
+
+  useEffect(() => {
+    if (!slashMenuListRef.current || slashMenu === null) return
+    const el = slashMenuListRef.current.children[slashMenu.selected] as HTMLElement | undefined
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [slashMenu?.selected])
 
   useEffect(() => {
     if (!editor || !editable) return
@@ -382,6 +389,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1040px) 88px', gap: '14px', alignItems: 'start' }}>
       {slashMenu && (
         <div
+          ref={slashMenuListRef}
           style={{
             position: 'fixed',
             left: slashMenu.left,
