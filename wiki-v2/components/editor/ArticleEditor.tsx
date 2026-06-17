@@ -4,8 +4,10 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
+import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
-import ImageExt from '@tiptap/extension-image'
+import Underline from '@tiptap/extension-underline'
+import { ResizableImage, VideoNode } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -24,6 +26,53 @@ import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
 import { SectionExtension, sectionSel } from './SectionNode'
 
+const TEXT_STYLE_MARK = 'wikiTextStyle'
+
+const TextStyle = Mark.create({
+  name: TEXT_STYLE_MARK,
+  addAttributes() {
+    return {
+      fontFamily:      { default: null, parseHTML: el => el.style.fontFamily || null },
+      fontSize:        { default: null, parseHTML: el => el.style.fontSize || null },
+      color:           { default: null, parseHTML: el => el.style.color || null },
+      backgroundColor: { default: null, parseHTML: el => el.style.backgroundColor || null },
+    }
+  },
+  parseHTML() { return [{ tag: 'span[style]' }] },
+  renderHTML({ HTMLAttributes }) {
+    const { fontFamily, fontSize, color, backgroundColor, ...rest } = HTMLAttributes
+    const style = [
+      fontFamily      && `font-family:${fontFamily}`,
+      fontSize        && `font-size:${fontSize}`,
+      color           && `color:${color}`,
+      backgroundColor && `background-color:${backgroundColor}`,
+    ].filter(Boolean).join(';')
+    return ['span', mergeAttributes(rest, { style }), 0]
+  },
+})
+
+const FONT_FAMILIES = [
+  { label: 'Standard',   value: null },
+  { label: 'Arial',      value: 'Arial, sans-serif' },
+  { label: 'Georgia',    value: 'Georgia, serif' },
+  { label: 'Times',      value: '"Times New Roman", serif' },
+  { label: 'Monospace',  value: 'monospace' },
+]
+
+const FONT_SIZES = ['12px', '14px', '15px', '16px', '18px', '19px', '24px', '26px', '32px', '40px', '48px']
+
+const bBtn = (active: boolean, extra?: React.CSSProperties): React.CSSProperties => ({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  minWidth: 28, height: 26, padding: '4px 5px',
+  border: 'none', borderRadius: 5, cursor: 'pointer',
+  fontFamily: 'inherit', fontSize: 13,
+  fontWeight: active ? 700 : 400,
+  background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
+  color: '#e8e8f0',
+  transition: 'background 0.1s',
+  ...extra,
+})
+
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, markdown })
 
@@ -32,17 +81,18 @@ const ArticleDocument = Document.extend({
 })
 
 const ELEMENT_PALETTE = [
-  { key: 'paragraph', label: 'Textblock', icon: 'T' },
-  { key: 'h1', label: 'Titel', icon: 'H1' },
-  { key: 'h2', label: 'Ueberschrift', icon: 'H2' },
-  { key: 'h3', label: 'Untertitel', icon: 'H3' },
-  { key: 'blockquote', label: 'Zitat', icon: '"' },
-  { key: 'bulletList', label: 'Liste', icon: 'UL' },
-  { key: 'orderedList', label: 'Nummerierte Liste', icon: '1.' },
-  { key: 'table', label: 'Tabelle', icon: 'TB' },
-  { key: 'image', label: 'Bild', icon: 'IMG' },
-  { key: 'codeBlock', label: 'Codeblock', icon: '</>' },
-  { key: 'hr', label: 'Trennlinie', icon: '-' },
+  { key: 'paragraph',   label: 'Textblock',        icon: 'T'   },
+  { key: 'h1',          label: 'Titel',             icon: 'H1'  },
+  { key: 'h2',          label: 'Ueberschrift',      icon: 'H2'  },
+  { key: 'h3',          label: 'Untertitel',        icon: 'H3'  },
+  { key: 'blockquote',  label: 'Zitat',             icon: '"'   },
+  { key: 'bulletList',  label: 'Liste',             icon: 'UL'  },
+  { key: 'orderedList', label: 'Numm. Liste',       icon: '1.'  },
+  { key: 'table',       label: 'Tabelle',           icon: 'TB'  },
+  { key: 'image',       label: 'Bild',              icon: 'IMG' },
+  { key: 'video',       label: 'Video',             icon: '▶'   },
+  { key: 'codeBlock',   label: 'Codeblock',         icon: '</>' },
+  { key: 'hr',          label: 'Trennlinie',        icon: '-'   },
 ]
 
 const EMPTY_ARTICLE = {
@@ -100,13 +150,17 @@ function dispatchAddElement(key: string, targetPos?: number) {
 export default function ArticleEditor({ content, onChange, editable = true }: ArticleEditorProps) {
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
+  const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const lastInsertPosRef = useRef<number | null>(null)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
       ArticleDocument,
-      ImageExt,
+      TextStyle,
+      Underline,
+      ResizableImage,
+      VideoNode,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true, cellMinWidth: 80 }),
       TableRow,
@@ -284,6 +338,23 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
 
   const items = slashMenu ? slashItems(slashMenu.query) : []
 
+  const textStyleAttrs = editor.schema.marks[TEXT_STYLE_MARK]
+    ? editor.getAttributes(TEXT_STYLE_MARK)
+    : {}
+  const effectiveFontSize = (textStyleAttrs.fontSize as string | null)
+    ?? (editor.isActive('heading', { level: 1 }) ? '26px'
+      : editor.isActive('heading', { level: 2 }) ? '19px'
+        : editor.isActive('heading', { level: 3 }) ? '15px'
+          : '14px')
+  const setTextStyle = (attrs: Record<string, string | null>) => {
+    if (!editor.schema.marks[TEXT_STYLE_MARK]) return
+    editor.chain().focus().setMark(TEXT_STYLE_MARK, attrs).run()
+  }
+  const closeTextToolbar = () => {
+    editor.commands.setTextSelection(editor.state.selection.to)
+    editor.commands.blur()
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1040px) 88px', gap: '14px', alignItems: 'start' }}>
       {slashMenu && (
@@ -330,6 +401,111 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
             </button>
           ))}
         </div>
+      )}
+
+      {/* Text format toolbar — appears on selection */}
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          pluginKey="text-format-menu"
+          appendTo={() => document.body}
+          options={{ strategy: 'fixed', placement: 'top', offset: 10, flip: true, shift: { padding: 8 } }}
+          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to && !editor.isActive('tableCell') && !editor.isActive('tableHeader')}
+          style={{ zIndex: 100000 }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '2px', flexWrap: 'wrap',
+            maxWidth: 'min(720px, calc(100vw - 24px))',
+            background: '#1a1a2a', border: '1px solid #2e2e42', borderRadius: '8px',
+            padding: '4px 6px', boxShadow: '0 4px 20px rgba(0,0,0,0.35)', zIndex: 100000,
+          }}>
+            {/* Font family */}
+            <select
+              title="Schriftfamilie"
+              value={(textStyleAttrs.fontFamily as string | null) ?? ''}
+              onChange={e => setTextStyle({ fontFamily: e.target.value || null })}
+              style={{ ...bBtn(false), padding: '4px 6px', maxWidth: 112, background: '#242438', colorScheme: 'dark' }}
+            >
+              {FONT_FAMILIES.map(f => (
+                <option key={f.label} value={f.value ?? ''} style={{ background: '#242438', color: '#f4f4f8' }}>{f.label}</option>
+              ))}
+            </select>
+
+            {/* Font size */}
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'stretch', height: 26, background: '#242438', borderRadius: 5 }}>
+              <input
+                key={effectiveFontSize}
+                type="text"
+                inputMode="numeric"
+                defaultValue={parseFloat(effectiveFontSize)}
+                onFocus={e => e.currentTarget.select()}
+                onInput={e => {
+                  const size = Number(e.currentTarget.value)
+                  if (Number.isFinite(size) && size >= 6 && size <= 200) setTextStyle({ fontSize: `${size}px` })
+                }}
+                onBlur={e => {
+                  const size = Number(e.currentTarget.value)
+                  if (!Number.isFinite(size) || size < 6 || size > 200) e.currentTarget.value = String(parseFloat(effectiveFontSize))
+                }}
+                style={{ width: 34, padding: '4px 2px 4px 7px', border: 0, outline: 'none', background: 'transparent', color: '#e8e8f0', fontFamily: 'inherit', fontSize: 12 }}
+              />
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setFontSizeMenuOpen(o => !o)}
+                style={{ width: 22, padding: 0, border: 0, borderRadius: '0 5px 5px 0', background: 'transparent', color: '#a9a9b8', cursor: 'pointer', fontSize: 10 }}
+              >▼</button>
+              {fontSizeMenuOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100001, minWidth: '100%', maxHeight: 190, overflowY: 'auto', padding: 4, background: '#242438', border: '1px solid #3a3a50', borderRadius: 6, boxShadow: '0 6px 18px rgba(0,0,0,0.4)' }}>
+                  {FONT_SIZES.map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setTextStyle({ fontSize: size }); setFontSizeMenuOpen(false) }}
+                      style={{ display: 'block', width: '100%', padding: '5px 8px', border: 0, borderRadius: 4, background: size === effectiveFontSize ? 'rgba(255,255,255,0.16)' : 'transparent', color: '#f4f4f8', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12 }}
+                    >{parseFloat(size)}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Text color */}
+            <label title="Textfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              A
+              <input type="color" value={(textStyleAttrs.color as string | null) ?? '#111827'} onChange={e => setTextStyle({ color: e.target.value })} style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }} />
+            </label>
+
+            {/* Background color */}
+            <label title="Hintergrundfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3, background: (textStyleAttrs.backgroundColor as string | null) ?? 'transparent', color: (textStyleAttrs.color as string | null) ?? '#111827', fontWeight: 700, lineHeight: 1 }}>A</span>
+              <span style={{ position: 'relative', width: 18, height: 18, overflow: 'hidden', borderRadius: 3 }}>
+                <input type="color" value={(textStyleAttrs.backgroundColor as string | null) ?? '#fff59d'} onChange={e => setTextStyle({ backgroundColor: e.target.value })} style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }} />
+                {!textStyleAttrs.backgroundColor && <span style={{ position: 'absolute', left: -4, top: 8, width: 26, height: 2, background: '#ef4444', transform: 'rotate(-45deg)', pointerEvents: 'none' }} />}
+              </span>
+            </label>
+            <button title="Hintergrundfarbe entfernen" style={bBtn(false, { color: '#ef4444', padding: '4px 6px' })} onClick={() => setTextStyle({ backgroundColor: null })}>×</button>
+
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
+
+            {/* Basic formatting */}
+            <button style={bBtn(editor.isActive('bold'),      { fontWeight: 800 })}              onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+            <button style={bBtn(editor.isActive('italic'),    { fontStyle: 'italic' })}          onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+            <button style={bBtn(editor.isActive('underline'), { textDecoration: 'underline' })}  onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+            <button style={bBtn(editor.isActive('strike'),    { textDecoration: 'line-through' })} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+            <button style={bBtn(editor.isActive('code'),      { fontFamily: 'monospace' })}      onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
+
+            <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
+
+            {/* Block type */}
+            <button style={bBtn(editor.isActive('heading', { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+            <button style={bBtn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+            <button style={bBtn(editor.isActive('heading', { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+            <button style={bBtn(editor.isActive('paragraph'))} onClick={() => editor.chain().focus().setParagraph().run()}>Tx</button>
+
+            <button title="Schließen" style={bBtn(false)} onClick={closeTextToolbar}>×</button>
+          </div>
+        </BubbleMenu>
       )}
 
       {editable && (
