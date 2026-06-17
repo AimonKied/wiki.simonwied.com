@@ -4,6 +4,7 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import React from 'react'
+import { TextSelection } from '@tiptap/pm/state'
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
   const open = node.attrs.open !== false
@@ -16,6 +17,7 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
       >
         <button
           contentEditable={false}
+          onMouseDown={e => e.preventDefault()}
           onClick={() => updateAttributes({ open: !open })}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -58,12 +60,48 @@ export const ToggleExtension = Node.create({
     return [{ tag: 'div.wiki-toggle' }]
   },
 
+  // Enter in the last empty block of a toggle → exit the toggle
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state, view } = this.editor
+        const { $from, empty } = state.selection
+        if (!empty || $from.parent.textContent !== '') return false
+        if ($from.depth < 1 || $from.node($from.depth - 1).type.name !== 'toggle') return false
+
+        const toggleNode = $from.node($from.depth - 1)
+        const paraIndex = $from.index($from.depth - 1)
+        if (paraIndex !== toggleNode.childCount - 1) return false  // not the last block
+
+        const togglePos = $from.before($from.depth - 1)
+        const afterToggle = togglePos + toggleNode.nodeSize
+        const tr = state.tr
+
+        if (toggleNode.childCount > 1) {
+          // Remove the trailing empty paragraph from the toggle, insert one after
+          const paraStart = $from.before($from.depth)
+          const paraEnd = paraStart + $from.parent.nodeSize
+          tr.delete(paraStart, paraEnd)
+          const newAfter = afterToggle - $from.parent.nodeSize
+          tr.insert(newAfter, state.schema.nodes.paragraph.create())
+          tr.setSelection(TextSelection.near(tr.doc.resolve(newAfter + 1)))
+        } else {
+          // Toggle has only one block — keep it, insert paragraph after
+          tr.insert(afterToggle, state.schema.nodes.paragraph.create())
+          tr.setSelection(TextSelection.near(tr.doc.resolve(afterToggle + 1)))
+        }
+
+        view.dispatch(tr.scrollIntoView())
+        return true
+      },
+    }
+  },
+
   addNodeView() {
     return ReactNodeViewRenderer(ToggleView)
   },
 })
 
-// JSON factory for SectionNode.addElement
 export function toggleJSON(size: 'default' | 'h1' | 'h2' | 'h3') {
   const firstBlock =
     size === 'h1' ? { type: 'heading', attrs: { level: 1 } } :
