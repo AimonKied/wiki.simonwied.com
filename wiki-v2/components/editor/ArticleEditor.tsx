@@ -6,7 +6,6 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
-import Underline from '@tiptap/extension-underline'
 import { ResizableImage, VideoNode } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
@@ -165,7 +164,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
       ArticleDocument,
       TextStyle,
-      Underline,
       ResizableImage,
       VideoNode,
       CodeBlockLowlight.configure({ lowlight }),
