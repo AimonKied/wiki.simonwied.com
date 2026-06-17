@@ -24,13 +24,12 @@ export function createLineElement(editor: TiptapEditor, key: string, content: Fr
   }
   if (key === 'toggle' || key === 'toggleH1' || key === 'toggleH2' || key === 'toggleH3') {
     if (!schema.nodes.toggle) return null
-    const size = key === 'toggleH1' ? 'h1' : key === 'toggleH2' ? 'h2' : key === 'toggleH3' ? 'h3' : 'default'
-    let summaryText = ''
-    content.forEach(n => { if (n.isText) summaryText += n.text ?? '' })
-    return schema.nodes.toggle.create(
-      { open: true, size, summary: summaryText },
-      [schema.nodes.paragraph.create()],
-    )
+    const titleBlock =
+      key === 'toggleH1' ? schema.nodes.heading.create({ level: 1 }, content) :
+      key === 'toggleH2' ? schema.nodes.heading.create({ level: 2 }, content) :
+      key === 'toggleH3' ? schema.nodes.heading.create({ level: 3 }, content) :
+      schema.nodes.paragraph.create(null, content)
+    return schema.nodes.toggle.create({ open: true }, [titleBlock])
   }
   return null
 }

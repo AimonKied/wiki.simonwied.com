@@ -3,103 +3,32 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 
-type ToggleSize = 'default' | 'h1' | 'h2' | 'h3'
-
-const SIZE_STYLE: Record<ToggleSize, React.CSSProperties> = {
-  default: { fontSize: '1em',    fontWeight: 500 },
-  h1:      { fontSize: '1.8em',  fontWeight: 700, lineHeight: 1.2 },
-  h2:      { fontSize: '1.4em',  fontWeight: 600, lineHeight: 1.3 },
-  h3:      { fontSize: '1.15em', fontWeight: 600, lineHeight: 1.4 },
-}
-
-function ToggleView({ node, updateAttributes, editor }: NodeViewProps) {
+function ToggleView({ node, updateAttributes }: NodeViewProps) {
   const open = node.attrs.open !== false
-  const size: ToggleSize = node.attrs.size ?? 'default'
-  const summaryRef = useRef<HTMLDivElement>(null)
-
-  // Sync attr → DOM without React re-render conflicts
-  useEffect(() => {
-    const el = summaryRef.current
-    if (!el) return
-    if (el.textContent !== (node.attrs.summary ?? '')) {
-      el.textContent = node.attrs.summary ?? ''
-    }
-  }, [node.attrs.summary])
-
-  const handleSummaryInput = () => {
-    updateAttributes({ summary: summaryRef.current?.textContent ?? '' })
-  }
-
-  const handleSummaryKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      // Open toggle and move focus to the body content
-      if (!open) updateAttributes({ open: true })
-      const editorEl = (editor.view.dom as HTMLElement)
-      // Find the NodeViewContent div inside this node view and focus it
-      const wrapper = summaryRef.current?.closest('[data-node-view-wrapper]')
-      const bodyContent = wrapper?.querySelector('.wiki-toggle-body [contenteditable]') as HTMLElement | null
-      bodyContent?.focus()
-    }
-  }
-
-  const btnFontSize = size === 'h1' ? '0.55em' : size === 'h2' ? '0.6em' : '0.65em'
-
   return (
     <NodeViewWrapper>
       <div
         className="wiki-toggle"
         data-open={open ? 'true' : 'false'}
-        style={{ margin: '2px 0' }}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', margin: '2px 0' }}
       >
-        {/* Summary row */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', userSelect: 'none' }}>
-          <button
-            contentEditable={false}
-            onClick={() => updateAttributes({ open: !open })}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '0 2px', color: 'var(--muted)', lineHeight: 1,
-              fontSize: btnFontSize,
-              transform: open ? 'rotate(90deg)' : 'none',
-              transition: 'transform 0.15s',
-              flexShrink: 0,
-            }}
-          >
-            ▶
-          </button>
-          <div
-            ref={summaryRef}
-            contentEditable={editor.isEditable}
-            suppressContentEditableWarning
-            onInput={handleSummaryInput}
-            onKeyDown={handleSummaryKeyDown}
-            style={{
-              ...SIZE_STYLE[size],
-              flex: 1,
-              outline: 'none',
-              cursor: 'text',
-              minWidth: '1px',
-            }}
-            data-placeholder="Toggle..."
-          />
-        </div>
-
-        {/* Collapsible body */}
-        <div
-          className="wiki-toggle-body"
+        <button
+          contentEditable={false}
+          onClick={() => updateAttributes({ open: !open })}
           style={{
-            paddingLeft: '18px',
-            borderLeft: '2px solid var(--border)',
-            marginLeft: '9px',
-            marginTop: '2px',
-            paddingTop: '2px',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '0 2px', color: 'var(--muted)', lineHeight: 1,
+            fontSize: '0.65em', marginTop: '5px',
+            transform: open ? 'rotate(90deg)' : 'none',
+            transition: 'transform 0.15s',
+            flexShrink: 0, userSelect: 'none',
           }}
         >
-          <NodeViewContent />
-        </div>
+          ▶
+        </button>
+        <NodeViewContent className="wiki-toggle-content" style={{ flex: 1, minWidth: 0 }} />
       </div>
     </NodeViewWrapper>
   )
@@ -113,19 +42,16 @@ export const ToggleExtension = Node.create({
 
   addAttributes() {
     return {
-      open:    { default: true,      parseHTML: el => el.getAttribute('data-open') !== 'false', renderHTML: attrs => ({ 'data-open': attrs.open ? 'true' : 'false' }) },
-      summary: { default: '',        parseHTML: el => el.querySelector('.wiki-toggle-summary')?.textContent ?? '', renderHTML: () => ({}) },
-      size:    { default: 'default', parseHTML: el => el.getAttribute('data-size') ?? 'default', renderHTML: attrs => ({ 'data-size': attrs.size }) },
+      open: {
+        default: true,
+        parseHTML: el => el.getAttribute('data-open') !== 'false',
+        renderHTML: attrs => ({ 'data-open': attrs.open ? 'true' : 'false' }),
+      },
     }
   },
 
-  renderHTML({ HTMLAttributes, node }) {
-    return [
-      'div',
-      mergeAttributes(HTMLAttributes, { class: 'wiki-toggle' }),
-      ['div', { class: 'wiki-toggle-summary' }, node.attrs.summary ?? ''],
-      ['div', { class: 'wiki-toggle-body' }, 0],
-    ]
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { class: 'wiki-toggle' }), 0]
   },
 
   parseHTML() {
@@ -137,11 +63,16 @@ export const ToggleExtension = Node.create({
   },
 })
 
-// JSON factory for addElement in SectionNode
-export function toggleJSON(size: ToggleSize) {
+// JSON factory for SectionNode.addElement
+export function toggleJSON(size: 'default' | 'h1' | 'h2' | 'h3') {
+  const firstBlock =
+    size === 'h1' ? { type: 'heading', attrs: { level: 1 } } :
+    size === 'h2' ? { type: 'heading', attrs: { level: 2 } } :
+    size === 'h3' ? { type: 'heading', attrs: { level: 3 } } :
+    { type: 'paragraph' }
   return {
     type: 'toggle',
-    attrs: { open: true, size, summary: '' },
-    content: [{ type: 'paragraph' }],
+    attrs: { open: true },
+    content: [firstBlock],
   }
 }
