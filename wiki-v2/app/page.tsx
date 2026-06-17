@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Link from 'next/link'
+import type { Category } from '@/lib/types'
 
 const contentTypes = [
   {
@@ -21,24 +22,15 @@ const contentTypes = [
   },
 ]
 
-const categories = [
-  { slug: 'rezepte', label: 'Rezepte', color: '#bb7700' },
-  { slug: 'security', label: 'Security', color: '#ff4466' },
-  { slug: 'development', label: 'Development', color: '#f05033' },
-  { slug: 'ressourcen', label: 'Ressourcen', color: '#7c3aed' },
-]
-
-const publicItems = [
-  { title: 'Linsen mit Spaetzle', href: '/notes/linsen-mit-spaetzle', category: 'rezepte', type: 'article', description: 'Rezept aus dem alten Wiki.' },
-  { title: 'Butter Chicken', href: '/notes/buttermilk-chicken', category: 'rezepte', type: 'article', description: 'Kochnotiz mit Zutaten und Ablauf.' },
-  { title: 'Spanische Kroketten', href: '/notes/croquetas', category: 'rezepte', type: 'article', description: 'Rezept und Varianten.' },
-  { title: 'Web Hacking', href: '/notes/web-hacking', category: 'security', type: 'article', description: 'Oeffentliche Security-Notizen.' },
-  { title: 'CyberTools', href: '/notes/cybertools', category: 'security', type: 'article', description: 'Tool-Sammlung und Referenzen.' },
-  { title: 'Git Commands', href: '/notes/git-commands', category: 'development', type: 'article', description: 'Git-Spickzettel fuer den Alltag.' },
-]
-
-function categoryBySlug(slug: string) {
-  return categories.find(category => category.slug === slug)
+type PublicNote = {
+  id: string
+  title: string
+  emoji: string | null
+  description: string | null
+  slug: string | null
+  content_type: string
+  updated_at: string
+  categories: Category[]
 }
 
 export default async function HomePage({
@@ -51,9 +43,39 @@ export default async function HomePage({
   const params = await searchParams
   const activeCategory = params?.category
   const activeType = params?.type
-  const filteredItems = publicItems.filter(item =>
-    (!activeCategory || item.category === activeCategory) &&
-    (!activeType || item.type === activeType)
+
+  // Load categories and public notes in parallel
+  const [catsRes, notesRes] = await Promise.all([
+    supabase.from('categories').select('*').order('title'),
+    supabase
+      .from('notes')
+      .select(`
+        id, title, emoji, description, slug, content_type, updated_at,
+        note_categories(category_id, categories(id, slug, title, color))
+      `)
+      .eq('is_public', true)
+      .order('updated_at', { ascending: false }),
+  ])
+
+  const categories: Category[] = (catsRes.data ?? []) as Category[]
+
+  // Flatten the nested Supabase join result into a clean shape
+  const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => ({
+    id: n.id as string,
+    title: n.title as string,
+    emoji: n.emoji as string | null,
+    description: n.description as string | null,
+    slug: n.slug as string | null,
+    content_type: n.content_type as string,
+    updated_at: n.updated_at as string,
+    categories: ((n.note_categories as Array<{ categories: Category | null }>) ?? [])
+      .map(nc => nc.categories)
+      .filter((c): c is Category => c !== null),
+  }))
+
+  const filteredNotes = allPublicNotes.filter(note =>
+    (!activeCategory || note.categories.some(c => c.slug === activeCategory)) &&
+    (!activeType || note.content_type === activeType)
   )
 
   return (
@@ -136,8 +158,8 @@ export default async function HomePage({
                     textDecoration: 'none',
                   }}
                 >
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: category.color, display: 'inline-block' }} />
-                  {category.label}
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: category.color ?? 'var(--muted)', display: 'inline-block' }} />
+                  {category.title}
                 </Link>
               ))}
             </div>
@@ -166,42 +188,56 @@ export default async function HomePage({
 
         <section id="oeffentlich" style={{ maxWidth: '980px' }}>
           <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
-            Oeffentliche Inhalte ({filteredItems.length})
+            Oeffentliche Inhalte ({filteredNotes.length})
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
-            {filteredItems.map(item => {
-              const category = categoryBySlug(item.category)
-              const type = contentTypes.find(entry => entry.key === item.type)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  style={{
-                    display: 'block',
-                    minHeight: '118px',
-                    padding: '16px 18px',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    color: 'var(--text)',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '11px', color: 'var(--muted)' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: category?.color ?? 'var(--muted)', display: 'inline-block' }} />
-                    <span>{category?.label ?? item.category}</span>
-                    <span>/</span>
-                    <span>{type?.title ?? item.type}</span>
-                  </div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>{item.title}</div>
-                  <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
-                    {item.description}
-                  </p>
-                </Link>
-              )
-            })}
-          </div>
+          {filteredNotes.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Keine Inhalte gefunden.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+              {filteredNotes.map(note => {
+                const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
+                const type = contentTypes.find(t => t.key === note.content_type)
+                return (
+                  <Link
+                    key={note.id}
+                    href={href}
+                    style={{
+                      display: 'block',
+                      minHeight: '118px',
+                      padding: '16px 18px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: 'var(--text)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', fontSize: '11px', color: 'var(--muted)', flexWrap: 'wrap' }}>
+                      {note.categories.map((cat, i) => (
+                        <span key={cat.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          {i > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: cat.color ?? 'var(--muted)', display: 'inline-block' }} />
+                          {cat.title}
+                        </span>
+                      ))}
+                      {note.categories.length > 0 && <span style={{ color: 'var(--border)' }}>/</span>}
+                      <span>{type?.title ?? note.content_type}</span>
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>
+                      {note.emoji && <span style={{ marginRight: '6px' }}>{note.emoji}</span>}
+                      {note.title}
+                    </div>
+                    {note.description && (
+                      <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
+                        {note.description}
+                      </p>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </section>
       </main>
     </div>

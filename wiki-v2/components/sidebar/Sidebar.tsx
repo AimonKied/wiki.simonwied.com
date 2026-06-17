@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import type { Note } from '@/lib/types'
 
 const primaryNav = [
   { label: 'Startseite', href: '/', color: '#009955' },
@@ -66,7 +67,49 @@ function SidebarSection({
   )
 }
 
-export default function Sidebar({ isLoggedIn }: { isLoggedIn: boolean }) {
+function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
+  if (!notes.length) return null
+  return (
+    <div style={{ padding: '0 12px', marginBottom: '10px' }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
+        Meine Notizen
+      </div>
+      {notes.map(note => {
+        const href = `/notes/${note.id}/edit`
+        const isActive = pathname === href
+        return (
+          <Link
+            key={note.id}
+            href={href}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: isActive ? 'var(--text)' : 'var(--muted)',
+              background: isActive ? 'var(--surface2)' : 'transparent',
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+              overflow: 'hidden',
+            }}
+          >
+            <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? (note.content_type === 'article' ? '📄' : '🗂️')}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {note.title}
+            </span>
+            {note.is_public && (
+              <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--accent)', fontWeight: 700 }}>O</span>
+            )}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; notes?: Note[] }) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -107,6 +150,9 @@ export default function Sidebar({ isLoggedIn }: { isLoggedIn: boolean }) {
           <>
             <SidebarSection title="Erstellen" items={creationNav} pathname={pathname} />
             <SidebarSection title="Privat" items={[{ label: 'Dashboard', href: '/dashboard', color: '#009955' }]} pathname={pathname} />
+            {notes && notes.length > 0 && (
+              <NotesList notes={notes} pathname={pathname} />
+            )}
           </>
         )}
         <SidebarSection title="Kategorien" items={categoryNav} pathname={pathname} />

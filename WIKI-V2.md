@@ -176,17 +176,22 @@ Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constrai
 
 ### Als Naechstes
 
-- [ ] Supabase-Migration fuer `content_type`, `categories`, `note_categories`
-- [ ] New-Note-Flow: Auswahl zwischen Artikel und Workspace speichern
-- [ ] Artikel-Editor/Artikel-Layout wie v1 ohne Canvas-Chrome
-- [ ] Kategorie-Pflicht bei oeffentlichen Inhalten
-- [ ] Kategorie-Auswahl im Edit-Screen
-- [ ] Homepage aus echten oeffentlichen DB-Inhalten laden statt statischer Platzhalter
-- [ ] Kategorie-Seiten oder Query-Filter fuer echte Daten
-- [ ] Sidebar zeigt echte private und oeffentliche Inhalte dynamisch
-- [ ] Slug aus Titel vorschlagen
-- [ ] `updated_at` Trigger in Supabase
-- [ ] 404-Seite fuer nicht existierende Notizen
+- [ ] Migration bestehender v1-Inhalte in die DB (Artikel anlegen, Inhalt einfuegen)
+
+### Erledigt (Runde 2)
+
+- Supabase-Migration SQL erstellt (`supabase/migration.sql`): `content_type`, `categories`, `note_categories`, `updated_at`-Trigger, RLS-Policies
+- `content_type` beim Erstellen neuer Notizen in DB gespeichert
+- `content_type` im Edit-Screen aus DB geladen (kein Heuristik-Hack mehr)
+- Kategorie-Auswahl im Edit-Screen (Pills, Mehrfachauswahl)
+- Kategorie-Pflicht bei oeffentlichen Inhalten (Validierung vor dem Speichern)
+- Slug wird automatisch aus dem Titel vorgeschlagen; manuelle Bearbeitung moglich
+- Homepage laedt oeffentliche Inhalte aus der DB (mit Kategorien via Join)
+- Kategorie- und Typfilter auf der Homepage funktionieren mit echten Daten
+- Sidebar zeigt die letzten 30 Notizen des eingeloggten Nutzers dynamisch
+- 404-Seite fuer nicht existierende oeffentliche Notizen (`not-found.tsx`)
+- Oeffentliche Notiz-Ansicht und Dashboard nutzen `content_type` aus DB direkt
+- Artikel-Editor hat dasselbe Text-Format-BubbleMenu wie der Canvas-Editor (Schriftart, -groesse, Farbe, Hintergrundfarbe, B/I/U/S/Code, H1/H2/H3/Tx)
 
 ---
 
