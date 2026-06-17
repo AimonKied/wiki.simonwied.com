@@ -26,7 +26,7 @@ import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
-import { ToggleExtension, ToggleSummaryExtension, ToggleContentExtension } from './ToggleNode'
+import { ToggleExtension } from './ToggleNode'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
 
@@ -174,8 +174,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TableCell,
       SectionExtension,
       ToggleExtension,
-      ToggleSummaryExtension,
-      ToggleContentExtension,
     ],
     content: normalizeArticleContent(content),
     editable,

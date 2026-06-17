@@ -28,7 +28,7 @@ import rust from 'highlight.js/lib/languages/rust'
 import java from 'highlight.js/lib/languages/java'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { SectionExtension, sectionSel } from './SectionNode'
-import { ToggleExtension, ToggleSummaryExtension, ToggleContentExtension } from './ToggleNode'
+import { ToggleExtension } from './ToggleNode'
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
@@ -771,8 +771,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       TableCell,
       SectionExtension,
       ToggleExtension,
-      ToggleSummaryExtension,
-      ToggleContentExtension,
     ],
     content: initialContent || {
       type: 'doc',

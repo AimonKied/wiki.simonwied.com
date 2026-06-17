@@ -52,3 +52,8 @@ body::before {
 
 /* Toggle element */
 .wiki-toggle[data-open="false"] .wiki-toggle-body { display: none; }
+.wiki-toggle [data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
