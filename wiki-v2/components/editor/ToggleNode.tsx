@@ -3,11 +3,24 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { TextSelection } from '@tiptap/pm/state'
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
-  const open = node.attrs.open !== false
+  const [open, setOpen] = useState(() => node.attrs.open !== false)
+
+  // Sync with node attrs on undo/redo
+  useEffect(() => {
+    setOpen(node.attrs.open !== false)
+  }, [node.attrs.open])
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const newOpen = !open
+    setOpen(newOpen)
+    updateAttributes({ open: newOpen })
+  }
+
   return (
     <NodeViewWrapper>
       <div
@@ -17,8 +30,7 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
       >
         <button
           contentEditable={false}
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => updateAttributes({ open: !open })}
+          onMouseDown={handleToggle}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '0 2px', color: 'var(--muted)', lineHeight: 1,
@@ -71,14 +83,13 @@ export const ToggleExtension = Node.create({
 
         const toggleNode = $from.node($from.depth - 1)
         const paraIndex = $from.index($from.depth - 1)
-        if (paraIndex !== toggleNode.childCount - 1) return false  // not the last block
+        if (paraIndex !== toggleNode.childCount - 1) return false
 
         const togglePos = $from.before($from.depth - 1)
         const afterToggle = togglePos + toggleNode.nodeSize
         const tr = state.tr
 
         if (toggleNode.childCount > 1) {
-          // Remove the trailing empty paragraph from the toggle, insert one after
           const paraStart = $from.before($from.depth)
           const paraEnd = paraStart + $from.parent.nodeSize
           tr.delete(paraStart, paraEnd)
@@ -86,7 +97,6 @@ export const ToggleExtension = Node.create({
           tr.insert(newAfter, state.schema.nodes.paragraph.create())
           tr.setSelection(TextSelection.near(tr.doc.resolve(newAfter + 1)))
         } else {
-          // Toggle has only one block — keep it, insert paragraph after
           tr.insert(afterToggle, state.schema.nodes.paragraph.create())
           tr.setSelection(TextSelection.near(tr.doc.resolve(afterToggle + 1)))
         }
