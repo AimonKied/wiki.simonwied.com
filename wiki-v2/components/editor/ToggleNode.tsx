@@ -1,52 +1,9 @@
 'use client'
 
 import { Node, mergeAttributes } from '@tiptap/core'
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
-import type { NodeViewProps } from '@tiptap/react'
-import React, { useState, useEffect } from 'react'
+import type { NodeViewRendererProps } from '@tiptap/core'
+import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
-
-function ToggleView({ node, updateAttributes }: NodeViewProps) {
-  const [open, setOpen] = useState(() => node.attrs.open !== false)
-
-  // Sync with node attrs on undo/redo
-  useEffect(() => {
-    setOpen(node.attrs.open !== false)
-  }, [node.attrs.open])
-
-  const handleToggle = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const newOpen = !open
-    setOpen(newOpen)
-    updateAttributes({ open: newOpen })
-  }
-
-  return (
-    <NodeViewWrapper>
-      <div
-        className="wiki-toggle"
-        data-open={open ? 'true' : 'false'}
-        style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', margin: '2px 0' }}
-      >
-        <button
-          contentEditable={false}
-          onMouseDown={handleToggle}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '0 2px', color: 'var(--muted)', lineHeight: 1,
-            fontSize: '0.65em', marginTop: '5px',
-            transform: open ? 'rotate(90deg)' : 'none',
-            transition: 'transform 0.15s',
-            flexShrink: 0, userSelect: 'none',
-          }}
-        >
-          ▶
-        </button>
-        <NodeViewContent className="wiki-toggle-content" style={{ flex: 1, minWidth: 0 }} />
-      </div>
-    </NodeViewWrapper>
-  )
-}
 
 export const ToggleExtension = Node.create({
   name: 'toggle',
@@ -72,7 +29,7 @@ export const ToggleExtension = Node.create({
     return [{ tag: 'div.wiki-toggle' }]
   },
 
-  // Enter in the last empty block of a toggle → exit the toggle
+  // Enter in the last empty block of a toggle → insert paragraph after the toggle
   addKeyboardShortcuts() {
     return {
       Enter: () => {
@@ -108,7 +65,76 @@ export const ToggleExtension = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(ToggleView)
+    return ({ node: initialNode, getPos, view }: NodeViewRendererProps) => {
+      let currentNode = initialNode as PMNode
+
+      // Outer wrapper
+      const dom = document.createElement('div')
+      dom.className = 'wiki-toggle'
+      dom.setAttribute('data-open', currentNode.attrs.open !== false ? 'true' : 'false')
+      dom.style.margin = '2px 0'
+
+      // Flex row: button + content
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:4px;'
+
+      // Toggle button — native listener, no React events
+      const btn = document.createElement('button')
+      btn.setAttribute('contenteditable', 'false')
+      btn.textContent = '▶'
+      btn.style.cssText = [
+        'background:none', 'border:none', 'cursor:pointer',
+        'padding:0 2px', 'color:var(--muted)', 'line-height:1',
+        'font-size:0.65em', 'margin-top:5px', 'flex-shrink:0',
+        'user-select:none', 'transition:transform 0.15s',
+        'transform:' + (currentNode.attrs.open !== false ? 'rotate(90deg)' : 'none'),
+      ].join(';')
+
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault()
+        const isOpen = dom.getAttribute('data-open') !== 'false'
+        const newOpen = !isOpen
+        dom.setAttribute('data-open', newOpen ? 'true' : 'false')
+        btn.style.transform = newOpen ? 'rotate(90deg)' : 'none'
+        if (typeof getPos === 'function') {
+          const pos = getPos()
+          if (pos !== undefined) {
+            view.dispatch(view.state.tr.setNodeMarkup(pos, null, {
+              ...currentNode.attrs,
+              open: newOpen,
+            }))
+          }
+        }
+      })
+
+      // ContentDOM — ProseMirror manages the toggle's blocks here
+      const content = document.createElement('div')
+      content.className = 'wiki-toggle-content'
+      content.style.cssText = 'flex:1;min-width:0;'
+
+      row.appendChild(btn)
+      row.appendChild(content)
+      dom.appendChild(row)
+
+      return {
+        dom,
+        contentDOM: content,
+
+        update(updatedNode: PMNode) {
+          if (updatedNode.type !== currentNode.type) return false
+          currentNode = updatedNode
+          const open = updatedNode.attrs.open !== false
+          dom.setAttribute('data-open', open ? 'true' : 'false')
+          btn.style.transform = open ? 'rotate(90deg)' : 'none'
+          return true
+        },
+
+        // Tell ProseMirror not to handle events on the toggle button
+        stopEvent(event: Event) {
+          return event.target === btn
+        },
+      }
+    }
   },
 })
 
