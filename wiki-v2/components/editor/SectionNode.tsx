@@ -2113,19 +2113,15 @@ export const SectionExtension = Node.create({
       Enter: () => {
         const { $from } = this.editor.state.selection
         const parentType = $from.parent.type.name
-        let sectionDepth = -1
-        for (let depth = $from.depth - 1; depth >= 0; depth--) {
-          if ($from.node(depth).type.name === 'section') {
-            sectionDepth = depth
-            break
-          }
-        }
+        // Only intercept Enter when the cursor's textblock is a DIRECT child of a
+        // section — not when it's nested inside a toggle, blockquote, list, etc.
+        const immediateContainer = $from.depth > 0 ? $from.node($from.depth - 1) : null
 
         if (
           !$from.parent.isTextblock ||
           parentType === 'codeBlock' ||
-          sectionDepth < 0 ||
-          $from.node(sectionDepth).type.name !== 'section'
+          !immediateContainer ||
+          immediateContainer.type.name !== 'section'
         ) return false
 
         if (!this.editor.commands.setHardBreak()) return false
