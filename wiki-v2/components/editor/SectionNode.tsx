@@ -6,7 +6,8 @@ import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap
 import type { NodeViewProps } from '@tiptap/react'
 import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { useId, useState, useRef, useEffect } from 'react'
+import { useId, useState, useRef, useEffect, useCallback } from 'react'
+import { uploadMedia } from '@/lib/supabase/storage'
 
 // ── Module-level section selection store ──────────────────────────────────────
 const _selSet = new Set<string>()
@@ -334,10 +335,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [resizing, setResizing] = useState(false)
   const [activeResizeDir, setActiveResizeDir] = useState<string | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
-  const [imageMode, setImageMode] = useState(false)
+  const [mediaMode, setMediaMode] = useState<'image' | 'video' | null>(null)
   const [elementDropTarget, setElementDropTarget] = useState(false)
-  const [imageUrl, setImageUrl] = useState('')
-  const imageInsertPosRef = useRef<number | null>(null)
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaUploading, setMediaUploading] = useState(false)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const mediaInsertPosRef = useRef<number | null>(null)
+  const mediaFileInputRef = useRef<HTMLInputElement | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragRefState | null>(null)
   const ghostRef = useRef<HTMLElement | null>(null)
@@ -1576,9 +1580,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const freshNode = editor.state.doc.nodeAt(sectionPos)
     if (!freshNode) return
     const elementInsertPos = sectionChildBoundaryFor(sectionPos, freshNode, requestedInsertPos)
-    if (key === 'image') {
-      imageInsertPosRef.current = elementInsertPos
-      setImageMode(true)
+    if (key === 'image' || key === 'video') {
+      mediaInsertPosRef.current = elementInsertPos
+      setMediaMode(key)
       return
     }
     if (key === 'hr') {
@@ -1638,23 +1642,50 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (key) addElement(key, dropPos)
   }
 
-  function insertImage() {
-    if (!editor || !imageUrl.trim() || typeof getPos !== 'function') return
+  function resolveMediaInsertPos() {
+    if (!editor || typeof getPos !== 'function') return null
     const sectionPos = getPos()
-    if (sectionPos === undefined) return
+    if (sectionPos === undefined) return null
     const freshNode = editor.state.doc.nodeAt(sectionPos)
     const sectionEnd = freshNode ? sectionPos + freshNode.nodeSize - 1 : sectionPos + node.nodeSize - 1
-    const requestedInsertPos = imageInsertPosRef.current
-    const insertPos = typeof requestedInsertPos === 'number' && requestedInsertPos > sectionPos && requestedInsertPos < sectionEnd
-      ? requestedInsertPos
-      : sectionEnd
-    editor.chain().focus()
-      .insertContentAt(insertPos, { type: 'image', attrs: { src: imageUrl.trim() } })
-      .run()
-    imageInsertPosRef.current = null
-    setImageUrl('')
-    setImageMode(false)
+    const req = mediaInsertPosRef.current
+    return typeof req === 'number' && req > sectionPos && req < sectionEnd ? req : sectionEnd
   }
+
+  function insertMediaFromUrl() {
+    if (!editor || !mediaUrl.trim()) return
+    const insertPos = resolveMediaInsertPos()
+    if (insertPos === null) return
+    const type = mediaMode === 'video' ? 'video' : 'image'
+    editor.chain().focus()
+      .insertContentAt(insertPos, { type, attrs: { src: mediaUrl.trim(), align: 'center' } })
+      .run()
+    mediaInsertPosRef.current = null
+    setMediaUrl('')
+    setMediaMode(null)
+  }
+
+  const handleMediaFileUpload = useCallback(async (file: File) => {
+    setMediaError(null)
+    setMediaUploading(true)
+    try {
+      const { uploadMedia: upload } = await import('@/lib/supabase/storage')
+      const url = await upload(file)
+      const insertPos = resolveMediaInsertPos()
+      if (insertPos === null || !editor) return
+      const type = mediaMode === 'video' ? 'video' : 'image'
+      editor.chain().focus()
+        .insertContentAt(insertPos, { type, attrs: { src: url, align: 'center' } })
+        .run()
+      mediaInsertPosRef.current = null
+      setMediaMode(null)
+    } catch (err) {
+      setMediaError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
+    } finally {
+      setMediaUploading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, mediaMode])
 
   const editable = editor.isEditable
 
@@ -1726,7 +1757,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         top: isCanvasBlock ? `${canvasY}px` : undefined,
         width: canvasW !== null ? `${canvasW}px` : (isCanvasBlock ? 'fit-content' : undefined),
         height: canvasH !== null ? `${canvasH}px` : undefined,
-        zIndex: imageMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
+        zIndex: mediaMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
       }}
     >
       <div
@@ -2019,17 +2050,37 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           }}
         />
 
-        {editable && imageMode && (
-          <div style={{ display: 'flex', gap: '6px', marginTop: '12px', flexShrink: 0 }}>
+        {editable && mediaMode && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', flexShrink: 0 }}>
+            {/* Hidden file input */}
             <input
-              autoFocus value={imageUrl}
-              onChange={e => setImageUrl(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') insertImage(); if (e.key === 'Escape') { imageInsertPosRef.current = null; setImageMode(false) } }}
-              placeholder="https://..."
-              style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
+              ref={mediaFileInputRef}
+              type="file"
+              accept={mediaMode === 'video' ? 'video/mp4,video/webm,video/quicktime,video/ogg' : 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml'}
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFileUpload(f); e.target.value = '' }}
             />
-            <button onClick={insertImage} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
-            <button onClick={() => setImageMode(false)} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                autoFocus
+                value={mediaUrl}
+                onChange={e => setMediaUrl(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setMediaMode(null) } }}
+                placeholder={mediaMode === 'video' ? 'https://… oder Datei wählen' : 'https://… oder Datei wählen'}
+                style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
+              />
+              <button
+                onClick={() => mediaFileInputRef.current?.click()}
+                disabled={mediaUploading}
+                title="Vom Gerät hochladen"
+                style={{ padding: '6px 10px', background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {mediaUploading ? '…' : '↑ Hochladen'}
+              </button>
+              <button onClick={insertMediaFromUrl} disabled={!mediaUrl.trim()} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
+              <button onClick={() => { mediaInsertPosRef.current = null; setMediaMode(null); setMediaError(null) }} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
+            </div>
+            {mediaError && <div style={{ fontSize: '11px', color: '#ef4444' }}>{mediaError}</div>}
           </div>
         )}
       </div>

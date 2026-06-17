@@ -10,7 +10,7 @@ import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
 import Document from '@tiptap/extension-document'
-import ImageExt from '@tiptap/extension-image'
+import { ResizableImage, VideoNode } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -90,7 +90,8 @@ const ELEMENT_PALETTE = [
   { key: 'blockquote',  label: 'Zitat',         icon: '"',   description: 'Hervorgehobenes Zitat' },
   { key: 'hr',          label: 'Trennlinie',    icon: '—',   description: 'Horizontale Linie' },
   { key: 'table',       label: 'Tabelle',       icon: '⊞',   description: 'Tabelle mit 3 × 3 Zellen' },
-  { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL' },
+  { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL oder Datei' },
+  { key: 'video',       label: 'Video',         icon: '▶',   description: 'Video hochladen oder URL' },
 ]
 
 interface SlashMenuState {
@@ -830,7 +831,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       }),
       SectionDocument,
       TextStyle,
-      ImageExt,
+      ResizableImage,
+      VideoNode,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true }),
       TableRow,
