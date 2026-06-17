@@ -49,3 +49,6 @@ body::before {
 }
 
 @view-transition { navigation: auto; }
+
+/* Toggle element */
+.wiki-toggle[data-open="false"] .wiki-toggle-body { display: none; }

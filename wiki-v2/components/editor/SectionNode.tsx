@@ -8,6 +8,7 @@ import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { useId, useState, useRef, useEffect, useCallback } from 'react'
 import { uploadMedia } from '@/lib/supabase/storage'
+import { toggleJSON } from './ToggleNode'
 
 // ── Module-level section selection store ──────────────────────────────────────
 const _selSet = new Set<string>()
@@ -1602,6 +1603,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       orderedList: { type: 'orderedList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
       codeBlock:   { type: 'codeBlock',   attrs: { language: null } },
       blockquote:  { type: 'blockquote',  content: [{ type: 'paragraph' }] },
+      toggle:      toggleJSON('default'),
+      toggleH1:    toggleJSON('h1'),
+      toggleH2:    toggleJSON('h2'),
+      toggleH3:    toggleJSON('h3'),
     }
     const n = nodes[key]
     if (n) editor.chain().focus().insertContentAt(elementInsertPos, n).run()

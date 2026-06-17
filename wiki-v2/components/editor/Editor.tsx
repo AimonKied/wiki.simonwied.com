@@ -28,6 +28,7 @@ import rust from 'highlight.js/lib/languages/rust'
 import java from 'highlight.js/lib/languages/java'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { SectionExtension, sectionSel } from './SectionNode'
+import { ToggleExtension, ToggleSummaryExtension, ToggleContentExtension } from './ToggleNode'
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
@@ -90,6 +91,10 @@ const ELEMENT_PALETTE = [
   { key: 'table',       label: 'Tabelle',       icon: '⊞',   description: 'Tabelle mit 3 × 3 Zellen' },
   { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL oder Datei' },
   { key: 'video',       label: 'Video',         icon: '▶',   description: 'Video hochladen oder URL' },
+  { key: 'toggle',      label: 'Toggle',        icon: '▶T',  description: 'Einklappbarer Block' },
+  { key: 'toggleH1',    label: 'Toggle Titel',  icon: '▶H1', description: 'Toggle in Titelgröße' },
+  { key: 'toggleH2',    label: 'Toggle H2',     icon: '▶H2', description: 'Toggle in H2-Größe' },
+  { key: 'toggleH3',    label: 'Toggle H3',     icon: '▶H3', description: 'Toggle in H3-Größe' },
 ]
 
 interface SlashMenuState {
@@ -765,6 +770,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       TableHeader,
       TableCell,
       SectionExtension,
+      ToggleExtension,
+      ToggleSummaryExtension,
+      ToggleContentExtension,
     ],
     content: initialContent || {
       type: 'doc',

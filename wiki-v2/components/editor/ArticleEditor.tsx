@@ -26,6 +26,7 @@ import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
+import { ToggleExtension, ToggleSummaryExtension, ToggleContentExtension } from './ToggleNode'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
 
@@ -94,6 +95,10 @@ const ELEMENT_PALETTE = [
   { key: 'video',       label: 'Video',             icon: '▶'   },
   { key: 'codeBlock',   label: 'Codeblock',         icon: '</>' },
   { key: 'hr',          label: 'Trennlinie',        icon: '-'   },
+  { key: 'toggle',      label: 'Toggle',            icon: '▶T'  },
+  { key: 'toggleH1',    label: 'Toggle Titel',      icon: '▶H1' },
+  { key: 'toggleH2',    label: 'Toggle H2',         icon: '▶H2' },
+  { key: 'toggleH3',    label: 'Toggle H3',         icon: '▶H3' },
 ]
 
 const EMPTY_ARTICLE = {
@@ -168,6 +173,9 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TableHeader,
       TableCell,
       SectionExtension,
+      ToggleExtension,
+      ToggleSummaryExtension,
+      ToggleContentExtension,
     ],
     content: normalizeArticleContent(content),
     editable,

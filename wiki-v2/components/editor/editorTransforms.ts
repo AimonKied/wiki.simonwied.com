@@ -22,6 +22,12 @@ export function createLineElement(editor: TiptapEditor, key: string, content: Fr
     const row = () => schema.nodes.tableRow.create(null, [cell(), cell(), cell()])
     return schema.nodes.table.create(null, [row(), row(), row()])
   }
+  if (key === 'toggle' || key === 'toggleH1' || key === 'toggleH2' || key === 'toggleH3') {
+    const size = key === 'toggleH1' ? 'h1' : key === 'toggleH2' ? 'h2' : key === 'toggleH3' ? 'h3' : 'default'
+    const summary = schema.nodes.toggleSummary.create({ size }, content)
+    const body = schema.nodes.toggleContent.create(null, [schema.nodes.paragraph.create()])
+    return schema.nodes.toggle.create({ open: true }, [summary, body])
+  }
   return null
 }
 
