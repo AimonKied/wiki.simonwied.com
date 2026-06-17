@@ -51,4 +51,11 @@ body::before {
 @view-transition { navigation: auto; }
 
 /* Toggle element */
+.wiki-toggle-content > *:not(:first-child) {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  margin-left: 2px;
+}
 .wiki-toggle[data-open="false"] .wiki-toggle-content > *:not(:first-child) { display: none; }
+.wiki-toggle > div > button { transition: color 0.1s, transform 0.15s; }
+.wiki-toggle > div > button:hover { color: var(--text) !important; }
