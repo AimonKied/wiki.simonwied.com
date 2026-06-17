@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import type { Note } from '@/lib/types'
+import type { Note, Category } from '@/lib/types'
 import Link from 'next/link'
 import RightSidebar from '@/components/editor/RightSidebar'
 import EmojiPicker from '@/components/editor/EmojiPicker'
@@ -12,10 +12,12 @@ import EmojiPicker from '@/components/editor/EmojiPicker'
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
 
-function isArticleContent(content: object | null | undefined) {
-  if (!content || typeof content !== 'object') return false
-  const doc = content as { attrs?: { wikiMode?: string }, content?: Array<{ type?: string }> }
-  return doc.attrs?.wikiMode === 'article' || (!!doc.content?.length && doc.content.some(node => node.type !== 'section'))
+function slugify(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 export default function EditNotePage() {
@@ -27,9 +29,14 @@ export default function EditNotePage() {
   const [emoji, setEmoji] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [content, setContent] = useState<object>({})
+  const [contentType, setContentType] = useState<'article' | 'workspace'>('workspace')
   const [isPublic, setIsPublic] = useState(false)
   const [slug, setSlug] = useState('')
+  const [slugManual, setSlugManual] = useState(false)
+  const [allCategories, setAllCategories] = useState<Category[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [categoryError, setCategoryError] = useState(false)
   const [loading, setLoading] = useState(true)
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
@@ -38,45 +45,77 @@ export default function EditNotePage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase.from('notes').select('*').eq('id', id).single()
-      if (data) {
+      const [noteRes, catsRes, noteCatsRes] = await Promise.all([
+        supabase.from('notes').select('*').eq('id', id).single(),
+        supabase.from('categories').select('*').order('title'),
+        supabase.from('note_categories').select('category_id').eq('note_id', id),
+      ])
+
+      if (noteRes.data) {
+        const data = noteRes.data as Note
         setNote(data)
         setTitle(data.title)
         setDescription(data.description ?? '')
         setEmoji(data.emoji ?? '')
         setContent(data.content ?? {})
+        setContentType(data.content_type ?? 'workspace')
         setIsPublic(data.is_public)
         setSlug(data.slug ?? '')
+        setSlugManual(!!data.slug)
       }
+      if (catsRes.data) setAllCategories(catsRes.data as Category[])
+      if (noteCatsRes.data) setSelectedCategories(noteCatsRes.data.map(r => r.category_id))
+
       setLoading(false)
     }
     load()
   }, [id])
 
+  // Auto-suggest slug from title (only if not manually edited)
+  useEffect(() => {
+    if (slugManual || !isPublic) return
+    setSlug(slugify(title))
+  }, [title, isPublic, slugManual])
+
   const handleSave = useCallback(() => {
     if (!title.trim()) return
+    if (isPublic && selectedCategories.length === 0) {
+      setCategoryError(true)
+      return
+    }
+    setCategoryError(false)
     window.clearTimeout(debounceRef.current)
     debounceRef.current = 0
-    // Payload is captured now; the chain serializes writes so they can't
-    // arrive at the database out of order
+
     const payload = {
       title: title.trim(),
       emoji: emoji || null,
       description: description.trim() || null,
       content,
+      content_type: contentType,
       is_public: isPublic,
       slug: isPublic && slug.trim() ? slug.trim() : null,
-      updated_at: new Date().toISOString(),
     }
+    const cats = [...selectedCategories]
+
     setSaveStatus('saving')
     saveChain.current = saveChain.current
       .then(async () => {
         const supabase = createClient()
         const { error } = await supabase.from('notes').update(payload).eq('id', id)
-        setSaveStatus(error ? 'error' : 'saved')
+        if (error) { setSaveStatus('error'); return }
+
+        // Sync categories: delete all, re-insert current selection
+        await supabase.from('note_categories').delete().eq('note_id', id)
+        if (cats.length > 0) {
+          await supabase.from('note_categories').insert(
+            cats.map(cat_id => ({ note_id: id, category_id: cat_id }))
+          )
+        }
+        setSaveStatus('saved')
       })
       .catch(() => setSaveStatus('error'))
-  }, [id, title, description, emoji, content, isPublic, slug])
+  }, [id, title, description, emoji, content, contentType, isPublic, slug, selectedCategories])
 
   async function handleDelete() {
     if (!confirm('Notiz wirklich löschen?')) return
@@ -96,8 +135,7 @@ export default function EditNotePage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [handleSave])
 
-  // Auto-save: debounce after the last change. The first run after load() only
-  // marks hydration — loading a note must not immediately write it back
+  // Auto-save with debounce; first run after load marks hydration only
   useEffect(() => {
     if (loading || !note) return
     if (!hydratedRef.current) { hydratedRef.current = true; return }
@@ -109,7 +147,6 @@ export default function EditNotePage() {
     }
   }, [loading, note, handleSave])
 
-  // Warn before closing the tab while a save is pending or running
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (debounceRef.current === 0 && saveStatus !== 'saving') return
@@ -120,13 +157,21 @@ export default function EditNotePage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [saveStatus])
 
+  function toggleCategory(catId: string) {
+    setSelectedCategories(prev =>
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    )
+    setCategoryError(false)
+  }
+
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Lädt…</div>
   if (!note) return (
     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
       Notiz nicht gefunden. <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Zurück</Link>
     </div>
   )
-  const isArticle = isArticleContent(content)
+
+  const isArticle = contentType === 'article'
 
   return (
     <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both' }}>
@@ -215,6 +260,19 @@ export default function EditNotePage() {
 
         </div>
 
+        {/* Type badge */}
+        <div style={{ marginBottom: '18px' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            padding: '5px 10px', border: '1px solid var(--border)',
+            borderRadius: '999px', background: 'var(--surface)',
+            color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isArticle ? '#009955' : '#4488ff' }} />
+            {isArticle ? 'Artikel' : 'Workspace Canvas'}
+          </span>
+        </div>
+
         {/* Editor */}
         {isArticle
           ? <ArticleEditor content={content} onChange={setContent} />
@@ -223,45 +281,91 @@ export default function EditNotePage() {
         {/* Metadaten */}
         <div style={{
           marginTop: '20px', padding: '16px 20px', background: 'var(--surface)',
-          border: '1px solid var(--border)', borderRadius: '10px',
-          display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
+          border: `1px solid ${categoryError ? 'var(--accent2)' : 'var(--border)'}`,
+          borderRadius: '10px',
         }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={e => setIsPublic(e.target.checked)}
-              style={{ accentColor: 'var(--accent)', width: '14px', height: '14px' }}
-            />
-            Öffentlich
-          </label>
-          {isPublic && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
+          {/* Public toggle + slug */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: isPublic ? '16px' : '0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
               <input
-                value={slug}
-                onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                placeholder="mein-slug"
-                style={{
-                  flex: 1, padding: '5px 10px', background: 'var(--bg)',
-                  border: '1px solid var(--border)', borderRadius: '6px',
-                  fontSize: '12px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
+                type="checkbox"
+                checked={isPublic}
+                onChange={e => {
+                  setIsPublic(e.target.checked)
+                  if (e.target.checked && !slug) setSlug(slugify(title))
                 }}
+                style={{ accentColor: 'var(--accent)', width: '14px', height: '14px' }}
               />
-              {slug && (
-                <Link
-                  href={`/notes/${slug}`}
-                  target="_blank"
-                  style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                >
-                  Ansehen →
-                </Link>
-              )}
+              Öffentlich
+            </label>
+            {isPublic && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
+                <input
+                  value={slug}
+                  onChange={e => {
+                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
+                    setSlugManual(true)
+                  }}
+                  placeholder="mein-slug"
+                  style={{
+                    flex: 1, padding: '5px 10px', background: 'var(--bg)',
+                    border: '1px solid var(--border)', borderRadius: '6px',
+                    fontSize: '12px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
+                  }}
+                />
+                {slug && (
+                  <Link
+                    href={`/notes/${slug}`}
+                    target="_blank"
+                    style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Ansehen →
+                  </Link>
+                )}
+              </div>
+            )}
+            <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
+              Speichert automatisch · Strg+S für sofort
+            </span>
+          </div>
+
+          {/* Category selection */}
+          {isPublic && (
+            <div>
+              <div style={{ fontSize: '11px', color: categoryError ? 'var(--accent2)' : 'var(--muted)', marginBottom: '8px', fontWeight: 700, letterSpacing: '0.06em' }}>
+                {categoryError ? 'Mindestens eine Kategorie wählen' : 'KATEGORIEN'}
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {allCategories.map(cat => {
+                  const active = selectedCategories.includes(cat.id)
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategory(cat.id)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '5px 10px', borderRadius: '999px', cursor: 'pointer',
+                        fontSize: '12px', fontFamily: 'inherit', fontWeight: 600,
+                        border: `1px solid ${active ? cat.color ?? 'var(--accent)' : 'var(--border)'}`,
+                        background: active ? (cat.color ?? 'var(--accent)') + '22' : 'transparent',
+                        color: active ? (cat.color ?? 'var(--accent)') : 'var(--muted)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{
+                        width: '6px', height: '6px', borderRadius: '50%',
+                        background: cat.color ?? 'var(--muted)',
+                        display: 'inline-block',
+                      }} />
+                      {cat.title}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
-          <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
-            Speichert automatisch · Strg+S für sofort
-          </span>
         </div>
 
       </div>

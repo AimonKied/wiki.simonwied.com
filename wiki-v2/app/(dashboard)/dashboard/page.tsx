@@ -6,12 +6,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function isArticleContent(content: object | null | undefined) {
-  if (!content || typeof content !== 'object') return false
-  const doc = content as { attrs?: { wikiMode?: string }, content?: Array<{ type?: string }> }
-  return doc.attrs?.wikiMode === 'article' || (!!doc.content?.length && doc.content.some(node => node.type !== 'section'))
-}
-
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -82,7 +76,7 @@ export default async function DashboardPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {(notes as Note[]).map(note => {
-              const isArticle = isArticleContent(note.content)
+              const isArticle = note.content_type === 'article'
               return (
                 <Link
                   key={note.id}

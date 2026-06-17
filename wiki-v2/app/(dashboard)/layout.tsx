@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/sidebar/Sidebar'
+import type { Note } from '@/lib/types'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -8,9 +9,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login')
 
+  const { data: notes } = await supabase
+    .from('notes')
+    .select('id, title, emoji, content_type, is_public, slug, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(30)
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={true} />
+      <Sidebar isLoggedIn={true} notes={(notes ?? []) as Note[]} />
       <main style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
         {children}
       </main>

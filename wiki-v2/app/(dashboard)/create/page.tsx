@@ -77,6 +77,7 @@ export default function NewNotePage() {
         emoji: emoji || null,
         description: description.trim() || null,
         content,
+        content_type: contentMode,
         user_id: user.id,
       })
       .select('id')

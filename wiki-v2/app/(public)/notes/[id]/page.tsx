@@ -3,12 +3,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import EditorViewer from '@/components/editor/EditorViewer'
 
-function isArticleContent(content: object | null | undefined) {
-  if (!content || typeof content !== 'object') return false
-  const doc = content as { attrs?: { wikiMode?: string }, content?: Array<{ type?: string }> }
-  return doc.attrs?.wikiMode === 'article' || (!!doc.content?.length && doc.content.some(node => node.type !== 'section'))
-}
-
 export default async function PublicNotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: slug } = await params
   const supabase = await createClient()
@@ -21,7 +15,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
     .single()
 
   if (!note) notFound()
-  const isArticle = isArticleContent(note.content)
+  const isArticle = note.content_type === 'article'
 
   return (
     <div style={{ maxWidth: isArticle ? '1040px' : '860px', animation: 'fadeIn 0.2s ease both' }}>
