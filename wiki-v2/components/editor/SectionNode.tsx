@@ -306,6 +306,7 @@ interface HandleInfo {
   childPos: number
   childSize: number
   childIdx: number
+  togglePos?: number   // set when the child lives inside a toggle
 }
 
 interface ElBound { top: number; bottom: number; mid: number }
@@ -429,37 +430,42 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const sectionNode = editor.state.doc.nodeAt(sectionPos)
       if (!sectionNode || !handle) return
 
+      const isToggle = handle.togglePos !== undefined
+      const containerPos  = isToggle ? handle.togglePos! : sectionPos
+      const containerNode = isToggle ? editor.state.doc.nodeAt(containerPos) : sectionNode
+      if (!containerNode) return
+
       if (e.key === 'c') {
         e.preventDefault()
-        _elementClipboard = sectionNode.child(handle.childIdx)
+        _elementClipboard = containerNode.child(handle.childIdx)
         _sectionClipboard = []
       }
 
       if (e.key === 'x') {
         e.preventDefault()
-        _elementClipboard = sectionNode.child(handle.childIdx)
+        _elementClipboard = containerNode.child(handle.childIdx)
         _sectionClipboard = []
         const children: PMNode[] = []
-        for (let i = 0; i < sectionNode.childCount; i++) {
-          if (i !== handle.childIdx) children.push(sectionNode.child(i))
+        for (let i = 0; i < containerNode.childCount; i++) {
+          if (i !== handle.childIdx) children.push(containerNode.child(i))
         }
         const content = children.length > 0
           ? Fragment.from(children)
           : Fragment.from(editor.state.schema.nodes.paragraph.create())
         const tr = editor.state.tr
-        tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, content)
+        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, content)
         editor.view.dispatch(tr)
       }
 
       if (e.key === 'v' && _elementClipboard) {
         e.preventDefault()
         const children: PMNode[] = []
-        for (let i = 0; i < sectionNode.childCount; i++) {
-          children.push(sectionNode.child(i))
+        for (let i = 0; i < containerNode.childCount; i++) {
+          children.push(containerNode.child(i))
           if (i === handle.childIdx) children.push(_elementClipboard.copy(_elementClipboard.content))
         }
         const tr = editor.state.tr
-        tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, Fragment.from(children))
+        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, Fragment.from(children))
         editor.view.dispatch(tr)
       }
     }
@@ -534,6 +540,47 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       } catch { offset += child.nodeSize; continue }
 
       if (e.clientY >= topY - 4 && e.clientY <= bottomY + 4) {
+        // If hovering inside an open toggle, find the specific toggle child
+        if (child.type.name === 'toggle' && child.attrs.open !== false) {
+          const toggleEl = editor.view.nodeDOM(offset) as HTMLElement | null
+          const contentEl = toggleEl?.querySelector('.wiki-toggle-content') as HTMLElement | null
+          if (contentEl) {
+            const contentRect = contentEl.getBoundingClientRect()
+            if (e.clientY >= contentRect.top && e.clientY <= contentRect.bottom) {
+              let tOffset = offset + 1
+              for (let j = 0; j < child.childCount; j++) {
+                const tChild = child.child(j)
+                let tTopY: number, tBottomY: number
+                try {
+                  const tEl = editor.view.nodeDOM(tOffset) as HTMLElement | null
+                  if (tEl?.getBoundingClientRect) {
+                    const tRect = tEl.getBoundingClientRect()
+                    tTopY = tRect.top; tBottomY = tRect.bottom
+                  } else if (tChild.isLeaf) {
+                    const c = editor.view.coordsAtPos(tOffset, 1)
+                    tTopY = c.top; tBottomY = c.bottom
+                  } else {
+                    tTopY    = editor.view.coordsAtPos(tOffset + 1).top
+                    tBottomY = editor.view.coordsAtPos(tOffset + tChild.nodeSize - 1).bottom
+                  }
+                } catch { tOffset += tChild.nodeSize; continue }
+                if (e.clientY >= tTopY - 4 && e.clientY <= tBottomY + 4) {
+                  setHandle({
+                    top: (tTopY - cardRect.top) / canvasZoom,
+                    height: (tBottomY - tTopY) / canvasZoom,
+                    childPos: tOffset,
+                    childSize: tChild.nodeSize,
+                    childIdx: j,
+                    togglePos: offset,
+                  })
+                  return
+                }
+                tOffset += tChild.nodeSize
+              }
+            }
+          }
+        }
+
         setHandle({
           top: (topY - cardRect.top) / canvasZoom,
           height: (bottomY - topY) / canvasZoom,
@@ -1533,7 +1580,22 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   function deleteElement() {
     if (!handle || !editor) return
-    const { childPos, childSize } = handle
+    const { childPos, childSize, togglePos } = handle
+
+    if (togglePos !== undefined) {
+      const toggleNode = editor.state.doc.nodeAt(togglePos)
+      if (!toggleNode) return
+      if (toggleNode.childCount <= 1) {
+        // Replace last block with empty paragraph so the toggle stays valid
+        const tr = editor.state.tr
+        tr.replaceWith(childPos, childPos + childSize, editor.state.schema.nodes.paragraph.create())
+        editor.view.dispatch(tr.scrollIntoView())
+      } else {
+        editor.chain().focus().deleteRange({ from: childPos, to: childPos + childSize }).run()
+      }
+      return
+    }
+
     const $pos = editor.state.doc.resolve(childPos)
     const parent = $pos.parent
     if (parent.type.name === 'section' && parent.childCount === 1) {
