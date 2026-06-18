@@ -1580,7 +1580,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (sectionPos === undefined) return
     const freshNode = editor.state.doc.nodeAt(sectionPos)
     if (!freshNode) return
-    const elementInsertPos = sectionChildBoundaryFor(sectionPos, freshNode, requestedInsertPos)
+    let elementInsertPos = sectionChildBoundaryFor(sectionPos, freshNode, requestedInsertPos)
+
+    // If the active position (explicit drop target or cursor) is inside a toggle within
+    // this section, insert after the current block in that toggle instead of at section level
+    const activePos = requestedInsertPos ?? editor.state.selection.$from.pos
+    if (activePos > sectionPos && activePos < sectionPos + freshNode.nodeSize) {
+      try {
+        const $active = editor.state.doc.resolve(activePos)
+        for (let d = $active.depth; d >= 1; d--) {
+          if ($active.node(d).type.name === 'toggle') {
+            elementInsertPos = $active.after(d + 1)
+            break
+          }
+          if ($active.node(d).type.name === 'section') break
+        }
+      } catch { /* ignore */ }
+    }
     if (key === 'image' || key === 'video') {
       mediaInsertPosRef.current = elementInsertPos
       setMediaMode(key)
