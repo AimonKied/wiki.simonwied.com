@@ -81,21 +81,30 @@ export const ToggleExtension = Node.create({
       // Toggle button — native listener, no React events
       const btn = document.createElement('button')
       btn.setAttribute('contenteditable', 'false')
-      btn.textContent = '▶'
       btn.style.cssText = [
         'background:none', 'border:none', 'cursor:pointer',
-        'padding:0 2px', 'line-height:1',
-        'font-size:0.65em', 'flex-shrink:0',
+        'padding:0', 'margin:0', 'flex-shrink:0',
         'user-select:none',
+        'display:inline-flex', 'align-items:center', 'justify-content:center',
+        'width:16px', 'height:1lh', 'align-self:flex-start',
+      ].join(';')
+
+      // Separate arrow span so the button height can be 1lh while the glyph stays small
+      const arrow = document.createElement('span')
+      arrow.style.cssText = [
+        'display:block', 'line-height:1', 'font-size:9px', 'flex-shrink:0',
+        'transition:transform 0.15s',
         'transform:' + (currentNode.attrs.open !== false ? 'rotate(90deg)' : 'none'),
       ].join(';')
+      arrow.textContent = '▶'
+      btn.appendChild(arrow)
 
       btn.addEventListener('mousedown', e => {
         e.preventDefault()
         const isOpen = dom.getAttribute('data-open') !== 'false'
         const newOpen = !isOpen
         dom.setAttribute('data-open', newOpen ? 'true' : 'false')
-        btn.style.transform = newOpen ? 'rotate(90deg)' : 'none'
+        arrow.style.transform = newOpen ? 'rotate(90deg)' : 'none'
         if (typeof getPos === 'function') {
           const pos = getPos()
           if (pos !== undefined) {
@@ -125,11 +134,10 @@ export const ToggleExtension = Node.create({
           currentNode = updatedNode
           const open = updatedNode.attrs.open !== false
           dom.setAttribute('data-open', open ? 'true' : 'false')
-          btn.style.transform = open ? 'rotate(90deg)' : 'none'
+          arrow.style.transform = open ? 'rotate(90deg)' : 'none'
           return true
         },
 
-        // Tell ProseMirror not to handle events on the toggle button
         stopEvent(event: Event) {
           return event.target === btn
         },
