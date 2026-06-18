@@ -325,6 +325,7 @@ interface DragRefState {
   targetIsNewBlock: boolean
   slotLeft: number
   slotRight: number
+  togglePos?: number   // set when dragging a child inside a toggle
 }
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
@@ -606,16 +607,18 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const sectionPos = getPos()
     if (sectionPos === undefined) return
 
-    const elBounds = calcElBounds(sectionPos, cardRect.top, canvasZoom)
+    const isToggleDrag = handle.togglePos !== undefined
+    const containerPos  = isToggleDrag ? handle.togglePos! : sectionPos
+    const elBounds = calcElBounds(containerPos, cardRect.top, canvasZoom)
 
-    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    const containerNode = editor.state.doc.nodeAt(containerPos)
     const siblings: HTMLElement[] = []
-    if (sectionNode) {
-      let off = sectionPos + 1
-      for (let i = 0; i < sectionNode.childCount; i++) {
+    if (containerNode) {
+      let off = containerPos + 1
+      for (let i = 0; i < containerNode.childCount; i++) {
         const el = editor.view.nodeDOM(off) as HTMLElement | null
         siblings.push(el as HTMLElement)
-        off += sectionNode.child(i).nodeSize
+        off += containerNode.child(i).nodeSize
       }
     }
     const origEl = siblings[handle.childIdx] as HTMLElement | undefined
@@ -700,6 +703,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       targetIsNewBlock: false,
       slotLeft,
       slotRight,
+      togglePos: handle.togglePos,
     }
     setDragging(true)
     setHandle(null)
@@ -719,8 +723,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const fromIdx = d.childIdx
       const ghH     = ghostHRef.current
 
-      // Check if cursor is over the "Neuer Block" drop target
-      const newBlockBtn = document.querySelector('[data-new-block-btn]') as HTMLElement | null
+      // Toggle-child drags: "Neuer Block" is not a valid drop target
+      const newBlockBtn = d.togglePos === undefined
+        ? document.querySelector('[data-new-block-btn]') as HTMLElement | null
+        : null
       if (newBlockBtn) {
         const r = newBlockBtn.getBoundingClientRect()
         const isOver = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
@@ -763,6 +769,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       } catch { return }
 
       if (cursorSectionPos === null) return
+
+      // Toggle-child drags stay within the toggle — ignore cross-section cursor movement
+      if (d.togglePos !== undefined && cursorSectionPos !== d.sourceSectionPos) {
+        if (slotRef.current) slotRef.current.style.display = 'none'
+        siblingsRef.current.forEach((el, i) => { if (i !== fromIdx) el.style.transform = 'translateY(0)' })
+        return
+      }
 
       if (cursorSectionPos === d.sourceSectionPos) {
         // ─── SAME SECTION ──────────────────────────────────────────────
@@ -881,7 +894,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
       if (!d) return
 
-      if (d.targetIsNewBlock) {
+      if (d.togglePos !== undefined) {
+        moveToggleElement(d.togglePos, d.childIdx, d.dropIdx)
+      } else if (d.targetIsNewBlock) {
         moveElementToNewSection(d.sourceSectionPos, d.childIdx)
       } else if (d.targetSectionPos === d.sourceSectionPos) {
         moveElement(d.childIdx, d.childPos, d.childSize, d.dropIdx)
@@ -911,6 +926,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
     const tr = editor.state.tr
     tr.replaceWith(sectionPos + 1, sectionPos + sectionNode.nodeSize - 1, Fragment.from(children))
+    editor.view.dispatch(tr)
+  }
+
+  function moveToggleElement(togglePos: number, fromIdx: number, toInsertIdx: number) {
+    if (!editor) return
+    if (fromIdx === toInsertIdx || fromIdx + 1 === toInsertIdx) return
+    const toggleNode = editor.state.doc.nodeAt(togglePos)
+    if (!toggleNode) return
+
+    const children: PMNode[] = []
+    for (let i = 0; i < toggleNode.childCount; i++) children.push(toggleNode.child(i))
+    const [moved] = children.splice(fromIdx, 1)
+    const adjustedIdx = toInsertIdx > fromIdx ? toInsertIdx - 1 : toInsertIdx
+    children.splice(adjustedIdx, 0, moved)
+
+    const tr = editor.state.tr
+    tr.replaceWith(togglePos + 1, togglePos + toggleNode.nodeSize - 1, Fragment.from(children))
     editor.view.dispatch(tr)
   }
 
