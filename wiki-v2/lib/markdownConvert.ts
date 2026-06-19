@@ -93,9 +93,9 @@ export function mdToArticleJson(md: string): object {
     if (hm) {
       const level = Math.min(hm[1].length, 3) as 1 | 2 | 3
       const content = parseInline(hm[2].trim())
-      if (level === 2) {
-        // H2 starts a new section
-        sections.push([heading(2, content)])
+      if (level === 1) {
+        // H1 starts a new section
+        sections.push([heading(1, content)])
       } else {
         current.push(heading(level, content))
       }

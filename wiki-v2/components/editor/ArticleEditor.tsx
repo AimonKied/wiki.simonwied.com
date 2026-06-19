@@ -23,6 +23,8 @@ import json from 'highlight.js/lib/languages/json'
 import sql from 'highlight.js/lib/languages/sql'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
+import { Fragment } from '@tiptap/pm/model'
+import type { Node as PMNode } from '@tiptap/pm/model'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
@@ -297,6 +299,51 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     if (key === 'hr')          { chain.setHorizontalRule().run(); return }
     if (key === 'table')       { chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); return }
     window.requestAnimationFrame(() => dispatchAddElement(key, menu.from))
+  }
+
+  function createBlockFromSelection() {
+    const { state } = editor
+    const { selection } = state
+    const { $from, $to } = selection
+
+    // Find section depth
+    let sectionDepth = -1
+    for (let d = $from.depth; d >= 0; d--) {
+      if ($from.node(d).type.name === 'section') { sectionDepth = d; break }
+    }
+    if (sectionDepth < 0) return
+
+    const sectionNode = $from.node(sectionDepth)
+    const sectionPos = $from.before(sectionDepth)
+
+    const firstIdx = $from.index(sectionDepth)
+    const lastIdx = $to.index(sectionDepth)
+
+    if (firstIdx === lastIdx && sectionNode.childCount === 1) return
+
+    const before: PMNode[] = []
+    const selected: PMNode[] = []
+    const after: PMNode[] = []
+
+    sectionNode.forEach((child, _offset, index) => {
+      if (index < firstIdx) before.push(child)
+      else if (index <= lastIdx) selected.push(child)
+      else after.push(child)
+    })
+
+    if (!selected.length) return
+
+    const { schema } = state
+    const newSections: PMNode[] = []
+    if (before.length) newSections.push(schema.nodes.section.create(null, before))
+    newSections.push(schema.nodes.section.create(null, selected))
+    if (after.length) newSections.push(schema.nodes.section.create(null, after))
+
+    if (newSections.length <= 1) return
+
+    editor.view.dispatch(
+      state.tr.replaceWith(sectionPos, sectionPos + sectionNode.nodeSize, Fragment.fromArray(newSections))
+    )
   }
 
   function appendBlock() {
@@ -663,6 +710,31 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
               {item.icon}
             </button>
           ))}
+          <div style={{ gridColumn: '1 / -1', height: 1, background: 'var(--border)', margin: '2px 0' }} />
+          <button
+            type="button"
+            title="Auswahl als neuen Block abtrennen"
+            onClick={createBlockFromSelection}
+            style={{
+              gridColumn: '1 / -1',
+              height: 34,
+              border: '1px solid transparent',
+              borderRadius: '6px',
+              background: 'none',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 9,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              userSelect: 'none',
+              gap: 4,
+            }}
+          >
+            ÷ Block
+          </button>
         </aside>
       )}
 
