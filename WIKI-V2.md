@@ -32,10 +32,17 @@ Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werde
 article
   Klassische Wiki-Seite wie v1.
   Soll als ruhiger Lesemodus erscheinen und keine Canvas-Navigation brauchen.
+  Markdown-kompatibel: Artikel koennen als .md importiert und exportiert werden.
+  Bloecke entsprechen direkt Markdown-Elementen:
+    H2-Headings trennen Sections
+    Headings, Paragraphen, Listen, Codeblocks, Blockquotes, Tables, HR, Image, Video
+    Toggles werden als <details>/<summary> HTML in MD gespeichert
 
 workspace
   Canvas-basierter Editor wie aktuell in v2.
   Bloecke liegen frei auf einer grossen Arbeitsflaeche.
+  Unterstuetzt Toggle-Elemente und Canvas-spezifische Features (Pan, Zoom, Lasso).
+  Kein Markdown-Export vorgesehen.
 ```
 
 ### Sichtbarkeit
