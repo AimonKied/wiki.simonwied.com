@@ -8,6 +8,7 @@ import type { Note, Category } from '@/lib/types'
 import Link from 'next/link'
 import RightSidebar from '@/components/editor/RightSidebar'
 import EmojiPicker from '@/components/editor/EmojiPicker'
+import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdownConvert'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
@@ -41,6 +42,7 @@ export default function EditNotePage() {
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
   const hydratedRef = useRef(false)
+  const mdImportRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -157,6 +159,31 @@ export default function EditNotePage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [saveStatus])
 
+  function handleMdImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const text = ev.target?.result as string
+      const extracted = mdExtractTitle(text)
+      if (extracted && !title.trim()) setTitle(extracted)
+      setContent(mdToArticleJson(text))
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  function handleMdExport() {
+    const md = articleJsonToMd(content)
+    const blob = new Blob([md], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${title.trim() || 'artikel'}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function toggleCategory(catId: string) {
     setSelectedCategories(prev =>
       prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
@@ -234,6 +261,39 @@ export default function EditNotePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginTop: '4px' }}>
             {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
             {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
+            {isArticle && (
+              <>
+                <input
+                  ref={mdImportRef}
+                  type="file"
+                  accept=".md,text/markdown"
+                  style={{ display: 'none' }}
+                  onChange={handleMdImport}
+                />
+                <button
+                  type="button"
+                  onClick={() => mdImportRef.current?.click()}
+                  style={{
+                    padding: '9px 14px', background: 'none', color: 'var(--muted)',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
+                  }}
+                >
+                  MD importieren
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMdExport}
+                  style={{
+                    padding: '9px 14px', background: 'none', color: 'var(--muted)',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
+                  }}
+                >
+                  MD exportieren
+                </button>
+              </>
+            )}
             <button
               onClick={handleDelete}
               style={{
