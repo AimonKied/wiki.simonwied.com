@@ -61,6 +61,7 @@ export default function NewNotePage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [content, setContent] = useState<object>(contentMode === 'article' ? DEFAULT_ARTICLE_CONTENT : DEFAULT_WORKSPACE_CONTENT)
   const [saving, setSaving] = useState(false)
+  const [importKey, setImportKey] = useState(0)
   const router = useRouter()
   const mdImportRef = useRef<HTMLInputElement>(null)
 
@@ -73,6 +74,7 @@ export default function NewNotePage() {
       const extracted = mdExtractTitle(text)
       if (extracted && !title.trim()) setTitle(extracted)
       setContent(mdToArticleJson(text))
+      setImportKey(k => k + 1)
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -244,7 +246,7 @@ export default function NewNotePage() {
 
       {contentMode === 'article' ? (
         <div style={{ padding: '8px 0 24px' }}>
-          <ArticleEditor content={content} onChange={setContent} />
+          <ArticleEditor key={importKey} content={content} onChange={setContent} />
         </div>
       ) : (
         <Editor content={content} onChange={setContent} />

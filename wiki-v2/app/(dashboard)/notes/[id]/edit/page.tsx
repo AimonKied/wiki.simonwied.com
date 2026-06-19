@@ -43,6 +43,7 @@ export default function EditNotePage() {
   const debounceRef = useRef(0)
   const hydratedRef = useRef(false)
   const mdImportRef = useRef<HTMLInputElement>(null)
+  const [importKey, setImportKey] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -168,6 +169,7 @@ export default function EditNotePage() {
       const extracted = mdExtractTitle(text)
       if (extracted && !title.trim()) setTitle(extracted)
       setContent(mdToArticleJson(text))
+      setImportKey(k => k + 1)
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -335,7 +337,7 @@ export default function EditNotePage() {
 
         {/* Editor */}
         {isArticle
-          ? <ArticleEditor content={content} onChange={setContent} />
+          ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
           : <Editor content={content} onChange={setContent} />}
 
         {/* Metadaten */}
