@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import EmojiPicker from '@/components/editor/EmojiPicker'
+import { mdToArticleJson, mdExtractTitle } from '@/lib/markdownConvert'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
@@ -61,6 +62,21 @@ export default function NewNotePage() {
   const [content, setContent] = useState<object>(contentMode === 'article' ? DEFAULT_ARTICLE_CONTENT : DEFAULT_WORKSPACE_CONTENT)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
+  const mdImportRef = useRef<HTMLInputElement>(null)
+
+  function handleMdImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const text = ev.target?.result as string
+      const extracted = mdExtractTitle(text)
+      if (extracted && !title.trim()) setTitle(extracted)
+      setContent(mdToArticleJson(text))
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   async function handleSave() {
     if (!title.trim()) return
@@ -157,6 +173,35 @@ export default function NewNotePage() {
           />
         </div>
 
+        {contentMode === 'article' && (
+          <>
+            <input
+              ref={mdImportRef}
+              type="file"
+              accept=".md,text/markdown"
+              style={{ display: 'none' }}
+              onChange={handleMdImport}
+            />
+            <button
+              type="button"
+              onClick={() => mdImportRef.current?.click()}
+              style={{
+                padding: '9px 14px',
+                background: 'none',
+                color: 'var(--muted)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                flexShrink: 0,
+                marginTop: '4px',
+              }}
+            >
+              MD importieren
+            </button>
+          </>
+        )}
         <button
           onClick={handleSave}
           disabled={saving || !title.trim()}
