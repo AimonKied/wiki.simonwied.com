@@ -240,9 +240,11 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
 
   // Sync block highlight CSS classes when selection changes
   useEffect(() => {
-    if (!editor || !editor.view?.dom) return
-    // Clear all existing highlights
-    editor.view.dom.querySelectorAll('.wiki-block-sel').forEach(el => el.classList.remove('wiki-block-sel'))
+    if (!editor) return
+    let viewDom: Element
+    try { viewDom = editor.view.dom } catch { return }
+
+    viewDom.querySelectorAll('.wiki-block-sel').forEach(el => el.classList.remove('wiki-block-sel'))
     if (!blockSel || !selectMode) return
 
     const { sectionPos, indices } = blockSel
