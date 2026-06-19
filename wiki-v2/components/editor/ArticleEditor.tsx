@@ -158,6 +158,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [blockSel, setBlockSel] = useState<{ sectionPos: number; indices: Set<number> } | null>(null)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
   const lastInsertPosRef = useRef<number | null>(null)
@@ -236,6 +238,39 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     return () => document.removeEventListener('click', close)
   }, [tableMenuOpen])
 
+  // Sync block highlight CSS classes when selection changes
+  useEffect(() => {
+    if (!editor) return
+    // Clear all existing highlights
+    editor.view.dom.querySelectorAll('.wiki-block-sel').forEach(el => el.classList.remove('wiki-block-sel'))
+    if (!blockSel || !selectMode) return
+
+    const { sectionPos, indices } = blockSel
+    const sectionNode = editor.state.doc.nodeAt(sectionPos)
+    if (!sectionNode) return
+
+    let pos = sectionPos + 1
+    sectionNode.forEach((child, _offset, idx) => {
+      if (indices.has(idx)) {
+        try {
+          const dom = editor.view.nodeDOM(pos) as HTMLElement | null
+          if (dom) dom.classList.add('wiki-block-sel')
+        } catch {}
+      }
+      pos += child.nodeSize
+    })
+  }, [blockSel, selectMode, editor])
+
+  // Exit select mode on Escape
+  useEffect(() => {
+    if (!selectMode) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setSelectMode(false); setBlockSel(null) }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selectMode])
+
   if (!editor) return null
 
   function syncSlashMenu(ed: TiptapEditor) {
@@ -301,25 +336,50 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     window.requestAnimationFrame(() => dispatchAddElement(key, menu.from))
   }
 
-  function createBlockFromSelection() {
-    const { state } = editor
-    const { selection } = state
-    const { $from, $to } = selection
-
-    // Find section depth
+  function handleBlockMouseDown(e: React.MouseEvent) {
+    if (!selectMode) return
+    e.preventDefault()
+    e.stopPropagation()
+    const result = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
+    if (!result) return
+    const $pos = editor.state.doc.resolve(result.pos)
     let sectionDepth = -1
-    for (let d = $from.depth; d >= 0; d--) {
-      if ($from.node(d).type.name === 'section') { sectionDepth = d; break }
+    for (let d = $pos.depth; d >= 0; d--) {
+      if ($pos.node(d).type.name === 'section') { sectionDepth = d; break }
     }
     if (sectionDepth < 0) return
+    const sectionPos = $pos.before(sectionDepth)
+    const blockIdx = $pos.index(sectionDepth)
+    setBlockSel(prev => {
+      if (prev?.sectionPos !== sectionPos) return { sectionPos, indices: new Set([blockIdx]) }
+      const next = new Set(prev.indices)
+      if (next.has(blockIdx)) next.delete(blockIdx)
+      else next.add(blockIdx)
+      return { sectionPos, indices: next }
+    })
+  }
 
-    const sectionNode = $from.node(sectionDepth)
-    const sectionPos = $from.before(sectionDepth)
+  function createBlockFromSelection() {
+    const { state } = editor
 
-    const firstIdx = $from.index(sectionDepth)
-    const lastIdx = $to.index(sectionDepth)
+    // Use explicit block selection if available
+    const src = blockSel && blockSel.indices.size > 0 ? (() => {
+      const sorted = [...blockSel.indices].sort((a, b) => a - b)
+      return { sectionPos: blockSel.sectionPos, firstIdx: sorted[0], lastIdx: sorted[sorted.length - 1] }
+    })() : (() => {
+      const { $from, $to } = state.selection
+      let sectionDepth = -1
+      for (let d = $from.depth; d >= 0; d--) {
+        if ($from.node(d).type.name === 'section') { sectionDepth = d; break }
+      }
+      if (sectionDepth < 0) return null
+      return { sectionPos: $from.before(sectionDepth), firstIdx: $from.index(sectionDepth), lastIdx: $to.index(sectionDepth) }
+    })()
 
-    if (firstIdx === lastIdx && sectionNode.childCount === 1) return
+    if (!src) return
+    const { sectionPos, firstIdx, lastIdx } = src
+    const sectionNode = state.doc.nodeAt(sectionPos)
+    if (!sectionNode || (firstIdx === lastIdx && sectionNode.childCount === 1)) return
 
     const before: PMNode[] = []
     const selected: PMNode[] = []
@@ -344,6 +404,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     editor.view.dispatch(
       state.tr.replaceWith(sectionPos, sectionPos + sectionNode.nodeSize, Fragment.fromArray(newSections))
     )
+    setBlockSel(null)
+    setSelectMode(false)
   }
 
   function appendBlock() {
@@ -657,7 +719,11 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         </BubbleMenu>
       )}
 
-      <div data-article-editor="true">
+      <div
+        data-article-editor="true"
+        data-select-mode={selectMode ? 'true' : undefined}
+        onMouseDown={handleBlockMouseDown}
+      >
         <EditorContent editor={editor} />
         {editable && (
           <div style={{ display: 'flex', marginTop: '12px', paddingBottom: '28px' }}>
@@ -713,15 +779,15 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           <div style={{ gridColumn: '1 / -1', height: 1, background: 'var(--border)', margin: '2px 0' }} />
           <button
             type="button"
-            title="Auswahl als neuen Block abtrennen"
-            onClick={createBlockFromSelection}
+            title={selectMode ? 'Auswahl-Modus beenden (Esc)' : 'Elemente auswählen'}
+            onClick={() => { setSelectMode(m => !m); setBlockSel(null) }}
             style={{
               gridColumn: '1 / -1',
-              height: 34,
-              border: '1px solid transparent',
+              height: 28,
+              border: `1px solid ${selectMode ? 'var(--accent)' : 'transparent'}`,
               borderRadius: '6px',
-              background: 'none',
-              color: 'var(--accent)',
+              background: selectMode ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'none',
+              color: selectMode ? 'var(--accent)' : 'var(--muted)',
               cursor: 'pointer',
               fontFamily: 'inherit',
               fontSize: 9,
@@ -730,7 +796,29 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
               alignItems: 'center',
               justifyContent: 'center',
               userSelect: 'none',
-              gap: 4,
+            }}
+          >
+            ☰ Wählen
+          </button>
+          <button
+            type="button"
+            title="Auswahl als neuen Block abtrennen"
+            onClick={createBlockFromSelection}
+            style={{
+              gridColumn: '1 / -1',
+              height: 28,
+              border: '1px solid transparent',
+              borderRadius: '6px',
+              background: 'none',
+              color: (blockSel?.indices.size ?? 0) > 0 ? 'var(--accent)' : 'var(--muted)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 9,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              userSelect: 'none',
             }}
           >
             ÷ Block
@@ -847,6 +935,19 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         }
         [data-article-editor] .resize-cursor {
           cursor: col-resize;
+        }
+        [data-article-editor][data-select-mode] .ProseMirror {
+          cursor: pointer;
+          user-select: none;
+        }
+        [data-article-editor][data-select-mode] .ProseMirror * {
+          pointer-events: none;
+        }
+        .wiki-block-sel {
+          outline: 2px solid var(--accent) !important;
+          outline-offset: 2px;
+          border-radius: 4px;
+          background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
         }
       `}</style>
     </div>
