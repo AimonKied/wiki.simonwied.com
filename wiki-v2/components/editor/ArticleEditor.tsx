@@ -6,7 +6,7 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
-import { ResizableImage, VideoNode } from './MediaNodes'
+import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -93,7 +93,6 @@ const ELEMENT_PALETTE = [
   { key: 'orderedList', label: 'Numm. Liste',       icon: '1.'  },
   { key: 'table',       label: 'Tabelle',           icon: 'TB'  },
   { key: 'image',       label: 'Bild',              icon: 'IMG' },
-  { key: 'video',       label: 'Video',             icon: '▶'   },
   { key: 'codeBlock',   label: 'Codeblock',         icon: '</>' },
   { key: 'hr',          label: 'Trennlinie',        icon: '-'   },
   { key: 'toggle',      label: 'Toggle',            icon: '▶T'  },
@@ -167,7 +166,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       ArticleDocument,
       TextStyle,
       ResizableImage,
-      VideoNode,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true, cellMinWidth: 80 }),
       TableRow,
@@ -281,7 +279,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
 
   function executeSlashCommand(ed: TiptapEditor, key: string, menu: SlashMenuState) {
     setSlashMenu(null)
-    if (key === 'image' || key === 'video') {
+    if (key === 'image') {
       transformVisualLine(ed, 'paragraph', { from: menu.from, to: menu.to })
       window.requestAnimationFrame(() => dispatchAddElement(key, ed.state.selection.from))
       return
@@ -486,7 +484,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           pluginKey="text-format-menu"
           appendTo={() => document.body}
           options={{ strategy: 'fixed', placement: 'top', offset: 10, flip: true, shift: { padding: 8 } }}
-          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to && !editor.isActive('tableCell') && !editor.isActive('tableHeader')}
+          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to && !editor.isActive('image') && !editor.isActive('tableCell') && !editor.isActive('tableHeader')}
           style={{ zIndex: 100000 }}
         >
           <div style={{

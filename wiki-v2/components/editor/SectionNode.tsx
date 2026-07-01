@@ -7,7 +7,6 @@ import type { NodeViewProps } from '@tiptap/react'
 import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { useId, useState, useRef, useEffect, useCallback } from 'react'
-import { uploadMedia } from '@/lib/supabase/storage'
 import { toggleJSON } from './ToggleNode'
 
 // ── Module-level section selection store ──────────────────────────────────────
@@ -42,6 +41,14 @@ const sectionSel = {
 let _activeEditor: Editor | null = null
 let _sectionClipboard: PMNode[] = []
 let _elementClipboard: PMNode | null = null
+
+function _mountedView(ed: Editor | null) {
+  try {
+    return ed?.view ?? null
+  } catch {
+    return null
+  }
+}
 
 // ── Canvas snap helpers ────────────────────────────────────────────────────────
 interface SnapLine { axis: 'x' | 'y'; pos: number; from: number; to: number }
@@ -211,78 +218,83 @@ function _ensureGlobalHandlers() {
     sectionSel.clear()
   })
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { sectionSel.clear(); return }
+	  document.addEventListener('keydown', (e) => {
+	    if (e.key === 'Escape') { sectionSel.clear(); return }
+	    const activeView = _mountedView(_activeEditor)
 
-    if ((e.key === 'Delete' || e.key === 'Backspace') && _selSet.size > 0) {
-      if (window.getSelection()?.type === 'Range') return
-      e.preventDefault()
-      const doc = _activeEditor!.state.doc
-      const tr = _activeEditor!.state.tr
+	    if ((e.key === 'Delete' || e.key === 'Backspace') && _selSet.size > 0) {
+	      if (!activeView || !_activeEditor) return
+	      if (window.getSelection()?.type === 'Range') return
+	      e.preventDefault()
+	      const doc = _activeEditor!.state.doc
+	      const tr = _activeEditor!.state.tr
       const toDelete: { pos: number; size: number }[] = []
       doc.forEach((node: PMNode, offset: number) => {
         if (node.type.name !== 'section') return
-        const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
-        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
-        if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
-      })
+	        const dom = activeView.nodeDOM(offset) as HTMLElement | null
+	        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+	        if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
+	      })
       toDelete.reverse().forEach(({ pos, size }) => {
         const mapped = tr.mapping.map(pos)
         tr.delete(mapped, mapped + size)
       })
-      _activeEditor!.view.dispatch(tr)
-      sectionSel.clear()
-      return
-    }
+	      activeView.dispatch(tr)
+	      sectionSel.clear()
+	      return
+	    }
 
     const ctrl = e.ctrlKey || e.metaKey
     if (!ctrl) return
 
-    if (e.key === 'z' || e.key === 'y') {
-      if (_activeEditor?.view.hasFocus()) return
-      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); _activeEditor?.commands.undo(); return }
-      if (e.key === 'y' || e.shiftKey) { e.preventDefault(); _activeEditor?.commands.redo(); return }
-    }
+	    if (e.key === 'z' || e.key === 'y') {
+	      if (!activeView) return
+	      if (activeView?.hasFocus()) return
+	      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); _activeEditor?.commands.undo(); return }
+	      if (e.key === 'y' || e.shiftKey) { e.preventDefault(); _activeEditor?.commands.redo(); return }
+	    }
 
-    // Ctrl+C / Ctrl+X: copy or cut selected sections (always takes priority when blocks are selected)
-    if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0) {
-      e.preventDefault()
-      const nodes: PMNode[] = []
-      _activeEditor?.state.doc.forEach((node: PMNode, offset: number) => {
-        if (node.type.name !== 'section') return
-        const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
-        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
-        if (id && _selSet.has(id)) nodes.push(node)
-      })
+	    // Ctrl+C / Ctrl+X: copy or cut selected sections (always takes priority when blocks are selected)
+	    if ((e.key === 'c' || e.key === 'x') && _selSet.size > 0) {
+	      if (!activeView || !_activeEditor) return
+	      e.preventDefault()
+	      const nodes: PMNode[] = []
+	      _activeEditor?.state.doc.forEach((node: PMNode, offset: number) => {
+	        if (node.type.name !== 'section') return
+	        const dom = activeView.nodeDOM(offset) as HTMLElement | null
+	        const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+	        if (id && _selSet.has(id)) nodes.push(node)
+	      })
       _sectionClipboard = nodes
       _elementClipboard = null
 
-      if (e.key === 'x') {
-        const doc = _activeEditor!.state.doc
-        const tr = _activeEditor!.state.tr
-        const toDelete: { pos: number; size: number }[] = []
-        doc.forEach((node: PMNode, offset: number) => {
-          if (node.type.name !== 'section') return
-          const dom = _activeEditor!.view.nodeDOM(offset) as HTMLElement | null
-          const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
-          if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
-        })
+	      if (e.key === 'x') {
+	        const doc = _activeEditor.state.doc
+	        const tr = _activeEditor.state.tr
+	        const toDelete: { pos: number; size: number }[] = []
+	        doc.forEach((node: PMNode, offset: number) => {
+	          if (node.type.name !== 'section') return
+	          const dom = activeView.nodeDOM(offset) as HTMLElement | null
+	          const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+	          if (id && _selSet.has(id)) toDelete.push({ pos: offset, size: node.nodeSize })
+	        })
         // Delete from end to start so positions remain valid
         toDelete.reverse().forEach(({ pos, size }) => {
           const mapped = tr.mapping.map(pos)
           tr.delete(mapped, mapped + size)
         })
-        _activeEditor!.view.dispatch(tr)
-        sectionSel.clear()
-      }
-    }
+	        activeView.dispatch(tr)
+	        sectionSel.clear()
+	      }
+	    }
 
     // Ctrl+V: paste section clipboard (only when no text is selected in the editor)
     if (e.key === 'v' && _sectionClipboard.length > 0) {
       const textSelected = !!window.getSelection()?.toString()
-      if (textSelected) return  // let browser handle text paste
-      const ed = _activeEditor
-      if (!ed) return
+	      if (textSelected) return  // let browser handle text paste
+	      const ed = _activeEditor
+	      const view = _mountedView(ed)
+	      if (!ed || !view) return
       const { from } = ed.state.selection
       let pastePos = ed.state.doc.content.size
       try {
@@ -294,10 +306,10 @@ function _ensureGlobalHandlers() {
       e.preventDefault()
       const tr = ed.state.tr
       _sectionClipboard.forEach(n => tr.insert(tr.mapping.map(pastePos), n.copy(n.content)))
-      ed.view.dispatch(tr)
-    }
-  })
-}
+	      view.dispatch(tr)
+	    }
+	  })
+	}
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface HandleInfo {
@@ -338,7 +350,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [resizing, setResizing] = useState(false)
   const [activeResizeDir, setActiveResizeDir] = useState<string | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
-  const [mediaMode, setMediaMode] = useState<'image' | 'video' | null>(null)
+  const [imageInsertOpen, setImageInsertOpen] = useState(false)
+  const [imageInsertAnchor, setImageInsertAnchor] = useState<{ left: number; top: number } | null>(null)
   const [elementDropTarget, setElementDropTarget] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaUploading, setMediaUploading] = useState(false)
@@ -392,13 +405,14 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return () => { unsub() }
   }, [sectionId, editor])
 
-  useEffect(() => {
-    function updateEditorActive() {
-      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
-      if (sectionPos === undefined || !editor.view.hasFocus()) {
-        setIsEditorActive(false)
-        return
-      }
+	  useEffect(() => {
+	    function updateEditorActive() {
+	      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
+	      const view = _mountedView(editor as unknown as Editor)
+	      if (sectionPos === undefined || !view?.hasFocus()) {
+	        setIsEditorActive(false)
+	        return
+	      }
       const currentNode = editor.state.doc.nodeAt(sectionPos)
       const cursorPos = editor.state.selection.from
       setIsEditorActive(!!currentNode && cursorPos > sectionPos && cursorPos < sectionPos + currentNode.nodeSize)
@@ -418,12 +432,14 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }, [editor, getPos])
 
   // Element copy/cut/paste via Ctrl+C/X/V when element handle is visible
-  useEffect(() => {
-    if (!handle) return
-    function onKey(e: KeyboardEvent) {
-      const ctrl = e.ctrlKey || e.metaKey
-      if (!ctrl) return
-      if (window.getSelection()?.toString()) return
+	  useEffect(() => {
+	    if (!handle) return
+	    function onKey(e: KeyboardEvent) {
+	      const view = _mountedView(editor as unknown as Editor)
+	      if (!view) return
+	      const ctrl = e.ctrlKey || e.metaKey
+	      if (!ctrl) return
+	      if (window.getSelection()?.toString()) return
       if (_selSet.size > 0) return  // section clipboard takes priority
 
       const sectionPos = typeof getPos === 'function' ? getPos() : undefined
@@ -453,10 +469,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         const content = children.length > 0
           ? Fragment.from(children)
           : Fragment.from(editor.state.schema.nodes.paragraph.create())
-        const tr = editor.state.tr
-        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, content)
-        editor.view.dispatch(tr)
-      }
+	        const tr = editor.state.tr
+	        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, content)
+	        view.dispatch(tr)
+	      }
 
       if (e.key === 'v' && _elementClipboard) {
         e.preventDefault()
@@ -465,11 +481,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           children.push(containerNode.child(i))
           if (i === handle.childIdx) children.push(_elementClipboard.copy(_elementClipboard.content))
         }
-        const tr = editor.state.tr
-        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, Fragment.from(children))
-        editor.view.dispatch(tr)
-      }
-    }
+	        const tr = editor.state.tr
+	        tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, Fragment.from(children))
+	        view.dispatch(tr)
+	      }
+	    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [handle, getPos, editor])
@@ -1540,7 +1556,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           range.detach()
         } else if (currentNode instanceof HTMLElement) {
           const tag = currentNode.tagName.toLowerCase()
-          const isFilledWidget = ['img', 'table', 'hr', 'iframe', 'video', 'canvas', 'svg'].includes(tag)
+          const isFilledWidget = ['img', 'table', 'hr', 'iframe', 'canvas', 'svg'].includes(tag)
           const isFilledControl = ['input', 'textarea', 'select', 'button'].includes(tag)
           if (isFilledWidget || isFilledControl) {
             includeRect(currentNode.getBoundingClientRect())
@@ -1691,9 +1707,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         }
       } catch { /* ignore */ }
     }
-    if (key === 'image' || key === 'video') {
+    if (key === 'image') {
       mediaInsertPosRef.current = elementInsertPos
-      setMediaMode(key)
+      setImageInsertAnchor(getImageInsertAnchor(elementInsertPos))
+      setMediaUrl('')
+      setMediaError(null)
+      setImageInsertOpen(true)
       return
     }
     if (key === 'hr') {
@@ -1740,11 +1759,33 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return Array.from(e.dataTransfer.types).includes('application/x-wiki-element')
   }
 
+  function hideDropCursor() {
+    editor.view.dom.dispatchEvent(new Event('drop'))
+  }
+
+  function getImageInsertAnchor(insertPos: number) {
+    const card = cardRef.current
+    if (!card) return null
+    try {
+      const coords = editor.view.coordsAtPos(insertPos)
+      const rect = card.getBoundingClientRect()
+      const top = Math.min(Math.max(coords.top - rect.top - 8, 12), Math.max(12, rect.height - 48))
+      return { left: 16, top }
+    } catch {
+      return null
+    }
+  }
+
   function onElementDragOver(e: React.DragEvent) {
     if (!isElementDrag(e)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
     setElementDropTarget(true)
+  }
+
+  function onElementDragLeave() {
+    setElementDropTarget(false)
+    hideDropCursor()
   }
 
   function onElementDrop(e: React.DragEvent) {
@@ -1753,8 +1794,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     e.stopPropagation()
     const key = e.dataTransfer.getData('application/x-wiki-element')
     setElementDropTarget(false)
+    hideDropCursor()
     const dropPos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })?.pos
     if (key) addElement(key, dropPos)
+    window.requestAnimationFrame(hideDropCursor)
   }
 
   function resolveMediaInsertPos() {
@@ -1771,13 +1814,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (!editor || !mediaUrl.trim()) return
     const insertPos = resolveMediaInsertPos()
     if (insertPos === null) return
-    const type = mediaMode === 'video' ? 'video' : 'image'
     editor.chain().focus()
-      .insertContentAt(insertPos, { type, attrs: { src: mediaUrl.trim(), align: 'center' } })
+      .insertContentAt(insertPos, { type: 'image', attrs: { src: mediaUrl.trim(), align: 'center' } })
       .run()
     mediaInsertPosRef.current = null
+    setImageInsertAnchor(null)
     setMediaUrl('')
-    setMediaMode(null)
+    setImageInsertOpen(false)
   }
 
   const handleMediaFileUpload = useCallback(async (file: File) => {
@@ -1788,19 +1831,19 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const url = await upload(file)
       const insertPos = resolveMediaInsertPos()
       if (insertPos === null || !editor) return
-      const type = mediaMode === 'video' ? 'video' : 'image'
       editor.chain().focus()
-        .insertContentAt(insertPos, { type, attrs: { src: url, align: 'center' } })
+        .insertContentAt(insertPos, { type: 'image', attrs: { src: url, align: 'center' } })
         .run()
       mediaInsertPosRef.current = null
-      setMediaMode(null)
+      setImageInsertAnchor(null)
+      setImageInsertOpen(false)
     } catch (err) {
       setMediaError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
     } finally {
       setMediaUploading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, mediaMode])
+  }, [editor])
 
   const editable = editor.isEditable
 
@@ -1870,7 +1913,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           top: canvasY !== null ? `${canvasY}px` : undefined,
           width: canvasW !== null ? `${canvasW}px` : 'fit-content',
           height: canvasH !== null ? `${canvasH}px` : undefined,
-          zIndex: mediaMode || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
+          zIndex: imageInsertOpen || colorPickerOpen || sectionDragging || resizing ? 100 : (canvasZ ?? undefined),
         } : {}}
       >
       <div
@@ -1880,7 +1923,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         onDragOver={onElementDragOver}
-        onDragLeave={() => setElementDropTarget(false)}
+        onDragLeave={onElementDragLeave}
         onDrop={onElementDrop}
         style={{
           background: bgColor ?? 'var(--surface)',
@@ -2163,13 +2206,31 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           }}
         />
 
-        {editable && mediaMode && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', flexShrink: 0 }}>
+        {editable && imageInsertOpen && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            ...(imageInsertAnchor
+              ? {
+                  position: 'absolute' as const,
+                  top: imageInsertAnchor.top,
+                  left: imageInsertAnchor.left,
+                  right: 16,
+                  zIndex: 420,
+                  padding: '8px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.16)',
+                }
+              : { marginTop: '12px', flexShrink: 0 })}}
+          >
             {/* Hidden file input */}
             <input
               ref={mediaFileInputRef}
               type="file"
-              accept={mediaMode === 'video' ? 'video/mp4,video/webm,video/quicktime,video/ogg' : 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml'}
+              accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
               style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFileUpload(f); e.target.value = '' }}
             />
@@ -2178,8 +2239,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 autoFocus
                 value={mediaUrl}
                 onChange={e => setMediaUrl(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setMediaMode(null) } }}
-                placeholder={mediaMode === 'video' ? 'https://… oder Datei wählen' : 'https://… oder Datei wählen'}
+                onKeyDown={e => { if (e.key === 'Enter') insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false) } }}
+                placeholder="Bild-URL oder Datei wählen"
                 style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
               />
               <button
@@ -2191,7 +2252,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 {mediaUploading ? '…' : '↑ Hochladen'}
               </button>
               <button onClick={insertMediaFromUrl} disabled={!mediaUrl.trim()} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
-              <button onClick={() => { mediaInsertPosRef.current = null; setMediaMode(null); setMediaError(null) }} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
+              <button onClick={() => { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false); setMediaError(null) }} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
             </div>
             {mediaError && <div style={{ fontSize: '11px', color: '#ef4444' }}>{mediaError}</div>}
           </div>

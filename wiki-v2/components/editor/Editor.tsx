@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import { createLineElement, transformVisualLine } from './editorTransforms'
-import { ResizableImage, VideoNode } from './MediaNodes'
+import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -90,7 +90,6 @@ const ELEMENT_PALETTE = [
   { key: 'hr',          label: 'Trennlinie',    icon: '—',   description: 'Horizontale Linie' },
   { key: 'table',       label: 'Tabelle',       icon: '⊞',   description: 'Tabelle mit 3 × 3 Zellen' },
   { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL oder Datei' },
-  { key: 'video',       label: 'Video',         icon: '▶',   description: 'Video hochladen oder URL' },
   { key: 'toggle',      label: 'Toggle',        icon: '▶T',  description: 'Einklappbarer Block' },
   { key: 'toggleH1',    label: 'Toggle Titel',  icon: '▶H1', description: 'Toggle in Titelgröße' },
   { key: 'toggleH2',    label: 'Toggle H2',     icon: '▶H2', description: 'Toggle in H2-Größe' },
@@ -763,7 +762,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       SectionDocument,
       TextStyle,
       ResizableImage,
-      VideoNode,
       CodeBlockLowlight.configure({ lowlight }),
       Table.configure({ resizable: true }),
       TableRow,
@@ -1244,7 +1242,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           pluginKey="text-format-menu"
           appendTo={() => document.body}
           options={{ strategy: 'fixed', placement: 'top', offset: 10, flip: true, shift: { padding: 8 } }}
-          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to}
+          shouldShow={({ editor, from, to }) => editor.isEditable && from !== to && !editor.isActive('image')}
           style={{ zIndex: 100000 }}
         >
           <div style={{

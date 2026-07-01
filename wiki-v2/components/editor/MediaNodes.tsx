@@ -1,10 +1,9 @@
 'use client'
 
-import { Node, mergeAttributes } from '@tiptap/core'
 import Image from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 
@@ -49,15 +48,15 @@ const DIVIDER: React.CSSProperties = {
 
 const RESIZE_HANDLE: React.CSSProperties = {
   position: 'absolute',
-  right: -5,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: 10,
-  height: 36,
-  borderRadius: 5,
+  right: -7,
+  bottom: -7,
+  width: 16,
+  height: 16,
+  borderRadius: 8,
   cursor: 'ew-resize',
   background: 'var(--accent)',
-  opacity: 0.85,
+  border: '2px solid #fff',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
 }
 
 type Align = 'left' | 'center' | 'right'
@@ -70,7 +69,7 @@ function alignContainerStyle(align: Align): React.CSSProperties {
 
 // ── useResize hook ───────────────────────────────────────────────────────────
 
-function useResize(onWidth: (w: number) => void) {
+function useResize(onWidth: (w: number) => void, getMaxWidth: () => number) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -80,7 +79,7 @@ function useResize(onWidth: (w: number) => void) {
     const startW = containerRef.current?.offsetWidth ?? 400
 
     function onMove(e: MouseEvent) {
-      const newW = Math.max(80, startW + (e.clientX - startX))
+      const newW = Math.max(80, Math.min(getMaxWidth(), startW + (e.clientX - startX)))
       onWidth(newW)
     }
     function onUp() {
@@ -89,143 +88,161 @@ function useResize(onWidth: (w: number) => void) {
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [onWidth])
+  }, [onWidth, getMaxWidth])
 
   return { containerRef, onMouseDown }
 }
 
 // ── ImageView NodeView ───────────────────────────────────────────────────────
 
-function ImageView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
-  const { src, alt, width, align = 'center' } = node.attrs as {
-    src: string; alt?: string; width?: string; align?: Align
+function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPos }: NodeViewProps) {
+  const { src, alt, width, align = 'center', rotate = 0 } = node.attrs as {
+    src: string; alt?: string; width?: string; align?: Align; rotate?: number
   }
 
   const [liveWidth, setLiveWidth] = useState<string | null>(width ?? null)
+  const [hovered, setHovered] = useState(false)
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+
+  const isSideways = Math.abs(rotate % 180) === 90
+  const widthScale = isSideways && naturalSize?.h ? Math.min(1, naturalSize.w / naturalSize.h) : 1
+  const imageWidth = liveWidth
+    ? `min(${liveWidth}, ${widthScale * 100}%)`
+    : widthScale === 1 ? 'auto' : `${widthScale * 100}%`
+
+  const getMaxImageWidth = useCallback(() => {
+    const blockWidth = frameRef.current?.clientWidth ?? 2000
+    return Math.max(1, Math.floor(blockWidth))
+  }, [])
+
+  const clampImageWidth = useCallback((w: number) => {
+    const max = getMaxImageWidth()
+    return Math.max(Math.min(80, max), Math.min(max, Math.round(w)))
+  }, [getMaxImageWidth])
 
   const { containerRef, onMouseDown } = useResize((w) => {
-    const val = `${w}px`
+    const val = `${clampImageWidth(w)}px`
     setLiveWidth(val)
     updateAttributes({ width: val })
-  })
+  }, getMaxImageWidth)
 
   const isEditable = editor.isEditable
+  const controlsVisible = isEditable && (selected || hovered)
+  const currentWidth = liveWidth ? Math.round(parseInt(liveWidth)) : ''
+  const maxImageWidth = getMaxImageWidth()
+
+  useEffect(() => {
+    if (!liveWidth) return
+    const parsedWidth = parseInt(liveWidth)
+    if (!Number.isFinite(parsedWidth)) return
+    const next = clampImageWidth(parsedWidth)
+    if (next === parsedWidth) return
+    const nextWidth = `${next}px`
+    setLiveWidth(nextWidth)
+    queueMicrotask(() => updateAttributes({ width: nextWidth }))
+  }, [clampImageWidth, liveWidth, updateAttributes])
+
+  function setWidthFromInput(value: string) {
+    const width = Number(value)
+    if (!Number.isFinite(width)) return
+    const next = clampImageWidth(width)
+    const nextWidth = `${next}px`
+    setLiveWidth(nextWidth)
+    updateAttributes({ width: nextWidth })
+  }
+
+  function rotateImage() {
+    updateAttributes({ rotate: ((rotate + 90) % 360 + 360) % 360 })
+  }
+
+  function clearSelectionBesideImage(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isEditable || e.target !== e.currentTarget || typeof getPos !== 'function') return
+    const pos = getPos()
+    if (typeof pos !== 'number') return
+    e.preventDefault()
+    editor.chain().focus().setTextSelection(pos + node.nodeSize).run()
+  }
 
   return (
-    <NodeViewWrapper>
-      <div style={alignContainerStyle(align as Align)}>
+    <NodeViewWrapper draggable={isEditable}>
+      <div ref={frameRef} onMouseDown={clearSelectionBesideImage} style={alignContainerStyle(align as Align)}>
         <div
           ref={containerRef}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{
             position: 'relative',
-            display: 'inline-block',
-            width: liveWidth ?? 'auto',
+            display: 'inline-flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: liveWidth ?? 'fit-content',
             maxWidth: '100%',
+            lineHeight: 0,
           }}
         >
           <img
             src={src}
             alt={alt ?? ''}
             draggable={false}
+            onLoad={e => setNaturalSize({
+              w: e.currentTarget.naturalWidth || e.currentTarget.width,
+              h: e.currentTarget.naturalHeight || e.currentTarget.height,
+            })}
             style={{
               display: 'block',
-              width: '100%',
+              width: imageWidth,
+              maxWidth: '100%',
+              height: 'auto',
               borderRadius: 6,
-              outline: selected && isEditable ? '2px solid var(--accent)' : 'none',
+              transform: rotate ? `rotate(${rotate}deg)` : undefined,
+              outline: controlsVisible ? '2px solid var(--accent)' : 'none',
               outlineOffset: 2,
             }}
           />
 
-          {selected && isEditable && (
+          {controlsVisible && (
             <>
               <div style={TOOLBAR_STYLE}>
                 <button type="button" style={tbBtn(align === 'left')}   onClick={() => updateAttributes({ align: 'left' })}   title="Links">◀</button>
                 <button type="button" style={tbBtn(align === 'center')} onClick={() => updateAttributes({ align: 'center' })} title="Mitte">▶◀</button>
                 <button type="button" style={tbBtn(align === 'right')}  onClick={() => updateAttributes({ align: 'right' })}  title="Rechts">▶</button>
                 <span style={DIVIDER} />
-                {liveWidth && (
-                  <span style={{ ...tbBtn(), color: '#a9a9b8', fontSize: 11 }}>{Math.round(parseInt(liveWidth))} px</span>
-                )}
+                <label title="Breite in Pixel" style={{ display: 'inline-flex', alignItems: 'center', height: 24, gap: 3, padding: '0 5px', color: '#a9a9b8', fontSize: 11 }}>
+                  <input
+                    type="number"
+                    min={80}
+                    max={maxImageWidth}
+                    step={10}
+                    value={currentWidth}
+                    placeholder="auto"
+                    onMouseDown={e => e.stopPropagation()}
+                    onChange={e => setWidthFromInput(e.currentTarget.value)}
+                    style={{
+                      width: 52,
+                      height: 20,
+                      padding: '0 4px',
+                      border: '1px solid #3a3a50',
+                      borderRadius: 4,
+                      background: '#242438',
+                      color: '#e8e8f0',
+                      fontFamily: 'inherit',
+                      fontSize: 11,
+                      outline: 'none',
+                    }}
+                  />
+                  px
+                </label>
                 <button
                   type="button"
                   style={tbBtn()}
-                  onClick={() => { setLiveWidth(null); updateAttributes({ width: null }) }}
-                  title="Breite zurücksetzen"
+                  onClick={rotateImage}
+                  title="90 Grad drehen"
                 >⟳</button>
                 <span style={DIVIDER} />
                 <button type="button" style={{ ...tbBtn(), color: '#ef4444' }} onClick={() => deleteNode()} title="Löschen">×</button>
               </div>
-              <div onMouseDown={onMouseDown} style={RESIZE_HANDLE} title="Breite ziehen" />
-            </>
-          )}
-        </div>
-      </div>
-    </NodeViewWrapper>
-  )
-}
-
-// ── VideoView NodeView ───────────────────────────────────────────────────────
-
-function VideoView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
-  const { src, width, align = 'center' } = node.attrs as {
-    src: string; width?: string; align?: Align
-  }
-
-  const [liveWidth, setLiveWidth] = useState<string | null>(width ?? null)
-
-  const { containerRef, onMouseDown } = useResize((w) => {
-    const val = `${w}px`
-    setLiveWidth(val)
-    updateAttributes({ width: val })
-  })
-
-  const isEditable = editor.isEditable
-
-  return (
-    <NodeViewWrapper>
-      <div style={alignContainerStyle(align as Align)}>
-        <div
-          ref={containerRef}
-          style={{
-            position: 'relative',
-            display: 'inline-block',
-            width: liveWidth ?? '100%',
-            maxWidth: '100%',
-          }}
-        >
-          <video
-            src={src}
-            controls
-            style={{
-              display: 'block',
-              width: '100%',
-              borderRadius: 6,
-              outline: selected && isEditable ? '2px solid var(--accent)' : 'none',
-              outlineOffset: 2,
-              background: '#000',
-            }}
-          />
-
-          {selected && isEditable && (
-            <>
-              <div style={TOOLBAR_STYLE}>
-                <button type="button" style={tbBtn(align === 'left')}   onClick={() => updateAttributes({ align: 'left' })}   title="Links">◀</button>
-                <button type="button" style={tbBtn(align === 'center')} onClick={() => updateAttributes({ align: 'center' })} title="Mitte">▶◀</button>
-                <button type="button" style={tbBtn(align === 'right')}  onClick={() => updateAttributes({ align: 'right' })}  title="Rechts">▶</button>
-                <span style={DIVIDER} />
-                {liveWidth && (
-                  <span style={{ ...tbBtn(), color: '#a9a9b8', fontSize: 11 }}>{Math.round(parseInt(liveWidth))} px</span>
-                )}
-                <button
-                  type="button"
-                  style={tbBtn()}
-                  onClick={() => { setLiveWidth(null); updateAttributes({ width: null }) }}
-                  title="Breite zurücksetzen"
-                >⟳</button>
-                <span style={DIVIDER} />
-                <button type="button" style={{ ...tbBtn(), color: '#ef4444' }} onClick={() => deleteNode()} title="Löschen">×</button>
-              </div>
-              <div onMouseDown={onMouseDown} style={RESIZE_HANDLE} title="Breite ziehen" />
+              <div onMouseDown={onMouseDown} style={RESIZE_HANDLE} title="Groesse ziehen" />
             </>
           )}
         </div>
@@ -239,6 +256,14 @@ function VideoView({ node, updateAttributes, selected, deleteNode, editor }: Nod
 export const ResizableImage = Image.extend({
   inline: false,
   group: 'block',
+  draggable: true,
+
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      allowBase64: true,
+    }
+  },
 
   addAttributes() {
     return {
@@ -253,51 +278,15 @@ export const ResizableImage = Image.extend({
         parseHTML: el => el.getAttribute('data-align') || 'center',
         renderHTML: attrs => ({ 'data-align': attrs.align ?? 'center' }),
       },
+      rotate: {
+        default: 0,
+        parseHTML: el => Number(el.getAttribute('data-rotate') || 0),
+        renderHTML: attrs => attrs.rotate ? { 'data-rotate': attrs.rotate, style: `transform:rotate(${attrs.rotate}deg)` } : {},
+      },
     }
   },
 
   addNodeView() {
     return ReactNodeViewRenderer(ImageView)
-  },
-})
-
-// ── VideoNode extension ──────────────────────────────────────────────────────
-
-export const VideoNode = Node.create({
-  name: 'video',
-  group: 'block',
-  atom: true,
-  draggable: true,
-
-  addAttributes() {
-    return {
-      src: {
-        default: null,
-        parseHTML: el => (el as HTMLVideoElement).src || el.getAttribute('src'),
-      },
-      width: {
-        default: null,
-        parseHTML: el => el.getAttribute('data-width') || el.style.width || null,
-        renderHTML: attrs => attrs.width ? { 'data-width': attrs.width, style: `width:${attrs.width}` } : {},
-      },
-      align: {
-        default: 'center',
-        parseHTML: el => el.getAttribute('data-align') || 'center',
-        renderHTML: attrs => ({ 'data-align': attrs.align ?? 'center' }),
-      },
-    }
-  },
-
-  parseHTML() {
-    return [{ tag: 'video[src]' }]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    const { width: _w, align: _a, ...rest } = HTMLAttributes
-    return ['video', mergeAttributes(rest, { controls: '' })]
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(VideoView)
   },
 })
