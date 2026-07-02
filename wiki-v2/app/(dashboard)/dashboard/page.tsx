@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Note } from '@/lib/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import NewContentButton from '@/components/dashboard/NewContentButton'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -32,35 +33,7 @@ export default async function DashboardPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <ThemeToggle />
-          <Link
-            href="/create?type=article"
-            style={{
-              padding: '9px 16px',
-              background: 'var(--surface)',
-              color: 'var(--accent)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            + Artikel
-          </Link>
-          <Link
-            href="/create?type=workspace"
-            style={{
-              padding: '9px 16px',
-              background: 'var(--accent)',
-              color: '#fff',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            + Workspace
-          </Link>
+          <NewContentButton />
         </div>
       </div>
 
@@ -98,10 +71,8 @@ export default async function DashboardPage() {
             color: 'var(--muted)',
             fontSize: '13px',
           }}>
-            Noch keine Inhalte. Starte mit einem{' '}
-            <Link href="/create?type=article" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Artikel</Link>
-            {' '}oder einem{' '}
-            <Link href="/create?type=workspace" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Workspace</Link>.
+            Noch keine Inhalte.{' '}
+            <Link href="/create" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Neuen Inhalt erstellen</Link>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
