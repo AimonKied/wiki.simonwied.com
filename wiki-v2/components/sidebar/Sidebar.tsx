@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 import type { Note } from '@/lib/types'
 
 const primaryNav = [
-  { label: 'Bibliothek', href: '/', color: '#009955' },
+  { label: 'Bibliothek', href: '/' },
 ]
 
 const workspaceNav = [
-  { label: 'Arbeitsbereich', href: '/dashboard', color: '#4488ff' },
-  { label: 'Neuer Inhalt', href: '/create', color: '#009955' },
+  { label: 'Arbeitsbereich', href: '/dashboard' },
+  { label: 'Neuer Inhalt', href: '/create' },
 ]
 
 function SidebarSection({
@@ -20,7 +20,7 @@ function SidebarSection({
   pathname,
 }: {
   title: string
-  items: Array<{ label: string; href: string; color: string }>
+  items: Array<{ label: string; href: string }>
   pathname: string
 }) {
   return (
@@ -49,7 +49,6 @@ function SidebarSection({
               transition: 'all 0.15s',
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color, flexShrink: 0, display: 'inline-block' }} />
             {item.label}
           </Link>
         )
@@ -92,7 +91,7 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
               {note.title}
             </span>
             {note.is_public && (
-              <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--accent)', fontWeight: 700 }}>O</span>
+              <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--muted)', fontWeight: 700 }}>O</span>
             )}
           </Link>
         )
@@ -129,7 +128,7 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
     }}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
         <Link href="/" style={{ textDecoration: 'none', color: 'var(--text)', fontSize: '22px', fontWeight: 800 }}>
-          Wiki<span style={{ color: 'var(--accent)' }}>.</span>
+          Wiki
         </Link>
         <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
           Wissen, Notizen und Workspaces
