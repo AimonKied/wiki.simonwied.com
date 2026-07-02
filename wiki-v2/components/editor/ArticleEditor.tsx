@@ -788,6 +788,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         [data-article-editor] [data-section-card] p { margin: 0; }
         [data-article-editor] [data-section-card] ul,
         [data-article-editor] [data-section-card] ol { padding-left: 24px; margin: 0; }
+        [data-article-editor] [data-section-card] ul { list-style-type: disc; }
+        [data-article-editor] [data-section-card] ol { list-style-type: decimal; }
         [data-article-editor] [data-section-card] li + li { margin-top: 6px; }
         [data-article-editor] [data-section-card] blockquote {
           border-left: 3px solid var(--accent);
