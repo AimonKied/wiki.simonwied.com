@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -112,11 +113,25 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
 export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; notes?: Note[] }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+
+  useEffect(() => {
+    const activeTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+    setTheme(activeTheme)
+  }, [])
 
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.refresh()
+  }
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    document.documentElement.dataset.theme = nextTheme
+    localStorage.setItem('wiki-theme', nextTheme)
+    window.dispatchEvent(new CustomEvent('wiki-theme-change', { detail: { theme: nextTheme } }))
   }
 
   return (
@@ -159,6 +174,30 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       </div>
 
       <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title="Darstellung wechseln"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            marginBottom: '12px',
+            padding: '7px 9px',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            background: 'var(--surface2)',
+            color: 'var(--text)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '12px',
+          }}
+        >
+          <span>{theme === 'dark' ? 'Darkmode' : 'Lightmode'}</span>
+          <span style={{ color: 'var(--muted)', fontSize: '11px' }}>{theme === 'dark' ? 'Dunkel' : 'Hell'}</span>
+        </button>
         {isLoggedIn ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <Link href="/create?type=article" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>

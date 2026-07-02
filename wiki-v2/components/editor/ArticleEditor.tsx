@@ -175,6 +175,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
   const [articleWidth, setArticleWidth] = useState(ARTICLE_EDITOR_DEFAULT_WIDTH)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
   const lastInsertPosRef = useRef<number | null>(null)
@@ -217,6 +218,13 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     slashMenuRef.current = slashMenu
   }, [slashMenu])
+
+  useEffect(() => {
+    const readTheme = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    readTheme()
+    window.addEventListener('wiki-theme-change', readTheme)
+    return () => window.removeEventListener('wiki-theme-change', readTheme)
+  }, [])
 
   useEffect(() => {
     if (!slashMenuListRef.current || slashMenu === null) return
@@ -441,7 +449,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       : editor.isActive('heading', { level: 2 }) ? '19px'
         : editor.isActive('heading', { level: 3 }) ? '15px'
           : '14px')
-  const effectiveTextColor = (textStyleAttrs.color as string | null) ?? '#111827'
+  const effectiveTextColor = (textStyleAttrs.color as string | null) ?? (theme === 'dark' ? '#ececf4' : '#111827')
   const setTextStyle = (attrs: Record<string, string | null>) => {
     if (!editor.schema.marks[TEXT_STYLE_MARK]) return
     editor.chain().focus().setMark(TEXT_STYLE_MARK, attrs).run()

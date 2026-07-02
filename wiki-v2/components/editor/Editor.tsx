@@ -203,6 +203,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const initialContent = ensureSections(content)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [, refreshTextToolbar] = useState(0)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [spacePanVisible, setSpacePanVisible] = useState(false)
@@ -243,6 +244,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     w: minimapViewport.w / viewport.zoom,
     h: minimapViewport.h / viewport.zoom,
   }
+
+  useEffect(() => {
+    const readTheme = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    readTheme()
+    window.addEventListener('wiki-theme-change', readTheme)
+    return () => window.removeEventListener('wiki-theme-change', readTheme)
+  }, [])
 
   function clampViewportPosition(x: number, y: number, zoom: number) {
     const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
@@ -1181,6 +1189,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       : editor.isActive('heading', { level: 2 }) ? '19px'
         : editor.isActive('heading', { level: 3 }) ? '15px'
           : '14px')
+  const effectiveTextColor = (textStyleAttributes.color as string | null) ?? (theme === 'dark' ? '#ececf4' : '#111827')
   const setTextStyle = (attributes: Record<string, string | null>) => {
     if (!editor.schema.marks[TEXT_STYLE_MARK]) return
     editor.chain().focus().setMark(TEXT_STYLE_MARK, attributes).run()
@@ -1336,7 +1345,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               A
               <input
                 type="color"
-                value={(textStyleAttributes.color as string | null) ?? '#111827'}
+                value={effectiveTextColor}
                 onChange={e => setTextStyle({ color: e.target.value })}
                 style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
               />
@@ -1346,7 +1355,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3,
                 background: (textStyleAttributes.backgroundColor as string | null) ?? 'transparent',
-                color: (textStyleAttributes.color as string | null) ?? '#111827',
+                color: effectiveTextColor,
                 fontWeight: 700, lineHeight: 1,
               }}>
                 A

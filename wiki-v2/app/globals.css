@@ -12,6 +12,31 @@
   --accent2: #dd2244;
   --accent3: #2255cc;
   --accent4: #bb7700;
+  --grid-line: rgba(0,0,0,0.06);
+  --shadow-soft: rgba(26,26,42,0.10);
+  --shadow-faint: rgba(26,26,42,0.05);
+  --editor-surface: rgba(255,255,255,0.96);
+  --editor-border: rgba(208,208,224,0.95);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg:      #111119;
+  --surface: #181824;
+  --surface2:#242436;
+  --border:  #343449;
+  --text:    #ececf4;
+  --muted:   #9b9bb0;
+  --accent:  #27c982;
+  --accent2: #ff5f7a;
+  --accent3: #7aa2ff;
+  --accent4: #e5a64a;
+  --grid-line: rgba(255,255,255,0.055);
+  --shadow-soft: rgba(0,0,0,0.35);
+  --shadow-faint: rgba(0,0,0,0.20);
+  --editor-surface: rgba(24,24,36,0.96);
+  --editor-border: rgba(52,52,73,0.95);
+  color-scheme: dark;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -32,8 +57,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
   z-index: 0;
@@ -71,12 +96,12 @@ body::before {
 }
 
 [data-article-editor="true"][data-article-editable="true"] {
-  background: rgba(255,255,255,0.96);
-  border: 1px solid rgba(208,208,224,0.95);
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
   border-radius: 14px;
   box-shadow:
-    0 18px 52px rgba(26,26,42,0.10),
-    0 2px 8px rgba(26,26,42,0.05);
+    0 18px 52px var(--shadow-soft),
+    0 2px 8px var(--shadow-faint);
   padding: 34px 44px 6px;
   min-width: 0;
   position: relative;
@@ -135,7 +160,7 @@ body::before {
 .article-width-resize-handle:hover::before,
 .article-width-resize-handle:focus-visible::before {
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(0,153,85,0.12);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 [data-article-editor="true"] .ProseMirror h1,
@@ -175,7 +200,7 @@ body::before {
 [data-article-editor="true"] .ProseMirror blockquote {
   margin: 20px 0;
   padding: 14px 18px;
-  background: rgba(0,153,85,0.06);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-left: 3px solid var(--accent);
   border-radius: 8px;
   color: var(--text);
