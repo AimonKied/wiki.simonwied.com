@@ -8,12 +8,10 @@ const contentTypes = [
   {
     key: 'article',
     title: 'Artikel',
-    color: '#009955',
   },
   {
     key: 'workspace',
     title: 'Workspace Canvas',
-    color: '#4488ff',
   },
 ]
 
@@ -72,8 +70,6 @@ export default async function HomePage({
     (!activeCategory || note.categories.some(c => c.slug === activeCategory)) &&
     (!activeType || note.content_type === activeType)
   )
-  const articleCount = allPublicNotes.filter(note => note.content_type === 'article').length
-  const workspaceCount = allPublicNotes.filter(note => note.content_type === 'workspace').length
   const activeCategoryTitle = activeCategory
     ? categories.find(category => category.slug === activeCategory)?.title
     : null
@@ -84,37 +80,22 @@ export default async function HomePage({
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
       <Sidebar isLoggedIn={!!user} />
-      <main style={{ flex: 1, padding: '32px clamp(22px, 3vw, 40px) 48px', overflowY: 'auto', animation: 'fadeIn 0.2s ease both', minWidth: 0 }}>
-        <section style={{ marginBottom: '40px', width: '100%', maxWidth: '1440px' }}>
+      <main style={{ flex: 1, padding: '32px clamp(22px, 3vw, 48px) 48px', overflowY: 'auto', animation: 'fadeIn 0.2s ease both', minWidth: 0 }}>
+        <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
             <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>
-              <h1 style={{ fontSize: '34px', fontWeight: 800, marginBottom: '8px' }}>
-                Bibliothek
+              <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
+                Wiki
               </h1>
               <p style={{ fontSize: '14px', color: 'var(--muted)', maxWidth: '760px', lineHeight: 1.7 }}>
-                Oeffentliche Artikel und Workspaces, sortiert nach Thema und Inhaltstyp.
+                Oeffentliche Notizen, Artikel und Workspaces.
               </p>
             </div>
             <ThemeToggle />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '10px', marginBottom: '28px' }}>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent)' }}>{allPublicNotes.length}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Oeffentliche Inhalte</div>
-            </div>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent3)' }}>{articleCount}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Artikel</div>
-            </div>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent4)' }}>{workspaceCount}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Workspaces</div>
-            </div>
-          </div>
-
           <div id="kategorien" style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
+            <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 700 }}>
               Kategorien
             </h2>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -146,10 +127,10 @@ export default async function HomePage({
                     background: activeCategory === category.slug ? 'var(--surface2)' : 'var(--surface)',
                     color: 'var(--text)',
                     fontSize: '12px',
+                    fontWeight: activeCategory === category.slug ? 700 : 500,
                     textDecoration: 'none',
                   }}
                 >
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: category.color ?? 'var(--muted)', display: 'inline-block' }} />
                   {category.title}
                 </Link>
               ))}
@@ -177,13 +158,13 @@ export default async function HomePage({
           </div>
         </section>
 
-        <section id="oeffentlich" style={{ width: '100%', maxWidth: '1440px' }}>
+        <section id="oeffentlich" style={{ width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              {activeCategoryTitle || activeTypeTitle ? 'Gefilterte Inhalte' : 'Neueste Inhalte'} ({filteredNotes.length})
+              {activeCategoryTitle || activeTypeTitle ? 'Gefiltert' : 'Inhalte'}
             </h2>
             {(activeCategoryTitle || activeTypeTitle) && (
-              <Link href="/" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
+              <Link href="/" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
                 Filter zuruecksetzen
               </Link>
             )}
@@ -192,10 +173,11 @@ export default async function HomePage({
           {filteredNotes.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Keine Inhalte gefunden.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '12px' }}>
               {filteredNotes.map(note => {
                 const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
                 const type = contentTypes.find(t => t.key === note.content_type)
+                const meta = [...note.categories.map(cat => cat.title), type?.title ?? note.content_type].join(' / ')
                 return (
                   <Link
                     key={note.id}
@@ -211,26 +193,22 @@ export default async function HomePage({
                       textDecoration: 'none',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', fontSize: '11px', color: 'var(--muted)', flexWrap: 'wrap' }}>
-                      {note.categories.map((cat, i) => (
-                        <span key={cat.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                          {i > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: cat.color ?? 'var(--muted)', display: 'inline-block' }} />
-                          {cat.title}
-                        </span>
-                      ))}
-                      {note.categories.length > 0 && <span style={{ color: 'var(--border)' }}>/</span>}
-                      <span>{type?.title ?? note.content_type}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '15px', fontWeight: 750, marginBottom: note.description ? '5px' : 0 }}>
+                          {note.emoji && <span style={{ marginRight: '6px' }}>{note.emoji}</span>}
+                          {note.title}
+                        </div>
+                        {note.description && (
+                          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
+                            {note.description}
+                          </p>
+                        )}
+                      </div>
+                      <div style={{ marginTop: 'auto', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                        {meta}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>
-                      {note.emoji && <span style={{ marginRight: '6px' }}>{note.emoji}</span>}
-                      {note.title}
-                    </div>
-                    {note.description && (
-                      <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
-                        {note.description}
-                      </p>
-                    )}
                   </Link>
                 )
               })}
