@@ -65,6 +65,9 @@ const FONT_FAMILIES = [
 ]
 
 const FONT_SIZES = ['12px', '14px', '15px', '16px', '18px', '19px', '24px', '26px', '32px', '40px', '48px']
+const ARTICLE_EDITOR_DEFAULT_WIDTH = 820
+const ARTICLE_EDITOR_MIN_WIDTH = 620
+const ARTICLE_EDITOR_MAX_WIDTH = 1160
 
 const bBtn = (active: boolean, extra?: React.CSSProperties): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -171,6 +174,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
+  const [articleWidth, setArticleWidth] = useState(ARTICLE_EDITOR_DEFAULT_WIDTH)
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
   const lastInsertPosRef = useRef<number | null>(null)
@@ -437,6 +441,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       : editor.isActive('heading', { level: 2 }) ? '19px'
         : editor.isActive('heading', { level: 3 }) ? '15px'
           : '14px')
+  const effectiveTextColor = (textStyleAttrs.color as string | null) ?? '#111827'
   const setTextStyle = (attrs: Record<string, string | null>) => {
     if (!editor.schema.marks[TEXT_STYLE_MARK]) return
     editor.chain().focus().setMark(TEXT_STYLE_MARK, attrs).run()
@@ -445,9 +450,38 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     editor.commands.setTextSelection(editor.state.selection.to)
     editor.commands.blur()
   }
+  const startArticleResize = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = articleWidth
+    const onPointerMove = (event: PointerEvent) => {
+      const nextWidth = Math.min(
+        ARTICLE_EDITOR_MAX_WIDTH,
+        Math.max(ARTICLE_EDITOR_MIN_WIDTH, startWidth + event.clientX - startX),
+      )
+      setArticleWidth(nextWidth)
+    }
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+  }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: editable ? 'minmax(0, 820px) 88px' : 'minmax(0, 820px)', gap: '14px', alignItems: 'start', justifyContent: 'center', width: '100%' }}>
+    <div
+      data-article-editor-shell="true"
+      data-article-editable={editable ? 'true' : 'false'}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: editable ? `minmax(0, ${articleWidth}px) 88px` : 'minmax(0, 820px)',
+        gap: '14px',
+        alignItems: 'start',
+        justifyContent: 'start',
+        width: '100%',
+      }}
+    >
       {slashMenu && (
         <div
           ref={slashMenuListRef}
@@ -571,12 +605,12 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
             {/* Text color */}
             <label title="Textfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               A
-              <input type="color" value={(textStyleAttrs.color as string | null) ?? '#111827'} onChange={e => setTextStyle({ color: e.target.value })} style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }} />
+              <input type="color" value={effectiveTextColor} onChange={e => setTextStyle({ color: e.target.value })} style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }} />
             </label>
 
             {/* Background color */}
             <label title="Hintergrundfarbe" style={{ ...bBtn(false), padding: '3px 5px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3, background: (textStyleAttrs.backgroundColor as string | null) ?? 'transparent', color: (textStyleAttrs.color as string | null) ?? '#111827', fontWeight: 700, lineHeight: 1 }}>A</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 3px', borderRadius: 3, background: (textStyleAttrs.backgroundColor as string | null) ?? 'transparent', color: effectiveTextColor, fontWeight: 700, lineHeight: 1 }}>A</span>
               <span style={{ position: 'relative', width: 18, height: 18, overflow: 'hidden', borderRadius: 3 }}>
                 <input type="color" value={(textStyleAttrs.backgroundColor as string | null) ?? '#fff59d'} onChange={e => setTextStyle({ backgroundColor: e.target.value })} style={{ width: 18, height: 18, padding: 0, border: 0, background: 'none', cursor: 'pointer' }} />
                 {!textStyleAttrs.backgroundColor && <span style={{ position: 'absolute', left: -4, top: 8, width: 26, height: 2, background: '#ef4444', transform: 'rotate(-45deg)', pointerEvents: 'none' }} />}
@@ -679,12 +713,25 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         </BubbleMenu>
       )}
 
-      <div data-article-editor="true">
+      <div
+        data-article-editor="true"
+        data-article-editable={editable ? 'true' : 'false'}
+        style={editable ? { width: `${articleWidth}px`, maxWidth: '100%' } : undefined}
+      >
         <EditorContent editor={editor} />
         {editable && (
           <div style={{ display: 'flex', marginTop: '12px', paddingBottom: '28px' }}>
             <button type="button" onClick={appendBlock} style={appendButtonStyle}>+ Block hinzufuegen</button>
           </div>
+        )}
+        {editable && (
+          <button
+            type="button"
+            className="article-width-resize-handle"
+            onPointerDown={startArticleResize}
+            title="Schreibbereich breiter ziehen"
+            aria-label="Schreibbereich breiter ziehen"
+          />
         )}
       </div>
 
