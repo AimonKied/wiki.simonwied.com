@@ -324,8 +324,6 @@ interface HandleInfo {
 }
 
 interface ElBound { top: number; bottom: number; mid: number }
-interface LassoRect { left: number; top: number; width: number; height: number }
-interface ElementBox { idx: number; left: number; top: number; right: number; bottom: number }
 
 interface DragRefState {
   childIdx: number
@@ -360,9 +358,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaUploading, setMediaUploading] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
-  const [lassoRect, setLassoRect] = useState<LassoRect | null>(null)
-  const [selectedElementIndices, setSelectedElementIndices] = useState<Set<number>>(() => new Set())
-  const [selectedElementBoxes, setSelectedElementBoxes] = useState<ElementBox[]>([])
   const mediaInsertPosRef = useRef<number | null>(null)
   const mediaFileInputRef = useRef<HTMLInputElement | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -529,186 +524,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       offset += child.nodeSize
     }
     return bounds
-  }
-
-  function collectElementBoxes(): ElementBox[] {
-    if (!cardRef.current || typeof getPos !== 'function') return []
-    const sectionPos = getPos()
-    if (sectionPos === undefined) return []
-    const sectionNode = editor.state.doc.nodeAt(sectionPos)
-    if (!sectionNode) return []
-    const cardRect = cardRef.current.getBoundingClientRect()
-    const canvas = cardRef.current.closest('[data-editor-canvas]') as HTMLElement | null
-    const zoom = canvas ? _canvasZoom(canvas) : 1
-    const boxes: ElementBox[] = []
-    let offset = sectionPos + 1
-
-    for (let i = 0; i < sectionNode.childCount; i++) {
-      const child = sectionNode.child(i)
-      const el = editor.view.nodeDOM(offset) as HTMLElement | null
-      if (el?.getBoundingClientRect) {
-        const rect = el.getBoundingClientRect()
-        boxes.push({
-          idx: i,
-          left: (rect.left - cardRect.left) / zoom,
-          top: (rect.top - cardRect.top) / zoom,
-          right: (rect.right - cardRect.left) / zoom,
-          bottom: (rect.bottom - cardRect.top) / zoom,
-        })
-      }
-      offset += child.nodeSize
-    }
-
-    return boxes
-  }
-
-  useEffect(() => {
-    setSelectedElementBoxes(collectElementBoxes().filter(box => selectedElementIndices.has(box.idx)))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedElementIndices, node.content.size])
-
-  useEffect(() => {
-    if (selectedElementIndices.size === 0) return
-    function clearOnOutsideClick(e: MouseEvent) {
-      const target = e.target as HTMLElement
-      if (target.closest('[data-element-selection-toolbar]')) return
-      if (cardRef.current?.contains(target)) return
-      setSelectedElementIndices(new Set())
-      setSelectedElementBoxes([])
-    }
-    document.addEventListener('mousedown', clearOnOutsideClick)
-    return () => document.removeEventListener('mousedown', clearOnOutsideClick)
-  }, [selectedElementIndices.size])
-
-  function shouldStartLasso(target: HTMLElement) {
-    if (!cardRef.current) return false
-    if (target.closest('button,input,select,textarea,[contenteditable="false"],[data-section-drag-handle],[data-section-resize-handle],[data-element-palette]')) return false
-    const elementSelector = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,table,img,hr,figure,.wiki-toggle'
-    if (target.closest(elementSelector)) return false
-    return cardRef.current.contains(target)
-  }
-
-  function startElementLasso(e: React.MouseEvent) {
-    if (!editable || e.button !== 0 || dragging || resizing || imageInsertOpen || colorPickerOpen) return
-    const target = e.target as HTMLElement
-    if (selectedElementIndices.size > 0 && !target.closest('[data-element-selection-toolbar]')) {
-      setSelectedElementIndices(new Set())
-      setSelectedElementBoxes([])
-    }
-    if (!shouldStartLasso(target)) return
-    if (!cardRef.current) return
-
-    e.preventDefault()
-    e.stopPropagation()
-    sectionSel.clear()
-
-    const cardRect = cardRef.current.getBoundingClientRect()
-    const canvas = cardRef.current.closest('[data-editor-canvas]') as HTMLElement | null
-    const zoom = canvas ? _canvasZoom(canvas) : 1
-    const startX = (e.clientX - cardRect.left) / zoom
-    const startY = (e.clientY - cardRect.top) / zoom
-    const boxes = collectElementBoxes()
-    let didDrag = false
-
-    function rectFromMouse(ev: MouseEvent): LassoRect {
-      const x = (ev.clientX - cardRect.left) / zoom
-      const y = (ev.clientY - cardRect.top) / zoom
-      return {
-        left: Math.min(startX, x),
-        top: Math.min(startY, y),
-        width: Math.abs(x - startX),
-        height: Math.abs(y - startY),
-      }
-    }
-
-    function selectedFromRect(rect: LassoRect) {
-      const right = rect.left + rect.width
-      const bottom = rect.top + rect.height
-      const selectedBoxes = boxes.filter(box => box.right >= rect.left && box.left <= right && box.bottom >= rect.top && box.top <= bottom)
-      return {
-        indices: new Set(selectedBoxes.map(box => box.idx)),
-        boxes: selectedBoxes,
-      }
-    }
-
-    function onMove(ev: MouseEvent) {
-      const rect = rectFromMouse(ev)
-      if (!didDrag && Math.max(rect.width, rect.height) < 4) return
-      didDrag = true
-      const selected = selectedFromRect(rect)
-      setLassoRect(rect)
-      setSelectedElementIndices(selected.indices)
-      setSelectedElementBoxes(selected.boxes)
-    }
-
-    function onUp() {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      setLassoRect(null)
-      if (!didDrag) {
-        setSelectedElementIndices(new Set())
-        setSelectedElementBoxes([])
-      }
-    }
-
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }
-
-  function selectedElementHasText() {
-    if (selectedElementIndices.size === 0 || typeof getPos !== 'function') return false
-    const sectionPos = getPos()
-    if (sectionPos === undefined) return false
-    const sectionNode = editor.state.doc.nodeAt(sectionPos)
-    if (!sectionNode) return false
-    for (const idx of selectedElementIndices) {
-      if (idx < 0 || idx >= sectionNode.childCount) continue
-      const child = sectionNode.child(idx)
-      if (child.isTextblock || child.textContent) return true
-    }
-    return false
-  }
-
-  function applyTextStyleToSelection(attrs: Record<string, string | null>) {
-    if (selectedElementIndices.size === 0 || typeof getPos !== 'function') return
-    const markType = editor.state.schema.marks.wikiTextStyle
-    if (!markType) return
-    const sectionPos = getPos()
-    if (sectionPos === undefined) return
-    const sectionNode = editor.state.doc.nodeAt(sectionPos)
-    if (!sectionNode) return
-
-    const tr = editor.state.tr
-    let childPos = sectionPos + 1
-    for (let i = 0; i < sectionNode.childCount; i++) {
-      const child = sectionNode.child(i)
-      const childStart = childPos
-      const childEnd = childPos + child.nodeSize
-      if (selectedElementIndices.has(i)) {
-        editor.state.doc.nodesBetween(childStart, childEnd, (desc, pos) => {
-          if (!desc.isTextblock) return true
-          const from = pos + 1
-          const to = pos + desc.nodeSize - 1
-          if (to <= from) return false
-          desc.nodesBetween(0, desc.content.size, (textNode, innerPos) => {
-            if (!textNode.isText) return
-            const textFrom = from + innerPos
-            const textTo = textFrom + textNode.nodeSize
-            const existing = textNode.marks.find(mark => mark.type === markType)
-            const nextAttrs = { ...(existing?.attrs ?? {}) } as Record<string, string | null>
-            Object.entries(attrs).forEach(([key, value]) => {
-              if (value === null) delete nextAttrs[key]
-              else nextAttrs[key] = value
-            })
-            tr.removeMark(textFrom, textTo, markType)
-            if (Object.keys(nextAttrs).length > 0) tr.addMark(textFrom, textTo, markType.create(nextAttrs))
-          })
-          return false
-        })
-      }
-      childPos = childEnd
-    }
-    editor.view.dispatch(tr)
   }
 
   function onMouseMove(e: React.MouseEvent) {
@@ -2073,13 +1888,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const canvasH = node.attrs.h as number | null
   const canvasZ = node.attrs.z as number | null
   const isCanvasBlock = canvasX !== null && canvasY !== null
-  const selectedHasText = selectedElementHasText()
-  const TEXT_FONTS = [
-    { label: 'System', value: '' },
-    { label: 'Serif', value: 'Georgia, serif' },
-    { label: 'Mono', value: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' },
-  ]
-  const TEXT_SIZES = ['12px', '14px', '16px', '18px', '22px', '28px']
+  const isArticleMode = editor.state.doc.attrs.wikiMode === 'article'
 
   useEffect(() => {
     const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
@@ -2095,7 +1904,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         margin: 0,
       } : {
         position: 'relative',
-        margin: '0 0 12px',
+        margin: isArticleMode ? 0 : '0 0 12px',
       }}
     >
       <div
@@ -2114,32 +1923,33 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         ref={cardRef}
         data-section-card="true"
         data-section-id={sectionId}
-        onMouseDown={startElementLasso}
         onMouseMove={onMouseMove}
         onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
         onDragOver={onElementDragOver}
         onDragLeave={onElementDragLeave}
         onDrop={onElementDrop}
         style={{
-          background: bgColor ?? 'var(--surface)',
-          border: `1px solid ${borderColor ?? 'var(--border)'}`,
-          borderRadius: '12px',
-          padding: editable ? '42px 28px 16px 44px' : '20px 28px 16px 44px',
+          background: isArticleMode ? 'transparent' : (bgColor ?? 'var(--surface)'),
+          border: isArticleMode ? '1px solid transparent' : `1px solid ${borderColor ?? 'var(--border)'}`,
+          borderRadius: isArticleMode ? 0 : '12px',
+          padding: isArticleMode ? (editable ? '3px 0 3px 44px' : '3px 0') : (editable ? '42px 28px 16px 44px' : '20px 28px 16px 44px'),
           position: 'relative',
-          width: canvasW === null && isCanvasBlock ? 'fit-content' : undefined,
-          minWidth: `${MIN_SECTION_W}px`,
+          width: isArticleMode ? '100%' : (canvasW === null && isCanvasBlock ? 'fit-content' : undefined),
+          minWidth: isArticleMode ? 0 : `${MIN_SECTION_W}px`,
           maxWidth: canvasW === null && isCanvasBlock ? `${MAX_AUTO_SECTION_W}px` : undefined,
           height: canvasH !== null ? '100%' : undefined,
-          minHeight: `${MIN_SECTION_H}px`,
+          minHeight: isArticleMode ? 0 : `${MIN_SECTION_H}px`,
           boxSizing: 'border-box',
           overflow: 'visible',
           display: canvasH !== null ? 'flex' : undefined,
           flexDirection: canvasH !== null ? 'column' : undefined,
-          outline: isSelected || isEditorActive || elementDropTarget ? '2px solid var(--accent)' : 'none',
-          outlineOffset: elementDropTarget ? '4px' : '2px',
+          outline: elementDropTarget
+            ? '2px solid var(--accent)'
+            : (!isArticleMode && (isSelected || isEditorActive) ? '2px solid var(--accent)' : 'none'),
+          outlineOffset: isArticleMode ? '0' : (elementDropTarget ? '4px' : '2px'),
           boxShadow: elementDropTarget
             ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
-            : isEditorActive
+            : (!isArticleMode && isEditorActive)
               ? '0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent)'
               : undefined,
           cursor: resizing ? 'inherit' : (dragging ? 'grabbing' : undefined),
@@ -2172,107 +1982,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {editable && lassoRect && (
-          <div
-            style={{
-              position: 'absolute',
-              left: lassoRect.left,
-              top: lassoRect.top,
-              width: lassoRect.width,
-              height: lassoRect.height,
-              border: '1px solid var(--accent)',
-              background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-              borderRadius: 6,
-              pointerEvents: 'none',
-              zIndex: 40,
-            }}
-          />
-        )}
-
-        {editable && selectedElementBoxes.map(box => (
-          <div
-            key={box.idx}
-            style={{
-              position: 'absolute',
-              left: box.left - 4,
-              top: box.top - 4,
-              width: box.right - box.left + 8,
-              height: box.bottom - box.top + 8,
-              border: '2px solid var(--accent)',
-              borderRadius: 7,
-              pointerEvents: 'none',
-              zIndex: 39,
-              boxSizing: 'border-box',
-            }}
-          />
-        ))}
-
-        {editable && selectedElementIndices.size > 0 && selectedHasText && (
-          <div
-            data-element-selection-toolbar="true"
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '4px 6px',
-              background: '#1a1a2a',
-              border: '1px solid #2e2e42',
-              borderRadius: 7,
-              boxShadow: '0 8px 28px rgba(0,0,0,0.18)',
-              zIndex: 260,
-            }}
-          >
-            <select
-              title="Schriftart"
-              onChange={e => applyTextStyleToSelection({ fontFamily: e.target.value || null })}
-              defaultValue=""
-              style={{ height: 24, border: 0, borderRadius: 4, background: '#242438', color: '#e8e8f0', fontFamily: 'inherit', fontSize: 12, outline: 'none' }}
-            >
-              {TEXT_FONTS.map(font => <option key={font.label} value={font.value}>{font.label}</option>)}
-            </select>
-            <select
-              title="Schriftgröße"
-              onChange={e => applyTextStyleToSelection({ fontSize: e.target.value })}
-              defaultValue=""
-              style={{ height: 24, border: 0, borderRadius: 4, background: '#242438', color: '#e8e8f0', fontFamily: 'inherit', fontSize: 12, outline: 'none' }}
-            >
-              <option value="" disabled>px</option>
-              {TEXT_SIZES.map(size => <option key={size} value={size}>{parseInt(size)}</option>)}
-            </select>
-            <input
-              title="Textfarbe"
-              type="color"
-              defaultValue="#111827"
-              onChange={e => applyTextStyleToSelection({ color: e.currentTarget.value })}
-              style={{ width: 24, height: 24, padding: 0, border: 0, borderRadius: 4, background: 'transparent', cursor: 'pointer' }}
-            />
-            <input
-              title="Hintergrundfarbe"
-              type="color"
-              defaultValue="#fff59d"
-              onChange={e => applyTextStyleToSelection({ backgroundColor: e.currentTarget.value })}
-              style={{ width: 24, height: 24, padding: 0, border: 0, borderRadius: 4, background: 'transparent', cursor: 'pointer' }}
-            />
-            <button
-              title="Auswahl aufheben"
-              onClick={() => { setSelectedElementIndices(new Set()); setSelectedElementBoxes([]) }}
-              style={{ width: 24, height: 24, border: 0, borderRadius: 4, background: 'transparent', color: '#e8e8f0', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
         {/* Top-right controls: color picker + drag + delete */}
         {editable && (
-          <div className="wiki-section-delete" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: '1px' }}>
+          <div
+            className="wiki-section-delete"
+            style={{
+              position: 'absolute',
+              top: isArticleMode ? 3 : 8,
+              right: isArticleMode ? undefined : 8,
+              left: isArticleMode ? 6 : undefined,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1px',
+            }}
+          >
 
             {/* Color picker toggle */}
+            {!isArticleMode && (
             <div style={{ position: 'relative' }}>
               <button
                 title="Farbe anpassen"
@@ -2357,6 +2083,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 </div>
               )}
             </div>
+            )}
 
             {/* Layer: bring to front / send to back */}
             {isCanvasBlock && (
@@ -2431,6 +2158,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             </div>
 
             {/* Delete */}
+            {!isArticleMode && (
             <button
               title="Block löschen"
               onClick={() => deleteNode()}
@@ -2446,6 +2174,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             >
               ✕
             </button>
+            )}
           </div>
         )}
 

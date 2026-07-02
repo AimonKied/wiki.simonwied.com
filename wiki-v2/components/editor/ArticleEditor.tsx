@@ -81,6 +81,11 @@ lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, m
 
 const ArticleDocument = Document.extend({
   content: 'section+',
+  addAttributes() {
+    return {
+      wikiMode: { default: 'article' },
+    }
+  },
 })
 
 const ELEMENT_PALETTE = [
@@ -109,7 +114,17 @@ const EMPTY_ARTICLE = {
       type: 'section',
       content: [
         { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Abschnitt' }] },
+      ],
+    },
+    {
+      type: 'section',
+      content: [
         { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Eintrag' }] },
+      ],
+    },
+    {
+      type: 'section',
+      content: [
         { type: 'paragraph', content: [{ type: 'text', text: 'Schreibe hier deinen Artikel im Stil von wiki v1.' }] },
       ],
     },
@@ -145,7 +160,7 @@ function normalizeArticleContent(content: object | null | undefined): object {
   if (doc.content.every(node => node.type === 'section')) return withArticleMode(content)
   return withArticleMode({
     type: 'doc',
-    content: [{ type: 'section', content: doc.content }],
+    content: doc.content.map(node => ({ type: 'section', content: [node] })),
   })
 }
 
@@ -347,10 +362,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   function appendBlock() {
     editor.chain().focus().insertContentAt(editor.state.doc.content.size, {
       type: 'section',
-      content: [
-        { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Neuer Eintrag' }] },
-        { type: 'paragraph' },
-      ],
+      content: [{ type: 'paragraph' }],
     }).run()
   }
 
@@ -429,7 +441,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1040px) 88px', gap: '14px', alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: editable ? 'minmax(0, 820px) 88px' : 'minmax(0, 820px)', gap: '14px', alignItems: 'start', justifyContent: 'center', width: '100%' }}>
       {slashMenu && (
         <div
           ref={slashMenuListRef}
@@ -743,11 +755,13 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           line-height: 1.75;
           color: var(--text);
         }
-        [data-article-editor] .ProseMirror > * + * { margin-top: 12px; }
+        [data-article-editor] .ProseMirror > * + * { margin-top: 2px; }
         [data-article-editor] [data-section-card] {
-          border-radius: 12px !important;
+          background: transparent !important;
+          border-color: transparent !important;
+          border-radius: 0 !important;
           min-height: 0 !important;
-          padding: 24px 28px 22px 44px !important;
+          padding: 3px 0 3px 44px !important;
           box-shadow: none !important;
         }
         [data-article-editor] [data-section-card] h1 {
@@ -760,7 +774,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           font-size: 22px;
           line-height: 1.3;
           font-weight: 700;
-          letter-spacing: -0.01em;
+          letter-spacing: 0;
           margin: 0 0 14px;
         }
         [data-article-editor] [data-section-card] h3 {
@@ -829,7 +843,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         [data-article-editor] [data-section-card] th {
           font-size: 10px;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0;
           color: var(--muted);
           background: var(--surface2);
           font-weight: 700;
@@ -856,7 +870,7 @@ const tableMenuLabelStyle = {
   fontWeight: 700,
   color: 'var(--muted)',
   padding: '2px 6px 4px',
-  letterSpacing: '0.07em',
+  letterSpacing: 0,
 }
 
 const tableMenuDividerStyle = {
