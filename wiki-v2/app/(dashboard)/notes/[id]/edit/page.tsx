@@ -8,6 +8,7 @@ import type { Note, Category } from '@/lib/types'
 import Link from 'next/link'
 import RightSidebar from '@/components/editor/RightSidebar'
 import EmojiPicker from '@/components/editor/EmojiPicker'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdownConvert'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
@@ -201,15 +202,17 @@ export default function EditNotePage() {
   )
 
   const isArticle = contentType === 'article'
+  const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
+  const publishState = isPublic ? 'Oeffentlich sichtbar' : 'Privater Entwurf'
 
   return (
-    <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both' }}>
+    <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}>
 
       {/* Main editor column */}
       <div style={{ flex: 1, minWidth: 0 }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
 
           {/* Emoji button */}
           <div style={{ position: 'relative', flexShrink: 0, marginTop: '4px' }}>
@@ -238,7 +241,10 @@ export default function EditNotePage() {
           </div>
 
           {/* Title + Description */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ flex: '1 1 420px', minWidth: 'min(100%, 280px)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>
+              {publishState}
+            </div>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -260,7 +266,8 @@ export default function EditNotePage() {
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '4px', flexWrap: 'wrap' }}>
+            <ThemeToggle />
             {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
             {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
             {isArticle && (
@@ -323,7 +330,7 @@ export default function EditNotePage() {
         </div>
 
         {/* Type badge */}
-        <div style={{ marginBottom: '18px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '7px',
             padding: '5px 10px', border: '1px solid var(--border)',
@@ -331,7 +338,16 @@ export default function EditNotePage() {
             color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
           }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isArticle ? '#009955' : '#4488ff' }} />
-            {isArticle ? 'Artikel' : 'Workspace Canvas'}
+            {typeLabel}
+          </span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            padding: '5px 10px', border: '1px solid var(--border)',
+            borderRadius: '999px', background: 'var(--surface)',
+            color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
+            {publishState}
           </span>
         </div>
 
@@ -346,6 +362,20 @@ export default function EditNotePage() {
           border: `1px solid ${categoryError ? 'var(--accent2)' : 'var(--border)'}`,
           borderRadius: '10px',
         }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>
+                Veröffentlichen
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
+                Sichtbarkeit, URL und Kategorien fuer die oeffentliche Startseite.
+              </div>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+              Speichert automatisch · Strg+S fuer sofort
+            </span>
+          </div>
+
           {/* Public toggle + slug */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: isPublic ? '16px' : '0' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -387,9 +417,6 @@ export default function EditNotePage() {
                 )}
               </div>
             )}
-            <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: 'auto' }}>
-              Speichert automatisch · Strg+S für sofort
-            </span>
           </div>
 
           {/* Category selection */}

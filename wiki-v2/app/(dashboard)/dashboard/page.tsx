@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Note } from '@/lib/types'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -14,15 +15,23 @@ export default async function DashboardPage() {
     .from('notes')
     .select('*')
     .order('updated_at', { ascending: false })
+  const allNotes = (notes ?? []) as Note[]
+  const publicCount = allNotes.filter(note => note.is_public).length
+  const articleCount = allNotes.filter(note => note.content_type === 'article').length
+  const workspaceCount = allNotes.filter(note => note.content_type === 'workspace').length
 
   return (
     <div style={{ animation: 'fadeIn 0.2s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>Dashboard</h1>
-          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{user?.email}</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>Arbeitsbereich</h1>
+          <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+            Inhalte erstellen, bearbeiten und fuer die oeffentliche Startseite freigeben.
+            {user?.email && <span style={{ display: 'block', fontSize: '12px' }}>{user.email}</span>}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <ThemeToggle />
           <Link
             href="/create?type=article"
             style={{
@@ -55,12 +64,31 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '10px', marginBottom: '28px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 800 }}>{allNotes.length}</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Alle Inhalte</div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent)' }}>{publicCount}</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Oeffentlich</div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent3)' }}>{articleCount}</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Artikel</div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent4)' }}>{workspaceCount}</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Workspaces</div>
+        </div>
+      </section>
+
       <section>
         <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
-          Alle Inhalte ({notes?.length ?? 0})
+          Zuletzt bearbeitet
         </h2>
 
-        {!notes?.length ? (
+        {!allNotes.length ? (
           <div style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -70,12 +98,14 @@ export default async function DashboardPage() {
             color: 'var(--muted)',
             fontSize: '13px',
           }}>
-            Noch keine Inhalte.{' '}
-            <Link href="/create?type=article" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Ersten Artikel erstellen</Link>
+            Noch keine Inhalte. Starte mit einem{' '}
+            <Link href="/create?type=article" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Artikel</Link>
+            {' '}oder einem{' '}
+            <Link href="/create?type=workspace" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Workspace</Link>.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {(notes as Note[]).map(note => {
+            {allNotes.map(note => {
               const isArticle = note.content_type === 'article'
               return (
                 <Link

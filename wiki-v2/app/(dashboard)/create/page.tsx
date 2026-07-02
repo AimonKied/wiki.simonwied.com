@@ -3,8 +3,10 @@
 import { useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EmojiPicker from '@/components/editor/EmojiPicker'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle } from '@/lib/markdownConvert'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
@@ -54,7 +56,7 @@ const DEFAULT_ARTICLE_CONTENT = {
 
 export default function NewNotePage() {
   const searchParams = useSearchParams()
-  const contentMode = searchParams.get('type') === 'article' ? 'article' : 'workspace'
+  const contentMode = searchParams.get('type') === 'workspace' ? 'workspace' : 'article'
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
@@ -105,9 +107,14 @@ export default function NewNotePage() {
     if (!error && data) router.push(`/notes/${data.id}/edit`)
   }
 
+  const modeTitle = contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace'
+  const modeDescription = contentMode === 'article'
+    ? 'Linearer Text fuer Guides, Rezepte, Cheatsheets und laengere Notizen.'
+    : 'Freie Flaeche fuer strukturierte Bloecke, Skizzen und visuelle Arbeitsstaende.'
+
   return (
     <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '22px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flexShrink: 0, marginTop: '4px' }}>
           <button
             onClick={() => setPickerOpen(o => !o)}
@@ -139,7 +146,10 @@ export default function NewNotePage() {
           )}
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ flex: '1 1 420px', minWidth: 'min(100%, 280px)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>
+            {modeTitle}
+          </div>
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -175,58 +185,59 @@ export default function NewNotePage() {
           />
         </div>
 
-        {contentMode === 'article' && (
-          <>
-            <input
-              ref={mdImportRef}
-              type="file"
-              accept=".md,text/markdown"
-              style={{ display: 'none' }}
-              onChange={handleMdImport}
-            />
-            <button
-              type="button"
-              onClick={() => mdImportRef.current?.click()}
-              style={{
-                padding: '9px 14px',
-                background: 'none',
-                color: 'var(--muted)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                flexShrink: 0,
-                marginTop: '4px',
-              }}
-            >
-              MD importieren
-            </button>
-          </>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={saving || !title.trim()}
-          style={{
-            padding: '9px 20px',
-            background: 'var(--accent)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            fontFamily: 'inherit',
-            cursor: saving || !title.trim() ? 'not-allowed' : 'pointer',
-            opacity: saving || !title.trim() ? 0.6 : 1,
-            flexShrink: 0,
-            marginTop: '4px',
-          }}
-        >
-          {saving ? 'Speichert...' : 'Speichern'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '4px', flexWrap: 'wrap' }}>
+          <ThemeToggle />
+          {contentMode === 'article' && (
+            <>
+              <input
+                ref={mdImportRef}
+                type="file"
+                accept=".md,text/markdown"
+                style={{ display: 'none' }}
+                onChange={handleMdImport}
+              />
+              <button
+                type="button"
+                onClick={() => mdImportRef.current?.click()}
+                style={{
+                  padding: '9px 14px',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                MD importieren
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving || !title.trim()}
+            style={{
+              padding: '9px 20px',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: saving || !title.trim() ? 'not-allowed' : 'pointer',
+              opacity: saving || !title.trim() ? 0.6 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {saving ? 'Speichert...' : 'Speichern'}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -242,6 +253,36 @@ export default function NewNotePage() {
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
           {contentMode === 'article' ? 'Artikel' : 'Workspace Canvas'}
         </span>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '7px 11px',
+          border: '1px solid var(--border)',
+          borderRadius: '999px',
+          background: 'var(--surface)',
+          color: 'var(--muted)',
+          fontSize: '12px',
+          fontWeight: 600,
+        }}>
+          {modeDescription}
+        </span>
+        <Link
+          href={contentMode === 'article' ? '/create?type=workspace' : '/create?type=article'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '7px 11px',
+            border: '1px solid var(--border)',
+            borderRadius: '999px',
+            background: 'transparent',
+            color: 'var(--accent)',
+            fontSize: '12px',
+            fontWeight: 700,
+            textDecoration: 'none',
+          }}
+        >
+          Zu {contentMode === 'article' ? 'Workspace' : 'Artikel'} wechseln
+        </Link>
       </div>
 
       {contentMode === 'article' ? (
