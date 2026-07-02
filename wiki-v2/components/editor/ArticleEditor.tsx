@@ -6,6 +6,7 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
+import Placeholder from '@tiptap/extension-placeholder'
 import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Table } from '@tiptap/extension-table'
@@ -179,6 +180,13 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     extensions: [
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
       ArticleDocument,
+      Placeholder.configure({
+        placeholder: ({ node }) => {
+          if (node.type.name === 'paragraph') return 'Schreibe etwas oder druecke /'
+          return ''
+        },
+        showOnlyCurrent: false,
+      }),
       TextStyle,
       ResizableImage,
       CodeBlockLowlight.configure({ lowlight }),
@@ -757,10 +765,17 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           line-height: 1.75;
           color: var(--text);
         }
+        [data-article-editor] .is-editor-empty:first-child::before,
+        [data-article-editor] .is-empty::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: var(--muted);
+          opacity: 0.55;
+          height: 0;
+          pointer-events: none;
+        }
         [data-article-editor] .ProseMirror > * + * { margin-top: 2px; }
         [data-article-editor] [data-section-card] {
-          background: transparent !important;
-          border-color: transparent !important;
           border-radius: 0 !important;
           min-height: 0 !important;
           padding: 3px 0 3px 44px !important;
