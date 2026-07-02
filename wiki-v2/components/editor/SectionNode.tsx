@@ -8,8 +8,10 @@ import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode, Slice } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
-import { useId, useState, useRef, useEffect, useCallback } from 'react'
+import { useId, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { toggleJSON } from './ToggleNode'
+import { ELEMENT_PALETTE } from './elementPalette'
 
 // ── Module-level section selection store ──────────────────────────────────────
 const _selSet = new Set<string>()
@@ -216,6 +218,7 @@ function _ensureGlobalHandlers() {
   document.addEventListener('mousedown', (e) => {
     if (_selSet.size === 0) return
     if ((e.target as Element).closest('[data-section-drag-handle]')) return
+    if ((e.target as Element).closest('[data-article-block-controls]')) return
     if ((e.target as Element).closest('[data-element-palette]')) return
     sectionSel.clear()
   })
@@ -342,16 +345,68 @@ interface DragRefState {
   togglePos?: number   // set when dragging a child inside a toggle
 }
 
+const articleMenuButtonStyle: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  padding: '7px 9px',
+  border: 0,
+  borderRadius: 6,
+  background: 'transparent',
+  color: 'var(--text)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: 13,
+}
+
+const articleMenuRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  width: '100%',
+  textAlign: 'left',
+  padding: '7px 9px',
+  border: 0,
+  borderRadius: 6,
+  background: 'transparent',
+  color: 'var(--text)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: 13,
+}
+
+const articleMenuBackStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  width: '100%',
+  textAlign: 'left',
+  padding: '7px 9px',
+  border: 0,
+  borderRadius: 6,
+  background: 'transparent',
+  color: 'var(--muted)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: 12,
+  fontWeight: 700,
+}
+
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const sectionId = useId()
   const [isSelected, setIsSelected] = useState(false)
   const [isEditorActive, setIsEditorActive] = useState(false)
+  const [cardHovered, setCardHovered] = useState(false)
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sectionDragging, setSectionDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
   const [activeResizeDir, setActiveResizeDir] = useState<string | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
+  const [blockMenuOpen, setBlockMenuOpen] = useState(false)
+  const [blockMenuPos, setBlockMenuPos] = useState<{ left?: number; right?: number; top: number; maxHeight: number; maxWidth: number } | null>(null)
+  const [blockMenuView, setBlockMenuView] = useState<'main' | 'turn' | 'color'>('main')
+  const dragHandleRef = useRef<HTMLDivElement>(null)
   const [imageInsertOpen, setImageInsertOpen] = useState(false)
   const [imageInsertAnchor, setImageInsertAnchor] = useState<{ left: number; top: number } | null>(null)
   const [elementDropTarget, setElementDropTarget] = useState(false)
@@ -1189,7 +1244,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       setSectionDragging(false)
 
       if (!didDrag) {
-        sectionSel.toggle(sectionId, nativeEvent.shiftKey)
+        // Article mode: plain click opens the block popover, shift-click selects.
+        // Other modes keep the original select-on-click behaviour.
+        if (isArticleMode && !nativeEvent.shiftKey) setBlockMenuOpen(o => !o)
+        else sectionSel.toggle(sectionId, nativeEvent.shiftKey)
         return
       }
 
@@ -1505,8 +1563,185 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
   }, [colorPickerOpen])
 
+  useEffect(() => {
+    if (!blockMenuOpen) return
+    const close = () => setBlockMenuOpen(false)
+    const id = window.setTimeout(() => document.addEventListener('click', close), 0)
+    return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
+  }, [blockMenuOpen])
+
+  useEffect(() => { if (!blockMenuOpen) setBlockMenuView('main') }, [blockMenuOpen])
+
+  // Position the block popover like Notion: to the LEFT of the block, its right edge just
+  // left of the ⠿ handle so it never overlaps. Anchoring by `right` keeps that true at any
+  // width; falls back to the right side only when the left has no room. Height and width
+  // are capped to the viewport so it always fits and scrolls internally.
+  useLayoutEffect(() => {
+    if (!blockMenuOpen) { setBlockMenuPos(null); return }
+    function place() {
+      const el = dragHandleRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const margin = 12
+      const gap = 8
+      const menuMinW = 232
+      const top = Math.min(Math.max(margin, r.top), Math.max(margin, window.innerHeight - margin - 160))
+      const maxHeight = window.innerHeight - top - margin
+      const spaceLeft = r.left - gap - margin
+      if (spaceLeft >= menuMinW) {
+        setBlockMenuPos({ right: window.innerWidth - r.left + gap, top, maxHeight, maxWidth: spaceLeft })
+      } else {
+        const left = r.right + gap
+        setBlockMenuPos({ left, top, maxHeight, maxWidth: window.innerWidth - left - margin })
+      }
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [blockMenuOpen])
+
+  function selectedArticleSections() {
+    const selected: { node: PMNode; pos: number }[] = []
+    const view = _mountedView(editor as unknown as Editor)
+    if (!view || !isArticleMode) return selected
+    editor.state.doc.forEach((sectionNode, offset) => {
+      if (sectionNode.type.name !== 'section') return
+      const dom = view.nodeDOM(offset) as HTMLElement | null
+      const id = (dom?.querySelector('[data-section-card]') as HTMLElement | null)?.dataset.sectionId
+      if (id && sectionSel.has(id)) selected.push({ node: sectionNode, pos: offset })
+    })
+    return selected
+  }
+
+  function articleSelectionOrSelf() {
+    if (!isArticleMode || !sectionSel.has(sectionId) || sectionSel.size() <= 1) return null
+    const selected = selectedArticleSections()
+    return selected.length > 1 ? selected : null
+  }
+
+  function createArticleBlockNode(key: string, source?: PMNode | null) {
+    const { schema } = editor.state
+    const inlineContent = source?.isTextblock ? source.content : Fragment.empty
+    if (key === 'paragraph') return schema.nodes.paragraph.create(null, inlineContent)
+    if (key === 'h1') return schema.nodes.heading.create({ level: 1 }, inlineContent)
+    if (key === 'h2') return schema.nodes.heading.create({ level: 2 }, inlineContent)
+    if (key === 'h3') return schema.nodes.heading.create({ level: 3 }, inlineContent)
+    if (key === 'blockquote') return schema.nodes.blockquote.create(null, schema.nodes.paragraph.create(null, inlineContent))
+    if (key === 'bulletList' || key === 'orderedList') {
+      const item = schema.nodes.listItem.create(null, schema.nodes.paragraph.create(null, inlineContent))
+      return schema.nodes[key].create(null, item)
+    }
+    if (key === 'codeBlock') return schema.nodes.codeBlock.create({ language: null }, inlineContent)
+    if (key === 'hr') return schema.nodes.horizontalRule.create()
+    if (key === 'table') return schema.nodeFromJSON(createTableNode())
+    if (key === 'toggle' || key === 'toggleH1' || key === 'toggleH2' || key === 'toggleH3') {
+      if (!schema.nodes.toggle) return null
+      const title =
+        key === 'toggleH1' ? schema.nodes.heading.create({ level: 1 }, inlineContent) :
+        key === 'toggleH2' ? schema.nodes.heading.create({ level: 2 }, inlineContent) :
+        key === 'toggleH3' ? schema.nodes.heading.create({ level: 3 }, inlineContent) :
+        schema.nodes.paragraph.create(null, inlineContent)
+      return schema.nodes.toggle.create({ open: true }, title)
+    }
+    return null
+  }
+
+  function insertArticleSectionAfter(key = 'paragraph') {
+    if (typeof getPos !== 'function') return
+    const pos = getPos()
+    if (pos === undefined) return
+    const fresh = editor.state.doc.nodeAt(pos)
+    if (!fresh) return
+    const child = createArticleBlockNode(key)
+    if (!child) return
+    const section = editor.state.schema.nodes.section.create(null, Fragment.from(child))
+    const insertPos = pos + fresh.nodeSize
+    const tr = editor.state.tr.insert(insertPos, section)
+    const nextSelection = Math.min(insertPos + 2, tr.doc.content.size)
+    tr.setSelection(TextSelection.near(tr.doc.resolve(nextSelection)))
+    editor.view.dispatch(tr.scrollIntoView())
+    sectionSel.clear()
+  }
+
+  function convertArticleBlock(key: string) {
+    if (key === 'image') {
+      addElement('image')
+      setBlockMenuOpen(false)
+      return
+    }
+    const selected = articleSelectionOrSelf()
+    const tr = editor.state.tr
+    if (selected) {
+      selected.forEach(({ node: sectionNode, pos }) => {
+        const replacement = createArticleBlockNode(key, sectionNode.firstChild)
+        if (!replacement) return
+        tr.replaceWith(tr.mapping.map(pos + 1), tr.mapping.map(pos + sectionNode.nodeSize - 1), Fragment.from(replacement))
+      })
+      editor.view.dispatch(tr.scrollIntoView())
+      setBlockMenuOpen(false)
+      return
+    }
+
+    if (typeof getPos !== 'function') return
+    const pos = getPos()
+    if (pos === undefined) return
+    const sectionNode = editor.state.doc.nodeAt(pos)
+    if (!sectionNode) return
+    const replacement = createArticleBlockNode(key, sectionNode.firstChild)
+    if (!replacement) return
+    tr.replaceWith(pos + 1, pos + sectionNode.nodeSize - 1, Fragment.from(replacement))
+    editor.view.dispatch(tr.scrollIntoView())
+    setBlockMenuOpen(false)
+  }
+
+  function deleteArticleBlocks() {
+    const selected = articleSelectionOrSelf()
+    if (selected) {
+      const tr = editor.state.tr
+      selected.reverse().forEach(({ node: sectionNode, pos }) => {
+        const mapped = tr.mapping.map(pos)
+        tr.delete(mapped, mapped + sectionNode.nodeSize)
+      })
+      if (tr.doc.childCount === 0) tr.insert(0, editor.state.schema.nodes.section.create(null, editor.state.schema.nodes.paragraph.create()))
+      editor.view.dispatch(tr.scrollIntoView())
+      sectionSel.clear()
+      setBlockMenuOpen(false)
+      return
+    }
+    deleteNode()
+    setBlockMenuOpen(false)
+  }
+
+  function duplicateArticleBlocks() {
+    const selected = articleSelectionOrSelf()
+    if (selected) {
+      const insertPos = selected.reduce((max, entry) => Math.max(max, entry.pos + entry.node.nodeSize), 0)
+      const copies = selected.map(({ node: sectionNode }) => sectionNode.copy(sectionNode.content))
+      const tr = editor.state.tr.insert(insertPos, Fragment.fromArray(copies))
+      editor.view.dispatch(tr.scrollIntoView())
+      sectionSel.clear()
+      setBlockMenuOpen(false)
+      return
+    }
+    duplicateSection()
+    setBlockMenuOpen(false)
+  }
+
   function setBlockColor(bgColor: string | null, borderColor: string | null) {
     if (typeof getPos !== 'function') return
+    const selected = articleSelectionOrSelf()
+    if (selected) {
+      const tr = editor.state.tr
+      selected.forEach(({ node: sectionNode, pos }) => {
+        tr.setNodeMarkup(pos, undefined, { ...sectionNode.attrs, bgColor, borderColor })
+      })
+      editor.view.dispatch(tr)
+      return
+    }
     const pos = getPos()
     if (pos === undefined) return
     editor.view.dispatch(
@@ -1923,14 +2158,15 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         ref={cardRef}
         data-section-card="true"
         data-section-id={sectionId}
+        onMouseEnter={() => setCardHovered(true)}
         onMouseMove={onMouseMove}
-        onMouseLeave={() => { if (!dragRef.current) setHandle(null) }}
+        onMouseLeave={() => { setCardHovered(false); if (!dragRef.current) setHandle(null) }}
         onDragOver={onElementDragOver}
         onDragLeave={onElementDragLeave}
         onDrop={onElementDrop}
         style={{
-          background: isArticleMode ? 'transparent' : (bgColor ?? 'var(--surface)'),
-          border: isArticleMode ? '1px solid transparent' : `1px solid ${borderColor ?? 'var(--border)'}`,
+          background: isArticleMode ? (bgColor ?? 'transparent') : (bgColor ?? 'var(--surface)'),
+          border: isArticleMode ? `1px solid ${borderColor ?? 'transparent'}` : `1px solid ${borderColor ?? 'var(--border)'}`,
           borderRadius: isArticleMode ? 0 : '12px',
           padding: isArticleMode ? (editable ? '3px 0 3px 44px' : '3px 0') : (editable ? '42px 28px 16px 44px' : '20px 28px 16px 44px'),
           position: 'relative',
@@ -1956,8 +2192,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           transition: sectionDragging || resizing ? undefined : 'outline 0.1s, box-shadow 0.12s',
         }}
       >
-        {/* Handle buttons: ⠿ drag + ✕ delete */}
-        {editable && handle && !dragging && (
+        {/* Handle buttons: ⠿ drag + ✕ delete.
+            In article mode each section holds a single block, so the section-level
+            controls already cover move/delete — only show the per-element handle for
+            toggle children (multi-child container) to avoid duplicate ⠿ icons. */}
+        {editable && handle && !dragging && (!isArticleMode || handle.togglePos !== undefined) && (
           <div style={{
             position: 'absolute',
             left: 4, top: handle.top, height: handle.height,
@@ -1982,22 +2221,197 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {/* Top-right controls: color picker + drag + delete */}
+        {/* Section / article block controls */}
         {editable && (
           <div
             className="wiki-section-delete"
+            data-article-block-controls="true"
             style={{
               position: 'absolute',
               top: isArticleMode ? 3 : 8,
               right: isArticleMode ? undefined : 8,
-              left: isArticleMode ? 6 : undefined,
+              left: isArticleMode ? 2 : undefined,
               display: 'flex',
               alignItems: 'center',
               gap: '1px',
+              opacity: cardHovered || colorPickerOpen || blockMenuOpen ? 1 : 0,
+              transition: 'opacity 0.1s',
             }}
           >
+            {isArticleMode && (
+              <button
+                title="Block darunter einfuegen"
+                onMouseDown={e => e.preventDefault()}
+                onClick={e => { e.stopPropagation(); insertArticleSectionAfter() }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: '16px',
+                  width: '20px', height: '24px', borderRadius: '5px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'inherit', lineHeight: 1,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+              >
+                +
+              </button>
+            )}
 
-            {/* Color picker toggle */}
+            {/* Drag handle — drag to move, click opens the block popover (article) */}
+            <div style={{ position: 'relative' }}>
+              <div
+                ref={dragHandleRef}
+                data-section-drag-handle="true"
+                title={isArticleMode ? 'Ziehen zum Verschieben · Klick fuer Menue · Shift-Klick zum Auswaehlen' : 'Block verschieben / klicken zum Auswählen'}
+                onMouseDown={handleSectionDragDown}
+                onClick={e => e.stopPropagation()}
+                style={{
+                  cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
+                  width: isArticleMode ? '20px' : '26px',
+                  height: isArticleMode ? '24px' : '26px',
+                  borderRadius: '5px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  userSelect: 'none', lineHeight: 1,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+              >
+                ⠿
+              </div>
+
+              {isArticleMode && blockMenuOpen && blockMenuPos && createPortal(
+                <div
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    position: 'fixed',
+                    left: blockMenuPos.left,
+                    right: blockMenuPos.right,
+                    top: blockMenuPos.top,
+                    zIndex: 360,
+                    minWidth: 220,
+                    maxWidth: blockMenuPos.maxWidth,
+                    maxHeight: blockMenuPos.maxHeight,
+                    overflowY: 'auto',
+                    padding: 6,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.16)',
+                  }}
+                >
+                  {blockMenuView === 'main' && (
+                    <>
+                      <button type="button" style={articleMenuRowStyle} onClick={() => setBlockMenuView('turn')}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                        <span style={{ width: 20, color: 'var(--accent)', fontWeight: 800 }}>⇄</span>
+                        Umwandeln in
+                        <span style={{ marginLeft: 'auto', color: 'var(--muted)' }}>›</span>
+                      </button>
+                      <button type="button" style={articleMenuRowStyle} onClick={() => setBlockMenuView('color')}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                        <span style={{
+                          width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
+                          backgroundColor: bgColor === 'transparent' ? 'transparent' : (bgColor ?? 'var(--surface)'),
+                          border: `2.5px solid ${borderColor === 'transparent' ? 'transparent' : (borderColor ?? 'var(--border)')}`,
+                          outline: '1.5px solid var(--border)', outlineOffset: '1px', marginLeft: 3, marginRight: 3,
+                        }} />
+                        Farbe
+                        <span style={{ marginLeft: 'auto', color: 'var(--muted)' }}>›</span>
+                      </button>
+                      <div style={{ height: 1, margin: '6px 0', background: 'var(--border)' }} />
+                      <button type="button" onClick={duplicateArticleBlocks} style={articleMenuButtonStyle}>Duplizieren</button>
+                      <button type="button" onClick={deleteArticleBlocks} style={{ ...articleMenuButtonStyle, color: 'var(--accent2)' }}>Loeschen</button>
+                    </>
+                  )}
+
+                  {blockMenuView === 'turn' && (
+                    <>
+                      <button type="button" style={articleMenuBackStyle} onClick={() => setBlockMenuView('main')}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                        <span style={{ color: 'var(--muted)' }}>‹</span> Umwandeln in
+                      </button>
+                      <div style={{ height: 1, margin: '4px 0 2px', background: 'var(--border)' }} />
+                      {ELEMENT_PALETTE.map((item, index) => (
+                        <div key={item.key}>
+                          {(index === 0 || ELEMENT_PALETTE[index - 1].group !== item.group) && (
+                            <div style={{ padding: '5px 7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 0 }}>{item.group}</div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => convertArticleBlock(item.key)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              width: '100%', textAlign: 'left', padding: '7px 9px',
+                              border: 0, borderRadius: 6, background: 'transparent',
+                              color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                          >
+                            <span style={{ width: 28, color: 'var(--accent)', fontWeight: 800, fontSize: item.icon.length > 2 ? 9 : 11 }}>{item.icon}</span>
+                            {item.label}
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {blockMenuView === 'color' && (
+                    <>
+                      <button type="button" style={articleMenuBackStyle} onClick={() => setBlockMenuView('main')}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                        <span style={{ color: 'var(--muted)' }}>‹</span> Farbe
+                      </button>
+                      <div style={{ height: 1, margin: '4px 0 2px', background: 'var(--border)' }} />
+                      <div style={{ padding: '2px 7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 0 }}>HINTERGRUND</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '0 7px 6px' }}>
+                        {/* In article mode the default (Standard/null) already renders transparent,
+                            so the explicit Transparent swatch would be a duplicate — drop it. */}
+                        {BG_COLORS.filter(c => c.value !== 'transparent').map(c => (
+                          <button
+                            key={c.label}
+                            title={c.label}
+                            onClick={() => setBlockColor(c.value, borderColor)}
+                            style={{
+                              width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
+                              backgroundColor: c.style, border: '2px solid',
+                              borderColor: bgColor === c.value ? 'var(--accent)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
+                              outline: bgColor === c.value ? '2px solid var(--accent)' : 'none',
+                              outlineOffset: '1px', padding: 0, boxSizing: 'border-box',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div style={{ padding: '2px 7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 0 }}>RAHMEN</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '0 7px 6px' }}>
+                        {BORDER_COLORS.map(c => (
+                          <button
+                            key={c.label}
+                            title={c.label}
+                            onClick={() => setBlockColor(bgColor, c.value)}
+                            style={{
+                              width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer',
+                              backgroundColor: c.style, border: '2px solid',
+                              borderColor: borderColor === c.value ? 'var(--text)' : (c.value === null || c.value === 'transparent' ? 'var(--border)' : 'transparent'),
+                              outline: borderColor === c.value ? '2px solid var(--text)' : 'none',
+                              outlineOffset: '1px', padding: 0, boxSizing: 'border-box',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>,
+                document.body
+              )}
+            </div>
+
+            {/* Color picker toggle (canvas only; article folds colour into the ⠿ menu) */}
             {!isArticleMode && (
             <div style={{ position: 'relative' }}>
               <button
@@ -2028,14 +2442,17 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 <div
                   onClick={e => e.stopPropagation()}
                   style={{
-                    position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    right: isArticleMode ? undefined : 0,
+                    left: isArticleMode ? 0 : undefined,
                     background: 'var(--surface)', border: '1px solid var(--border)',
                     borderRadius: '10px', padding: '10px 12px',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                     zIndex: 300, minWidth: '200px',
                   }}
                 >
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>HINTERGRUND</div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: 0, marginBottom: '6px' }}>HINTERGRUND</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
                     {BG_COLORS.map(c => (
                       <button
@@ -2058,7 +2475,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                     ))}
                   </div>
                   <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0 8px' }} />
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', marginBottom: '6px' }}>RAHMEN</div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: 0, marginBottom: '6px' }}>RAHMEN</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {BORDER_COLORS.map(c => (
                       <button
@@ -2139,23 +2556,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 Auto
               </button>
             )}
-
-            {/* Drag handle */}
-            <div
-              data-section-drag-handle="true"
-              title="Block verschieben / klicken zum Auswählen"
-              onMouseDown={handleSectionDragDown}
-              style={{
-                cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
-                width: '26px', height: '26px', borderRadius: '5px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                userSelect: 'none', lineHeight: 1,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
-            >
-              ⠿
-            </div>
 
             {/* Delete */}
             {!isArticleMode && (
@@ -2279,11 +2679,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         )}
       </div>
 
-      <style>{`
-        .wiki-section-delete { opacity: 0; transition: opacity 0.1s; }
-        [data-node-view-wrapper]:hover .wiki-section-delete { opacity: 1; }
-        .wiki-section-delete:hover { color: var(--accent2) !important; }
-      `}</style>
       </div>
     </NodeViewWrapper>
   )
@@ -2360,6 +2755,46 @@ export const SectionExtension = Node.create({
 
   addKeyboardShortcuts() {
     return {
+      'Shift-Enter': () => {
+        const isArticleMode = this.editor.state.doc.attrs.wikiMode === 'article'
+        if (!isArticleMode) return false
+        return this.editor.commands.setHardBreak()
+      },
+      Backspace: () => {
+        if (this.editor.state.doc.attrs.wikiMode !== 'article') return false
+        const { state, view } = this.editor
+        const { $from, empty } = state.selection
+        if (!empty || !$from.parent.isTextblock || $from.parentOffset !== 0) return false
+        const sectionDepth = $from.depth - 1
+        if (sectionDepth < 0 || $from.node(sectionDepth).type.name !== 'section') return false
+        const sectionPos = $from.before(sectionDepth)
+        const sectionNode = state.doc.nodeAt(sectionPos)
+        if (!sectionNode) return false
+
+        let previous: { node: PMNode; pos: number } | null = null
+        state.doc.forEach((candidate, offset) => {
+          if (candidate.type.name === 'section' && offset < sectionPos) previous = { node: candidate, pos: offset }
+        })
+        if (!previous) return false
+
+        const tr = state.tr
+        if ($from.parent.textContent === '' && sectionNode.childCount === 1) {
+          tr.delete(sectionPos, sectionPos + sectionNode.nodeSize)
+          tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(1, tr.mapping.map(previous.pos + previous.node.nodeSize - 1))), -1))
+          view.dispatch(tr.scrollIntoView())
+          return true
+        }
+
+        const mergedChildren: PMNode[] = []
+        previous.node.forEach(child => mergedChildren.push(child))
+        sectionNode.forEach(child => mergedChildren.push(child))
+        tr.replaceWith(previous.pos + 1, previous.pos + previous.node.nodeSize - 1, Fragment.fromArray(mergedChildren))
+        const mappedSectionPos = tr.mapping.map(sectionPos)
+        tr.delete(mappedSectionPos, mappedSectionPos + sectionNode.nodeSize)
+        tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(1, tr.mapping.map(previous.pos + previous.node.nodeSize - 1))), -1))
+        view.dispatch(tr.scrollIntoView())
+        return true
+      },
       Enter: () => {
         const { $from } = this.editor.state.selection
         const parentType = $from.parent.type.name
@@ -2373,6 +2808,19 @@ export const SectionExtension = Node.create({
           !immediateContainer ||
           immediateContainer.type.name !== 'section'
         ) return false
+
+        if (this.editor.state.doc.attrs.wikiMode === 'article') {
+          const { state, view } = this.editor
+          const sectionPos = $from.before($from.depth - 1)
+          const sectionNode = state.doc.nodeAt(sectionPos)
+          if (!sectionNode) return false
+          const nextSection = state.schema.nodes.section.create(null, state.schema.nodes.paragraph.create())
+          const insertPos = sectionPos + sectionNode.nodeSize
+          const tr = state.tr.insert(insertPos, nextSection)
+          tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(insertPos + 2, tr.doc.content.size))))
+          view.dispatch(tr.scrollIntoView())
+          return true
+        }
 
         if (!this.editor.commands.setHardBreak()) return false
 
