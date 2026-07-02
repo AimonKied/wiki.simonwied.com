@@ -20,7 +20,8 @@
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+html[data-theme="dark"] {
   --bg:      #111119;
   --surface: #181824;
   --surface2:#242436;
@@ -90,6 +91,38 @@ body::before {
   transition: color 0.1s, transform 0.15s;
 }
 .wiki-toggle > div > button:hover { color: var(--text); }
+
+.theme-toggle {
+  width: 37px;
+  height: 37px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px var(--shadow-faint);
+  flex-shrink: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  background: var(--surface2);
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.theme-toggle:active {
+  transform: translateY(1px);
+}
 
 [data-article-editor="true"] {
   width: 100%;

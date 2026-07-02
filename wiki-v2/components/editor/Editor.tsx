@@ -246,7 +246,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   }
 
   useEffect(() => {
-    const readTheme = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    const readTheme = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
     readTheme()
     window.addEventListener('wiki-theme-change', readTheme)
     return () => window.removeEventListener('wiki-theme-change', readTheme)
