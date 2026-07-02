@@ -682,6 +682,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           style={{
             position: 'sticky',
             top: 14,
+            maxHeight: 'calc(100vh - 28px)',
+            overflowY: 'auto',
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 34px)',
             gap: '5px',
