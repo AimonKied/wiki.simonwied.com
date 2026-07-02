@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -56,16 +56,23 @@ const DEFAULT_ARTICLE_CONTENT = {
 
 export default function NewNotePage() {
   const searchParams = useSearchParams()
-  const contentMode = searchParams.get('type') === 'workspace' ? 'workspace' : 'article'
+  const typeParam = searchParams.get('type')
+  const contentMode = typeParam === 'article' || typeParam === 'workspace' ? typeParam : null
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [content, setContent] = useState<object>(contentMode === 'article' ? DEFAULT_ARTICLE_CONTENT : DEFAULT_WORKSPACE_CONTENT)
+  const [content, setContent] = useState<object>(contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT)
   const [saving, setSaving] = useState(false)
   const [importKey, setImportKey] = useState(0)
   const router = useRouter()
   const mdImportRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!contentMode) return
+    setContent(contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT)
+    setImportKey(k => k + 1)
+  }, [contentMode])
 
   function handleMdImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -83,6 +90,7 @@ export default function NewNotePage() {
   }
 
   async function handleSave() {
+    if (!contentMode) return
     if (!title.trim()) return
     setSaving(true)
 
@@ -111,6 +119,60 @@ export default function NewNotePage() {
   const modeDescription = contentMode === 'article'
     ? 'Linearer Text fuer Guides, Rezepte, Cheatsheets und laengere Notizen.'
     : 'Freie Flaeche fuer strukturierte Bloecke, Skizzen und visuelle Arbeitsstaende.'
+
+  if (!contentMode) {
+    return (
+      <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', maxWidth: '980px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
+          <div>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '6px' }}>Neuer Inhalt</h1>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
+              Waehle zuerst, welche Art von Inhalt du erstellen moechtest.
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '12px' }}>
+          <Link
+            href="/create?type=article"
+            style={{
+              display: 'block',
+              padding: '18px 20px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              color: 'var(--text)',
+              textDecoration: 'none',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>Artikel</div>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
+              Linearer Text fuer Guides, Rezepte, Cheatsheets und laengere Notizen.
+            </p>
+          </Link>
+
+          <Link
+            href="/create?type=workspace"
+            style={{
+              display: 'block',
+              padding: '18px 20px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              color: 'var(--text)',
+              textDecoration: 'none',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>Canvas Workspace</div>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
+              Freie Flaeche fuer strukturierte Bloecke, Skizzen und visuelle Arbeitsstaende.
+            </p>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%' }}>
@@ -266,23 +328,6 @@ export default function NewNotePage() {
         }}>
           {modeDescription}
         </span>
-        <Link
-          href={contentMode === 'article' ? '/create?type=workspace' : '/create?type=article'}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '7px 11px',
-            border: '1px solid var(--border)',
-            borderRadius: '999px',
-            background: 'transparent',
-            color: 'var(--accent)',
-            fontSize: '12px',
-            fontWeight: 700,
-            textDecoration: 'none',
-          }}
-        >
-          Zu {contentMode === 'article' ? 'Workspace' : 'Artikel'} wechseln
-        </Link>
       </div>
 
       {contentMode === 'article' ? (
