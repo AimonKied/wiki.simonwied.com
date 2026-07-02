@@ -29,6 +29,7 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
+import { ELEMENT_PALETTE } from './elementPalette'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
 
@@ -85,31 +86,14 @@ const ArticleDocument = Document.extend({
   addAttributes() {
     return {
       wikiMode: { default: 'article' },
+      blockModel: { default: 'linear-section-blocks' },
     }
   },
 })
 
-const ELEMENT_PALETTE = [
-  { key: 'paragraph',   label: 'Textblock',        icon: 'T'   },
-  { key: 'h1',          label: 'Titel',             icon: 'H1'  },
-  { key: 'h2',          label: 'Ueberschrift',      icon: 'H2'  },
-  { key: 'h3',          label: 'Untertitel',        icon: 'H3'  },
-  { key: 'blockquote',  label: 'Zitat',             icon: '"'   },
-  { key: 'bulletList',  label: 'Liste',             icon: 'UL'  },
-  { key: 'orderedList', label: 'Numm. Liste',       icon: '1.'  },
-  { key: 'table',       label: 'Tabelle',           icon: 'TB'  },
-  { key: 'image',       label: 'Bild',              icon: 'IMG' },
-  { key: 'codeBlock',   label: 'Codeblock',         icon: '</>' },
-  { key: 'hr',          label: 'Trennlinie',        icon: '-'   },
-  { key: 'toggle',      label: 'Toggle',            icon: '▶T'  },
-  { key: 'toggleH1',    label: 'Toggle Titel',      icon: '▶H1' },
-  { key: 'toggleH2',    label: 'Toggle H2',         icon: '▶H2' },
-  { key: 'toggleH3',    label: 'Toggle H3',         icon: '▶H3' },
-]
-
 const EMPTY_ARTICLE = {
   type: 'doc',
-  attrs: { wikiMode: 'article' },
+  attrs: { wikiMode: 'article', blockModel: 'linear-section-blocks' },
   content: [
     {
       type: 'section',
@@ -150,15 +134,29 @@ interface ArticleEditorProps {
 function withArticleMode(json: object) {
   return {
     ...(json as Record<string, unknown>),
-    attrs: { ...((json as { attrs?: object }).attrs ?? {}), wikiMode: 'article' },
+    attrs: {
+      ...((json as { attrs?: object }).attrs ?? {}),
+      wikiMode: 'article',
+      blockModel: 'linear-section-blocks',
+    },
   }
 }
 
 function normalizeArticleContent(content: object | null | undefined): object {
   if (!content || typeof content !== 'object') return EMPTY_ARTICLE
-  const doc = content as { type?: string; content?: Array<{ type?: string }> }
+  const doc = content as { type?: string; attrs?: object; content?: Array<{ type?: string; attrs?: object; content?: object[] }> }
   if (!doc.content?.length) return EMPTY_ARTICLE
-  if (doc.content.every(node => node.type === 'section')) return withArticleMode(content)
+  if (doc.content.every(node => node.type === 'section')) {
+    const linearSections = doc.content.flatMap(section => {
+      if (!section.content?.length || section.content.length === 1) return [section]
+      return section.content.map((child, index) => ({
+        type: 'section',
+        attrs: index === 0 ? section.attrs : undefined,
+        content: [child],
+      }))
+    })
+    return withArticleMode({ ...doc, content: linearSections })
+  }
   return withArticleMode({
     type: 'doc',
     content: doc.content.map(node => ({ type: 'section', content: [node] })),
@@ -297,7 +295,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   function slashItems(query: string) {
     const normalized = query.trim().toLowerCase()
     if (!normalized) return ELEMENT_PALETTE
-    return ELEMENT_PALETTE.filter(item => `${item.label} ${item.key}`.toLowerCase().includes(normalized))
+    return ELEMENT_PALETTE.filter(item => `${item.label} ${item.key} ${item.keywords}`.toLowerCase().includes(normalized))
   }
 
   function executeSlashCommand(ed: TiptapEditor, key: string, menu: SlashMenuState) {
@@ -469,30 +467,36 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           }}
         >
           {items.map((item, index) => (
-            <button
-              key={item.key}
-              type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => executeSlashCommand(editor, item.key, slashMenu)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8px 9px',
-                border: 0,
-                borderRadius: '6px',
-                background: index === slashMenu.selected ? 'var(--surface2)' : 'transparent',
-                color: 'var(--text)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: '12px',
-                textAlign: 'left',
-              }}
-            >
-              <span style={{ width: 34, color: 'var(--accent)', fontWeight: 800 }}>{item.icon}</span>
-              {item.label}
-            </button>
+            <div key={item.key}>
+              {(index === 0 || items[index - 1].group !== item.group) && (
+                <div style={{ padding: '7px 9px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 0 }}>
+                  {item.group}
+                </div>
+              )}
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => executeSlashCommand(editor, item.key, slashMenu)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 9px',
+                  border: 0,
+                  borderRadius: '6px',
+                  background: index === slashMenu.selected ? 'var(--surface2)' : 'transparent',
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: '12px',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ width: 34, color: 'var(--accent)', fontWeight: 800 }}>{item.icon}</span>
+                {item.label}
+              </button>
+            </div>
           ))}
         </div>
       )}
