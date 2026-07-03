@@ -238,8 +238,13 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
 }
 
 export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; notes?: Note[] }) {
-  const pathname = usePathname()
+  const realPathname = usePathname()
   const router = useRouter()
+  // Only mark the active link after mount so SSR and first client render agree
+  // (usePathname can differ between server and hydration → hydration mismatch).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const pathname = mounted ? realPathname : ''
 
   async function handleLogout() {
     const supabase = createClient()
