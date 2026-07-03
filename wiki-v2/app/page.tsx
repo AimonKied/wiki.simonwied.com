@@ -90,8 +90,8 @@ export default async function HomePage({
         <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
             <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
-                Wiki
+              <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}>
+                Bibliothek
               </h1>
               <p style={{ fontSize: '14px', color: 'var(--muted)', maxWidth: '760px', lineHeight: 1.7 }}>
                 Oeffentliche Notizen, Artikel und Workspaces.
@@ -110,10 +110,11 @@ export default async function HomePage({
                 style={{
                   padding: '7px 11px',
                   borderRadius: '999px',
-                  border: '1px solid var(--border)',
-                  background: !activeCategory ? 'var(--surface2)' : 'var(--surface)',
-                  color: 'var(--text)',
+                  border: `1px solid ${!activeCategory ? 'var(--accent)' : 'var(--border)'}`,
+                  background: !activeCategory ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
+                  color: !activeCategory ? 'var(--accent)' : 'var(--text)',
                   fontSize: '12px',
+                  fontWeight: !activeCategory ? 700 : 500,
                   textDecoration: 'none',
                 }}
               >
@@ -129,9 +130,9 @@ export default async function HomePage({
                     gap: '7px',
                     padding: '7px 11px',
                     borderRadius: '999px',
-                    border: '1px solid var(--border)',
-                    background: activeCategory === category.slug ? 'var(--surface2)' : 'var(--surface)',
-                    color: 'var(--text)',
+                    border: `1px solid ${activeCategory === category.slug ? 'var(--accent)' : 'var(--border)'}`,
+                    background: activeCategory === category.slug ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
+                    color: activeCategory === category.slug ? 'var(--accent)' : 'var(--text)',
                     fontSize: '12px',
                     fontWeight: activeCategory === category.slug ? 700 : 500,
                     textDecoration: 'none',
@@ -144,23 +145,32 @@ export default async function HomePage({
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-            {contentTypes.map(type => (
+            {contentTypes.map(type => {
+              const isActive = activeType === type.key
+              // Re-clicking the active type clears the filter (show all)
+              const params = new URLSearchParams()
+              if (!isActive) params.set('type', type.key)
+              if (activeCategory) params.set('category', activeCategory)
+              const query = params.toString()
+              return (
               <Link
                 key={type.key}
-                href={`/?type=${type.key}${activeCategory ? `&category=${activeCategory}` : ''}`}
+                href={query ? `/?${query}` : '/'}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                  background: activeType === type.key ? 'var(--surface2)' : 'transparent',
-                  color: activeType === type.key ? 'var(--text)' : 'var(--muted)',
+                  padding: '7px 11px',
+                  borderRadius: '999px',
+                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                  background: isActive ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
+                  color: isActive ? 'var(--accent)' : 'var(--text)',
                   fontSize: '12px',
+                  fontWeight: isActive ? 700 : 500,
                   textDecoration: 'none',
                 }}
               >
                 {type.title}
               </Link>
-            ))}
+              )
+            })}
           </div>
         </section>
 
