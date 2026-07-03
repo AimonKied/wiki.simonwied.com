@@ -11,11 +11,19 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
   const { data: note } = await supabase
     .from('notes')
     .select('*')
-    .eq('slug', slug)
+    .eq('published->>slug', slug)
     .eq('is_public', true)
     .single()
 
-  if (!note) notFound()
+  if (!note || !note.published) notFound()
+  // Render the frozen public snapshot, not the owner's live draft.
+  const pub = note.published as {
+    title: string
+    emoji: string | null
+    description: string | null
+    content: object | null
+    slug: string | null
+  }
   const isArticle = note.content_type === 'article'
   const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
 
@@ -27,7 +35,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
             wiki.simonwied.com
           </Link>
           <span style={{ color: 'var(--border)' }}>/</span>
-          <span style={{ color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.title}</span>
+          <span style={{ color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pub.title}</span>
         </div>
         <ThemeToggle />
       </div>
@@ -65,7 +73,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
             Oeffentlich
           </span>
         </div>
-        {note.emoji && <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>{note.emoji}</span>}
+        {pub.emoji && <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>{pub.emoji}</span>}
         <h1 style={{
           fontSize: '42px',
           fontWeight: 800,
@@ -74,16 +82,16 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           lineHeight: 1.1,
           color: 'var(--accent)',
         }}>
-          {note.title}
+          {pub.title}
         </h1>
-        {note.description && (
+        {pub.description && (
           <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6 }}>
-            {note.description}
+            {pub.description}
           </p>
         )}
       </div>
 
-      <EditorViewer content={note.content} />
+      <EditorViewer content={pub.content} contentType={note.content_type as 'article' | 'workspace'} />
     </div>
   )
 }

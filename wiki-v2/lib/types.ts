@@ -1,3 +1,11 @@
+export interface PublishedSnapshot {
+  title: string
+  emoji: string | null
+  description: string | null
+  content: object | null
+  slug: string | null
+}
+
 export interface Note {
   id: string
   user_id: string
@@ -8,6 +16,8 @@ export interface Note {
   content_type: 'article' | 'workspace'
   slug: string | null
   is_public: boolean
+  // Frozen public snapshot; the live columns above are the working draft.
+  published?: PublishedSnapshot | null
   created_at: string
   updated_at: string
 }

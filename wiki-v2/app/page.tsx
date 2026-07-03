@@ -43,7 +43,7 @@ export default async function HomePage({
     supabase
       .from('notes')
       .select(`
-        id, title, emoji, description, slug, content_type, updated_at,
+        id, title, emoji, description, slug, content_type, updated_at, published,
         note_categories(category_id, categories(id, slug, title, color))
       `)
       .eq('is_public', true)
@@ -53,18 +53,24 @@ export default async function HomePage({
   const categories: Category[] = (catsRes.data ?? []) as Category[]
 
   // Flatten the nested Supabase join result into a clean shape
-  const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => ({
+  const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => {
+    // Public listing reflects the frozen snapshot, not the owner's live draft.
+    const pub = (n.published ?? null) as {
+      title?: string; emoji?: string | null; description?: string | null; slug?: string | null
+    } | null
+    return {
     id: n.id as string,
-    title: n.title as string,
-    emoji: n.emoji as string | null,
-    description: n.description as string | null,
-    slug: n.slug as string | null,
+    title: pub?.title ?? (n.title as string),
+    emoji: pub?.emoji ?? (n.emoji as string | null),
+    description: pub?.description ?? (n.description as string | null),
+    slug: pub?.slug ?? (n.slug as string | null),
     content_type: n.content_type as string,
     updated_at: n.updated_at as string,
     categories: ((n.note_categories as Array<{ categories: Category | null }>) ?? [])
       .map(nc => nc.categories)
       .filter((c): c is Category => c !== null),
-  }))
+    }
+  })
 
   const filteredNotes = allPublicNotes.filter(note =>
     (!activeCategory || note.categories.some(c => c.slug === activeCategory)) &&

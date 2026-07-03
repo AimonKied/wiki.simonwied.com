@@ -76,3 +76,19 @@ drop trigger if exists notes_updated_at on notes;
 create trigger notes_updated_at
   before update on notes
   for each row execute function update_updated_at_column();
+
+-- 8. Draft/publish split: `published` holds the frozen public snapshot.
+--    The live note columns are the working draft; public pages read `published`.
+alter table notes
+  add column if not exists published jsonb;
+
+-- Backfill: existing public notes get a snapshot from their current columns
+update notes
+set published = jsonb_build_object(
+  'title',       title,
+  'emoji',       emoji,
+  'description', description,
+  'content',     content,
+  'slug',        slug
+)
+where is_public = true and published is null;
