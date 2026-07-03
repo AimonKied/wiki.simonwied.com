@@ -39,6 +39,7 @@ export default function EditNotePage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [categoryError, setCategoryError] = useState(false)
+  const [publishModalOpen, setPublishModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
@@ -81,9 +82,12 @@ export default function EditNotePage() {
     setSlug(slugify(title))
   }, [title, isPublic, slugManual])
 
-  const handleSave = useCallback(() => {
+  // 'draft' = auto-save working copy only (never touches the public snapshot).
+  // 'publish' = copy the current draft into the frozen public snapshot + go public.
+  // 'unpublish' = take the note offline (snapshot stays for a later re-publish).
+  const persist = useCallback((mode: 'draft' | 'publish' | 'unpublish' = 'draft') => {
     if (!title.trim()) return
-    if (isPublic && selectedCategories.length === 0) {
+    if (mode === 'publish' && selectedCategories.length === 0) {
       setCategoryError(true)
       return
     }
@@ -91,15 +95,27 @@ export default function EditNotePage() {
     window.clearTimeout(debounceRef.current)
     debounceRef.current = 0
 
-    const payload = {
+    const effectiveSlug = slug.trim() || (mode === 'publish' ? slugify(title) : '')
+    if (mode === 'publish' && effectiveSlug !== slug) setSlug(effectiveSlug)
+    const draftSlug = effectiveSlug || null
+
+    const snapshot = {
       title: title.trim(),
       emoji: emoji || null,
       description: description.trim() || null,
       content,
-      content_type: contentType,
-      is_public: isPublic,
-      slug: isPublic && slug.trim() ? slug.trim() : null,
+      slug: draftSlug,
     }
+    const payload: Record<string, unknown> = {
+      title: snapshot.title,
+      emoji: snapshot.emoji,
+      description: snapshot.description,
+      content,
+      content_type: contentType,
+      slug: draftSlug,
+    }
+    if (mode === 'publish') { payload.is_public = true; payload.published = snapshot }
+    if (mode === 'unpublish') { payload.is_public = false }
     const cats = [...selectedCategories]
 
     setSaveStatus('saving')
@@ -117,9 +133,24 @@ export default function EditNotePage() {
           )
         }
         setSaveStatus('saved')
+        if (mode === 'publish') { setIsPublic(true); setNote(n => n ? { ...n, is_public: true, published: snapshot } : n) }
+        if (mode === 'unpublish') { setIsPublic(false); setNote(n => n ? { ...n, is_public: false } : n) }
       })
       .catch(() => setSaveStatus('error'))
-  }, [id, title, description, emoji, content, contentType, isPublic, slug, selectedCategories])
+  }, [id, title, description, emoji, content, contentType, slug, selectedCategories])
+
+  const handleSave = useCallback(() => { persist('draft') }, [persist])
+  const openPublishModal = useCallback(() => {
+    if (!slug.trim()) setSlug(slugify(title))
+    setCategoryError(false)
+    setPublishModalOpen(true)
+  }, [slug, title])
+  const confirmPublish = useCallback(() => {
+    if (selectedCategories.length === 0) { setCategoryError(true); return }
+    persist('publish')
+    setPublishModalOpen(false)
+  }, [persist, selectedCategories])
+  const handleUnpublish = useCallback(() => { persist('unpublish') }, [persist])
 
   async function handleDelete() {
     if (!confirm('Notiz wirklich löschen?')) return
@@ -268,7 +299,8 @@ export default function EditNotePage() {
           {/* Action buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '4px', flexWrap: 'wrap' }}>
             <ThemeToggle />
-            {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Gespeichert</span>}
+            {saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Speichert…</span>}
+            {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>{isPublic ? 'Entwurf gespeichert' : 'Gespeichert'}</span>}
             {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
             {isArticle && (
               <>
@@ -313,18 +345,43 @@ export default function EditNotePage() {
             >
               Löschen
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              style={{
-                padding: '9px 20px', background: 'var(--accent)', color: '#fff',
-                border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                fontFamily: 'inherit', cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
-                opacity: saveStatus === 'saving' ? 0.6 : 1,
-              }}
-            >
-              {saveStatus === 'saving' ? 'Speichert…' : 'Speichern'}
-            </button>
+            {isPublic ? (
+              <>
+                <button
+                  onClick={handleUnpublish}
+                  title="Notiz wieder privat schalten"
+                  style={{
+                    padding: '9px 16px', background: 'none', color: 'var(--muted)',
+                    border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                    fontFamily: 'inherit', cursor: 'pointer',
+                  }}
+                >
+                  Zurückziehen
+                </button>
+                <button
+                  onClick={openPublishModal}
+                  title="Aktuellen Stand öffentlich übernehmen"
+                  style={{
+                    padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                    border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                    fontFamily: 'inherit', cursor: 'pointer',
+                  }}
+                >
+                  Änderungen veröffentlichen
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={openPublishModal}
+                style={{
+                  padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Veröffentlichen
+              </button>
+            )}
           </div>
 
         </div>
@@ -356,43 +413,67 @@ export default function EditNotePage() {
           ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
           : <Editor content={content} onChange={setContent} />}
 
-        {/* Metadaten */}
+        {/* Publish status */}
         <div style={{
-          marginTop: '20px', padding: '16px 20px', background: 'var(--surface)',
-          border: `1px solid ${categoryError ? 'var(--accent2)' : 'var(--border)'}`,
-          borderRadius: '10px',
+          marginTop: '20px', padding: '12px 16px', background: 'var(--surface)',
+          border: '1px solid var(--border)', borderRadius: '10px',
+          display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>
-                Veröffentlichen
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
-                Sichtbarkeit, URL und Kategorien fuer die oeffentliche Startseite.
-              </div>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
-              Speichert automatisch · Strg+S fuer sofort
-            </span>
-          </div>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
+            {isPublic
+              ? 'Öffentlich – Bearbeitungen bleiben Entwurf, bis du „Änderungen veröffentlichen“ klickst.'
+              : 'Privater Entwurf – wird automatisch gespeichert. Über „Veröffentlichen“ oben freigeben.'}
+          </span>
+          {isPublic && note.published?.slug && (
+            <Link
+              href={`/notes/${note.published.slug}`}
+              target="_blank"
+              style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+            >
+              /notes/{note.published.slug} ansehen →
+            </Link>
+          )}
+        </div>
 
-          {/* Public toggle + slug */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: isPublic ? '16px' : '0' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-              <input
-                type="checkbox"
-                checked={isPublic}
-                onChange={e => {
-                  setIsPublic(e.target.checked)
-                  if (e.target.checked && !slug) setSlug(slugify(title))
-                }}
-                style={{ accentColor: 'var(--accent)', width: '14px', height: '14px' }}
-              />
-              Öffentlich
-            </label>
-            {isPublic && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
+      </div>
+
+      {!isArticle && <RightSidebar content={content} />}
+
+      {/* Publish modal */}
+      {publishModalOpen && (
+        <div
+          onClick={() => setPublishModalOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px', animation: 'fadeIn 0.12s ease both',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: '460px',
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: '14px', padding: '22px 22px 18px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '4px' }}>
+              {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+            </div>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+              URL und Kategorien festlegen. Erst mit Bestätigung wird der aktuelle Stand öffentlich.
+            </p>
+
+            {/* Slug */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px', fontWeight: 700, letterSpacing: '0.06em' }}>
+                URL
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
                 <input
                   value={slug}
                   onChange={e => {
@@ -400,28 +481,18 @@ export default function EditNotePage() {
                     setSlugManual(true)
                   }}
                   placeholder="mein-slug"
+                  autoFocus
                   style={{
-                    flex: 1, padding: '5px 10px', background: 'var(--bg)',
-                    border: '1px solid var(--border)', borderRadius: '6px',
-                    fontSize: '12px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
+                    flex: 1, padding: '8px 10px', background: 'var(--bg)',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    fontSize: '13px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
                   }}
                 />
-                {slug && (
-                  <Link
-                    href={`/notes/${slug}`}
-                    target="_blank"
-                    style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                  >
-                    Ansehen →
-                  </Link>
-                )}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Category selection */}
-          {isPublic && (
-            <div>
+            {/* Categories */}
+            <div style={{ marginBottom: '22px' }}>
               <div style={{ fontSize: '11px', color: categoryError ? 'var(--accent2)' : 'var(--muted)', marginBottom: '8px', fontWeight: 700, letterSpacing: '0.06em' }}>
                 {categoryError ? 'Mindestens eine Kategorie wählen' : 'KATEGORIEN'}
               </div>
@@ -435,7 +506,7 @@ export default function EditNotePage() {
                       onClick={() => toggleCategory(cat.id)}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        padding: '5px 10px', borderRadius: '999px', cursor: 'pointer',
+                        padding: '6px 11px', borderRadius: '999px', cursor: 'pointer',
                         fontSize: '12px', fontFamily: 'inherit', fontWeight: 600,
                         border: `1px solid ${active ? cat.color ?? 'var(--accent)' : 'var(--border)'}`,
                         background: active ? (cat.color ?? 'var(--accent)') + '22' : 'transparent',
@@ -454,12 +525,35 @@ export default function EditNotePage() {
                 })}
               </div>
             </div>
-          )}
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                onClick={() => setPublishModalOpen(false)}
+                style={{
+                  padding: '9px 16px', background: 'none', color: 'var(--muted)',
+                  border: '1px solid var(--border)', borderRadius: '8px',
+                  fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmPublish}
+                disabled={saveStatus === 'saving'}
+                style={{
+                  padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                  fontFamily: 'inherit', cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
+                  opacity: saveStatus === 'saving' ? 0.6 : 1,
+                }}
+              >
+                {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+              </button>
+            </div>
+          </div>
         </div>
-
-      </div>
-
-      {!isArticle && <RightSidebar content={content} />}
+      )}
 
     </div>
   )
