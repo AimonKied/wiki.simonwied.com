@@ -238,10 +238,14 @@ export default function EditNotePage() {
   const publishState = isPublic ? 'Oeffentlich sichtbar' : 'Privater Entwurf'
 
   return (
-    <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}>
+    <div style={{
+      display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap',
+      // Article mode: bound to the viewport so only the writing area scrolls, not the page
+      ...(isArticle ? { height: 'calc(100vh - 80px)', minHeight: 0 } : {}),
+    }}>
 
       {/* Main editor column */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, ...(isArticle ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : {}) }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
@@ -411,7 +415,11 @@ export default function EditNotePage() {
 
         {/* Editor */}
         {isArticle
-          ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
+          ? (
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ArticleEditor key={importKey} content={content} onChange={setContent} fillHeight />
+            </div>
+          )
           : <Editor content={content} onChange={setContent} />}
 
         {/* Publish status */}
