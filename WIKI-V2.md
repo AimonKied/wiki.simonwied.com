@@ -18,7 +18,8 @@ Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werde
 | Framework | **Next.js 16** (App Router, Turbopack) |
 | Editor | **TipTap v3** |
 | Auth + DB | **Supabase** (PostgreSQL + Row Level Security) |
-| Styling | CSS Variables + JetBrains Mono |
+| Media | **Supabase Storage** (Bucket `wiki-media`) |
+| Styling | CSS Variables, Dark Mode Toggle; Syne (Headlines), Inter (Body), JetBrains Mono (Code) |
 | Hosting | **Vercel** |
 | Diagramme | **Mermaid** (geplant) |
 
@@ -58,14 +59,18 @@ public
 
 ### Kategorien
 
-Kategorien sind kuratierte Filter fuer oeffentliche Inhalte. Startkategorien:
+Kategorien sind kuratierte Filter fuer oeffentliche Inhalte. Sie existieren als eigene Datensaetze (Tabelle `categories`) mit `position` fuer die Anzeigereihenfolge. Aktuelles Set:
 
-- Rezepte
-- Security
-- Development
-- Ressourcen
+1. Technik
+2. Philosophie
+3. Natur
+4. DIY
+5. Rezepte
+6. Informatik
+7. Wissenschaft
+8. Sonstiges (immer zuletzt)
 
-Kategorien sollen nicht nur Freitext sein, sondern als eigene Datensaetze existieren, damit Filter, Slugs und spaetere Kategorie-Seiten stabil bleiben.
+Das fruehere Set (Security, Development, Ressourcen) wurde entfernt.
 
 ---
 
@@ -74,29 +79,46 @@ Kategorien sollen nicht nur Freitext sein, sondern als eigene Datensaetze existi
 ```text
 wiki-v2/
   app/
+    api/migrate-v1/           v1-HTML → Notiz (nur lokal, nicht in Produktion)
     (auth)/login/             Login-Seite
     (dashboard)/              Nur eingeloggt
-      create/                 Neuer Artikel oder Workspace
+      create/                 Typ-Auswahl, dann neuer Artikel oder Workspace
       dashboard/              Private Inhaltsuebersicht
+      migrate/                UI fuer v1-Migration
       notes/
         [id]/edit/            Inhalt bearbeiten
     (public)/
-      notes/[id]/             Oeffentliche Ansicht per Slug
+      notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
     layout.tsx
-    page.tsx                  Homepage mit Discovery und Kategorie-Filtern
+    page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
   components/
+    dashboard/
+      NewContentButton.tsx    Neuer-Inhalt-Button mit Typ-Auswahl
     editor/
       Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
+      ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (fillHeight, Griff-Popover)
       SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer
+      ToggleNode.tsx          Toggle-Element (<details>/<summary>)
+      MediaNodes.tsx          Bild/Video-Nodes (Supabase Storage Upload)
       RightSidebar.tsx        Workspace-Outline
+      elementPalette.ts       Gemeinsame Element-Palette (Artikel + Canvas)
+      editorTransforms.ts     Doc-Transformationen
       EmojiPicker.tsx
       EditorViewer.tsx        Read-only Darstellung
     sidebar/
-      Sidebar.tsx             Linke Navigation
+      Sidebar.tsx             Linke Navigation (letzte Notizen, Neuer-Inhalt-Flyout)
+    theme/ThemeToggle.tsx     Dark/Light Toggle
+    Logo.tsx                  Wortmarke (theme-adaptiv)
   lib/
     supabase/client.ts
     supabase/server.ts
+    supabase/storage.ts       Upload in Bucket wiki-media
+    markdownConvert.ts        Markdown-Import/Export fuer Artikel
+    v1Parser.ts               v1-HTML → TipTap-Doc
     types.ts
+  supabase/
+    migration.sql             Schema-Migration (im SQL Editor ausfuehren)
+    storage-policies.sql      Storage-Policies fuer wiki-media
   proxy.ts                    Auth-Middleware
 ```
 
@@ -104,46 +126,52 @@ wiki-v2/
 
 ## Datenbankschema
 
-Aktuell vorhanden:
+Komplette Migration liegt in `wiki-v2/supabase/migration.sql`. Stand:
 
 ```sql
 notes (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     uuid REFERENCES auth.users NOT NULL,
-  title       text NOT NULL DEFAULT 'Untitled',
-  emoji       text,
-  description text,
-  content     jsonb,
-  slug        text UNIQUE,
-  is_public   boolean DEFAULT false,
-  created_at  timestamptz DEFAULT now(),
-  updated_at  timestamptz DEFAULT now()
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid REFERENCES auth.users NOT NULL,
+  title        text NOT NULL DEFAULT 'Untitled',
+  emoji        text,
+  description  text,
+  content      jsonb,          -- Arbeitsstand (Draft)
+  published    jsonb,          -- eingefrorener oeffentlicher Snapshot
+  slug         text UNIQUE,
+  is_public    boolean DEFAULT false,
+  content_type text NOT NULL DEFAULT 'workspace',  -- 'article' | 'workspace'
+  created_at   timestamptz DEFAULT now(),
+  updated_at   timestamptz DEFAULT now()           -- Auto-Trigger
+)
+
+categories (
+  id         uuid PRIMARY KEY,
+  slug       text UNIQUE NOT NULL,
+  title      text NOT NULL,
+  color      text,
+  position   int NOT NULL DEFAULT 100,  -- Anzeigereihenfolge
+  created_at timestamptz
+)
+
+note_categories (
+  note_id     uuid → notes ON DELETE CASCADE,
+  category_id uuid → categories ON DELETE CASCADE,
+  PRIMARY KEY (note_id, category_id)
 )
 ```
 
-Geplante Erweiterung:
+RLS: Kategorien oeffentlich lesbar; `note_categories` lesbar wenn Notiz public, Owner darf alles.
 
-```sql
-alter table notes
-  add column content_type text not null default 'workspace'
-    check (content_type in ('article', 'workspace'));
+Draft/Publish-Modell:
 
-create table categories (
-  id          uuid primary key default gen_random_uuid(),
-  slug        text unique not null,
-  title       text not null,
-  color       text,
-  created_at  timestamptz default now()
-);
-
-create table note_categories (
-  note_id     uuid references notes(id) on delete cascade,
-  category_id uuid references categories(id) on delete cascade,
-  primary key (note_id, category_id)
-);
+```text
+content       = Arbeitsstand, Auto-Save schreibt hierhin
+published     = Snapshot (title, emoji, description, content, slug)
+                wird nur beim expliziten Veroeffentlichen aktualisiert
+Oeffentliche Seiten lesen ausschliesslich `published`.
 ```
 
-Public-Regel:
+Public-Regel (in App validiert):
 
 ```text
 Wenn is_public = true:
@@ -151,7 +179,7 @@ Wenn is_public = true:
   mindestens eine Kategorie muss verknuepft sein
 ```
 
-Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constraint abgesichert werden.
+Storage: Bucket `wiki-media` (public) fuer Bilder/Videos, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner).
 
 ---
 
@@ -181,10 +209,6 @@ Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constrai
 - Workspace oeffnet beim Laden zentriert auf vorhandene Inhalte
 - `npm run dev` ist durch `cross-env` Windows-kompatibel
 
-### Als Naechstes
-
-- [ ] Migration bestehender v1-Inhalte in die DB (Artikel anlegen, Inhalt einfuegen)
-
 ### Erledigt (Runde 2)
 
 - Supabase-Migration SQL erstellt (`supabase/migration.sql`): `content_type`, `categories`, `note_categories`, `updated_at`-Trigger, RLS-Policies
@@ -199,6 +223,26 @@ Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constrai
 - 404-Seite fuer nicht existierende oeffentliche Notizen (`not-found.tsx`)
 - Oeffentliche Notiz-Ansicht und Dashboard nutzen `content_type` aus DB direkt
 - Artikel-Editor hat dasselbe Text-Format-BubbleMenu wie der Canvas-Editor (Schriftart, -groesse, Farbe, Hintergrundfarbe, B/I/U/S/Code, H1/H2/H3/Tx)
+
+### Erledigt (Runde 3)
+
+- Draft/Published-Trennung: Auto-Save als Entwurf, explizites Veroeffentlichen friert Snapshot ein, oeffentliche Seiten lesen nur den Snapshot
+- Veroeffentlichen-Modal (Fullscreen-Overlay mit Portal + Blur)
+- Neue Notizen werden explizit privat angelegt
+- `/create` ohne Typ zeigt Auswahl (Artikel/Workspace) statt Default
+- Neuer-Inhalt-Button im Dashboard und als Sidebar-Flyout
+- Dark Mode + ThemeToggle
+- Typografie: Syne (Headlines), Inter (Body), JetBrains Mono nur fuer Code
+- Logo-Wortmarke in der Sidebar (theme-adaptiv)
+- Homepage heisst "Bibliothek"; Kategorie-Pills gruen bei aktiv, Typ-Filter abwaehlbar
+- Neues Kategorien-Set (Technik…Sonstiges) mit `position`-Sortierung
+- Lock-Icon fuer private Notizen im Dashboard
+- Artikel-Editor: lineare Section-Bloecke, gemeinsame Element-Palette mit Canvas, Notion-artiges Griff-Popover, Platzhaltertext, fillHeight-Modus (Editor fuellt Viewport, interne Scroll-Flaeche)
+- Markdown-Import/Export fuer Artikel (`lib/markdownConvert.ts`)
+- Bild/Video-Upload in Supabase Storage (`wiki-media`, MediaNodes)
+- Toggle-Element (`ToggleNode`)
+- v1-Migrations-Tooling: `/migrate`-Seite + `api/migrate-v1` + `lib/v1Parser.ts` (nur lokal nutzbar)
+- Hydration-Mismatch in Sidebar behoben
 
 ---
 
@@ -215,20 +259,40 @@ Diese Regel kann entweder in der App validiert oder spaeter mit Trigger/Constrai
 
 ## Migration bestehender Inhalte
 
-| Aktuelle Seite | Zieltyp | Kategorie | Oeffentlich |
+Tooling ist fertig (`/migrate`-Seite, nur lokal). Zielkategorien auf das neue Set gemappt:
+
+| Aktuelle Seite | Zieltyp | Kategorie (neu) | Oeffentlich |
 |---|---|---|---|
-| git-commands.html | Artikel | Development | Ja |
-| web-hacking.html | Artikel | Security | Ja |
-| cybertools.html | Artikel | Security | Ja |
-| awesome-list.html | Artikel | Ressourcen | Ja |
+| git-commands.html | Artikel | Informatik | Ja |
+| web-hacking.html | Artikel | Informatik | Ja |
+| cybertools.html | Artikel | Informatik | Ja |
+| awesome-list.html | Artikel | Sonstiges | Ja |
 | linsen-mit-spaetzle.html | Artikel | Rezepte | Ja |
 | buttermilk-chicken.html | Artikel | Rezepte | Ja |
 | croquetas.html | Artikel | Rezepte | Ja |
 
+Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migrations-Route setzt bei oeffentlichen Artikeln direkt den `published`-Snapshot, damit sie sofort unter `/notes/[slug]` sichtbar sind.
+
 ---
 
-## Deploy
+## Offene Punkte
+
+### Migration
+
+- [x] Kategorie-Slugs in `migrate/page.tsx` auf neues Set umstellen (siehe Tabelle oben)
+- [x] Migrations-Route setzt `published`-Snapshot fuer oeffentliche Artikel
+- [ ] v1-Inhalte lokal ueber `/migrate` in die DB migrieren und Ergebnis pruefen
+
+### Deploy
 
 - [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
 - [ ] Supabase-Credentials als Vercel Environment Variables setzen
 - [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
+
+### Danach / Nice-to-have
+
+- [ ] Mermaid-Diagramme (geplant laut Tech Stack)
+- [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
+- [ ] Public-Regel per DB-Trigger/Constraint absichern (aktuell nur App-Validierung)
+- [ ] Bekannte TS-Fehler fixen (10 gesamt, alle pre-existing): `tippyOptions` am Table-BubbleMenu in `Editor.tsx`, `never`-Typen in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`
+- [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten nach erfolgreicher Migration
