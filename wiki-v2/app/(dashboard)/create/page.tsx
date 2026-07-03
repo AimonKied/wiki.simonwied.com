@@ -106,6 +106,7 @@ export default function NewNotePage() {
         description: description.trim() || null,
         content,
         content_type: contentMode,
+        is_public: false,
         user_id: user.id,
       })
       .select('id')
