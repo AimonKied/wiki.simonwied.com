@@ -27,6 +27,7 @@ export interface Category {
   slug: string
   title: string
   color: string | null
+  position?: number
   created_at: string
 }
 

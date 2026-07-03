@@ -22,13 +22,24 @@ create table if not exists categories (
   created_at timestamptz default now()
 );
 
--- 4. Seed categories
-insert into categories (slug, title, color) values
-  ('rezepte',     'Rezepte',     '#bb7700'),
-  ('security',    'Security',    '#ff4466'),
-  ('development', 'Development', '#f05033'),
-  ('ressourcen',  'Ressourcen',  '#7c3aed')
-on conflict (slug) do nothing;
+-- 4. Seed categories (position controls display order; Sonstiges stays last)
+alter table categories
+  add column if not exists position int not null default 100;
+
+insert into categories (slug, title, color, position) values
+  ('technik',      'Technik',      '#0891b2', 1),
+  ('philosophie',  'Philosophie',  '#9333ea', 2),
+  ('natur',        'Natur',        '#16a34a', 3),
+  ('diy',          'DIY',          '#ea580c', 4),
+  ('rezepte',      'Rezepte',      '#d97706', 5),
+  ('informatik',   'Informatik',   '#ef4444', 6),
+  ('wissenschaft', 'Wissenschaft', '#2563eb', 7),
+  ('sonstiges',    'Sonstiges',    '#64748b', 99)
+on conflict (slug) do update
+  set title = excluded.title, color = excluded.color, position = excluded.position;
+
+-- Remove the earlier placeholder categories (also drops their note links)
+delete from categories where slug in ('security', 'development', 'ressourcen');
 
 -- 5. Create note_categories join table
 create table if not exists note_categories (

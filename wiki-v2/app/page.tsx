@@ -39,7 +39,7 @@ export default async function HomePage({
 
   // Load categories and public notes in parallel
   const [catsRes, notesRes] = await Promise.all([
-    supabase.from('categories').select('*').order('title'),
+    supabase.from('categories').select('*').order('position').order('title'),
     supabase
       .from('notes')
       .select(`
