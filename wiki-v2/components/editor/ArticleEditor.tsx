@@ -377,13 +377,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     )
   }
 
-  function appendBlock() {
-    editor.chain().focus().insertContentAt(editor.state.doc.content.size, {
-      type: 'section',
-      content: [{ type: 'paragraph' }],
-    }).run()
-  }
-
   function startPaletteDrag(e: React.DragEvent, key: string) {
     e.dataTransfer.setData('application/x-wiki-element', key)
     e.dataTransfer.effectAllowed = 'copy'
@@ -728,11 +721,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       >
         <EditorContent editor={editor} />
         {editable && (
-          <div style={{ display: 'flex', marginTop: '12px', paddingBottom: '28px' }}>
-            <button type="button" onClick={appendBlock} style={appendButtonStyle}>+ Block hinzufuegen</button>
-          </div>
-        )}
-        {editable && (
           <button
             type="button"
             className="article-width-resize-handle"
@@ -955,17 +943,4 @@ const tableMenuDividerStyle = {
   height: '1px',
   background: 'var(--border)',
   margin: '4px 0',
-}
-
-const appendButtonStyle = {
-  flex: 1,
-  padding: '11px 14px',
-  background: 'var(--surface)',
-  border: '1px dashed var(--border)',
-  borderRadius: '8px',
-  color: 'var(--muted)',
-  fontSize: '13px',
-  fontWeight: 700,
-  fontFamily: 'inherit',
-  cursor: 'pointer',
 }
