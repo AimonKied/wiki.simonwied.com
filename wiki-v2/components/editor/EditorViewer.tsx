@@ -11,8 +11,16 @@ function isArticleContent(content: object | null | undefined) {
   return doc.attrs?.wikiMode === 'article' || (!!doc.content?.length && doc.content.some(node => node.type !== 'section'))
 }
 
-export default function EditorViewer({ content }: { content: object | null }) {
-  return isArticleContent(content)
+export default function EditorViewer({
+  content,
+  contentType,
+}: {
+  content: object | null
+  contentType?: 'article' | 'workspace'
+}) {
+  // Prefer the note's declared type; fall back to sniffing the content shape.
+  const isArticle = contentType ? contentType === 'article' : isArticleContent(content)
+  return isArticle
     ? <ArticleEditor content={content} editable={false} />
     : <Editor content={content} editable={false} />
 }

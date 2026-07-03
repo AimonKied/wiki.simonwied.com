@@ -140,6 +140,18 @@ body::before {
   position: relative;
 }
 
+/* Published/read-only view: same surface panel as the editor */
+[data-article-editor="true"][data-article-editable="false"] {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: 14px;
+  box-shadow:
+    0 18px 52px var(--shadow-soft),
+    0 2px 8px var(--shadow-faint);
+  padding: 34px 44px;
+  min-width: 0;
+}
+
 [data-article-editor="true"] .ProseMirror {
   outline: none;
   color: var(--text);
