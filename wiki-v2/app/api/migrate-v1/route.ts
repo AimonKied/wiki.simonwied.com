@@ -64,6 +64,15 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       is_public: isPublic,
       slug: isPublic ? slug : null,
+      published: isPublic
+        ? {
+            title: meta.title,
+            emoji: meta.emoji,
+            description: meta.description,
+            content,
+            slug,
+          }
+        : null,
     })
     .select('id')
     .single()
