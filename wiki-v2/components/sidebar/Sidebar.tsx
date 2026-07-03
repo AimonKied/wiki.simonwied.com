@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Note } from '@/lib/types'
+import Logo from '@/components/Logo'
 
 const primaryNav = [
   { label: 'Bibliothek', href: '/' },
@@ -269,8 +270,8 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       zIndex: 1,
     }}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
-        <Link href="/" style={{ textDecoration: 'none', color: 'var(--text)', fontSize: '22px', fontWeight: 800 }}>
-          Wiki
+        <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
+          <Logo height={28} />
         </Link>
         <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
           Wissen, Notizen und Workspaces
