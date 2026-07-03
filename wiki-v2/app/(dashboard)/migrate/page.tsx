@@ -12,13 +12,13 @@ interface PageDef {
 }
 
 const PAGES: PageDef[] = [
-  { slug: 'git-commands',        label: 'Git Commands',           emoji: '🐙', categorySlug: 'development', isPublic: true },
-  { slug: 'web-hacking',         label: 'Web Hacking',            emoji: '⚔️', categorySlug: 'security',    isPublic: true },
-  { slug: 'cybertools',          label: 'CyberTools',             emoji: '🧰', categorySlug: 'security',    isPublic: true },
-  { slug: 'awesome-list',        label: 'Awesome List',           emoji: '⭐', categorySlug: 'ressourcen',  isPublic: true },
-  { slug: 'linsen-mit-spaetzle', label: 'Linsen mit Spätzle',     emoji: '🍲', categorySlug: 'rezepte',     isPublic: true },
-  { slug: 'buttermilk-chicken',  label: 'Butter Chicken',         emoji: '🍛', categorySlug: 'rezepte',     isPublic: true },
-  { slug: 'croquetas',           label: 'Croquetas',              emoji: '🇪🇸', categorySlug: 'rezepte',     isPublic: true },
+  { slug: 'git-commands',        label: 'Git Commands',           emoji: '🐙', categorySlug: 'informatik', isPublic: true },
+  { slug: 'web-hacking',         label: 'Web Hacking',            emoji: '⚔️', categorySlug: 'informatik', isPublic: true },
+  { slug: 'cybertools',          label: 'CyberTools',             emoji: '🧰', categorySlug: 'informatik', isPublic: true },
+  { slug: 'awesome-list',        label: 'Awesome List',           emoji: '⭐', categorySlug: 'sonstiges',  isPublic: true },
+  { slug: 'linsen-mit-spaetzle', label: 'Linsen mit Spätzle',     emoji: '🍲', categorySlug: 'rezepte',    isPublic: true },
+  { slug: 'buttermilk-chicken',  label: 'Butter Chicken',         emoji: '🍛', categorySlug: 'rezepte',    isPublic: true },
+  { slug: 'croquetas',           label: 'Croquetas',              emoji: '🇪🇸', categorySlug: 'rezepte',    isPublic: true },
 ]
 
 type Status = 'idle' | 'loading' | 'done' | 'exists' | 'error'
