@@ -96,10 +96,26 @@ export default async function DashboardPage() {
                     transition: 'border-color 0.15s',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                    <span style={{ fontSize: '14px', color: 'var(--muted)' }}>{note.is_public ? 'O' : 'P'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                     <span style={{ fontSize: '14px', fontWeight: 700 }}>{note.title}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                    {!note.is_public && (
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="var(--muted)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-label="Privat"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    )}
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: '4px' }}>
                       {isArticle ? 'Artikel' : 'Workspace'}
                     </span>
                   </div>
