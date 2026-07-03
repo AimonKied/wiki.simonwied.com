@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     <div style={{ animation: 'fadeIn 0.2s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>Arbeitsbereich</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px', fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}>Arbeitsbereich</h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
             Inhalte erstellen, bearbeiten und fuer die oeffentliche Startseite freigeben.
             {user?.email && <span style={{ display: 'block', fontSize: '12px' }}>{user.email}</span>}

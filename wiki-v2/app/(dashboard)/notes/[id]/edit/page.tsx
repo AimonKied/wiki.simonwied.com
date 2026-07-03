@@ -283,7 +283,7 @@ export default function EditNotePage() {
               onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
               style={{
                 fontSize: '28px', fontWeight: 800, background: 'none', border: 'none',
-                outline: 'none', color: 'var(--accent)', fontFamily: 'inherit', width: '100%', padding: 0,
+                outline: 'none', color: 'var(--accent)', fontFamily: 'var(--font-display)', width: '100%', padding: 0,
               }}
             />
             <input
@@ -464,7 +464,7 @@ export default function EditNotePage() {
               boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
             }}
           >
-            <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '4px' }}>
+            <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '4px', fontFamily: 'var(--font-display)' }}>
               {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
             </div>
             <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>

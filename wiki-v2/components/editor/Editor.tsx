@@ -1853,7 +1853,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         }
         [data-node-view-content] blockquote p { margin: 0; }
 
-        [data-node-view-content] code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        [data-node-view-content] code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: var(--font-mono); }
         [data-node-view-content] pre {
           background: #1a1a2a;
           color: #e8e8f0;
@@ -1864,6 +1864,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           font-size: 13px;
           line-height: 1.6;
           margin: 0;
+          font-family: var(--font-mono);
         }
         [data-node-view-content] pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
 

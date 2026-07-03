@@ -126,7 +126,7 @@ export default function NewNotePage() {
       <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', maxWidth: '980px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
           <div>
-            <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '6px' }}>Neuer Inhalt</h1>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '6px', fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}>Neuer Inhalt</h1>
             <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
               Waehle zuerst, welche Art von Inhalt du erstellen moechtest.
             </p>
@@ -226,7 +226,7 @@ export default function NewNotePage() {
               border: 'none',
               outline: 'none',
               color: 'var(--accent)',
-              fontFamily: 'inherit',
+              fontFamily: 'var(--font-display)',
               width: '100%',
               padding: 0,
             }}

@@ -78,9 +78,10 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           fontSize: '42px',
           fontWeight: 800,
           marginBottom: '12px',
-          letterSpacing: 0,
+          letterSpacing: '0.01em',
           lineHeight: 1.1,
           color: 'var(--accent)',
+          fontFamily: 'var(--font-display)',
         }}>
           {pub.title}
         </h1>

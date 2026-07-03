@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -17,6 +17,8 @@
   --shadow-faint: rgba(26,26,42,0.05);
   --editor-surface: rgba(255,255,255,0.96);
   --editor-border: rgba(208,208,224,0.95);
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   color-scheme: light;
 }
 
@@ -45,12 +47,18 @@ html[data-theme="dark"] {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.7;
   min-height: 100vh;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+}
+
+/* Display headings echo the logo (Syne); body/UI is Inter, code is JetBrains Mono */
+h1 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 body::before {
@@ -260,6 +268,7 @@ body::before {
   border-radius: 8px;
   color: #e8e8f0;
   line-height: 1.7;
+  font-family: var(--font-mono);
 }
 
 [data-article-editor="true"] .ProseMirror code {
@@ -268,6 +277,7 @@ body::before {
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 0.92em;
+  font-family: var(--font-mono);
 }
 
 [data-article-editor="true"] .ProseMirror pre code {
