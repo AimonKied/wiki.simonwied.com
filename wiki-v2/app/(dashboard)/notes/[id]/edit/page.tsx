@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -52,7 +53,7 @@ export default function EditNotePage() {
       const supabase = createClient()
       const [noteRes, catsRes, noteCatsRes] = await Promise.all([
         supabase.from('notes').select('*').eq('id', id).single(),
-        supabase.from('categories').select('*').order('title'),
+        supabase.from('categories').select('*').order('position').order('title'),
         supabase.from('note_categories').select('category_id').eq('note_id', id),
       ])
 
@@ -440,13 +441,16 @@ export default function EditNotePage() {
 
       {!isArticle && <RightSidebar content={content} />}
 
-      {/* Publish modal */}
-      {publishModalOpen && (
+      {/* Publish modal — portalled to body so the editor's transform (fadeIn)
+          doesn't clip the fixed overlay to a rectangle */}
+      {publishModalOpen && createPortal(
         <div
           onClick={() => setPublishModalOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 200,
-            background: 'rgba(0,0,0,0.45)',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '20px', animation: 'fadeIn 0.12s ease both',
           }}
@@ -527,7 +531,7 @@ export default function EditNotePage() {
             </div>
 
             {/* Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
               <button
                 onClick={() => setPublishModalOpen(false)}
                 style={{
@@ -552,7 +556,8 @@ export default function EditNotePage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
