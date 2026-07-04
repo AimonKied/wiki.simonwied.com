@@ -31,7 +31,7 @@ import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
 import { CalloutExtension } from './CalloutNode'
-import { ELEMENT_PALETTE } from './elementPalette'
+import { ELEMENT_PALETTE, filterPalette } from './elementPalette'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
 
@@ -313,11 +313,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     }
   }
 
-  function slashItems(query: string) {
-    const normalized = query.trim().toLowerCase()
-    if (!normalized) return ELEMENT_PALETTE
-    return ELEMENT_PALETTE.filter(item => `${item.label} ${item.key} ${item.keywords}`.toLowerCase().includes(normalized))
-  }
+  const slashItems = filterPalette
 
   function executeSlashCommand(ed: TiptapEditor, key: string, menu: SlashMenuState) {
     setSlashMenu(null)

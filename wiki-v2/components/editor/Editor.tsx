@@ -29,6 +29,7 @@ import rust from 'highlight.js/lib/languages/rust'
 import java from 'highlight.js/lib/languages/java'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { SectionExtension, sectionSel } from './SectionNode'
+import { ELEMENT_PALETTE, filterPalette } from './elementPalette'
 import { ToggleExtension } from './ToggleNode'
 import { CalloutExtension } from './CalloutNode'
 
@@ -80,23 +81,6 @@ const FONT_FAMILIES = [
 
 const FONT_SIZES = ['12px', '14px', '15px', '16px', '18px', '19px', '24px', '26px', '32px', '40px', '48px']
 
-const ELEMENT_PALETTE = [
-  { key: 'paragraph',   label: 'Text',          icon: '¶',   description: 'Normaler Text' },
-  { key: 'h1',          label: 'Überschrift 1', icon: 'H1',  description: 'Große Überschrift' },
-  { key: 'h2',          label: 'Überschrift 2', icon: 'H2',  description: 'Mittlere Überschrift' },
-  { key: 'h3',          label: 'Überschrift 3', icon: 'H3',  description: 'Kleine Überschrift' },
-  { key: 'bulletList',  label: 'Liste',         icon: '•',   description: 'Aufzählung' },
-  { key: 'orderedList', label: 'Nummeriert',    icon: '1.',  description: 'Nummerierte Liste' },
-  { key: 'codeBlock',   label: 'Code',          icon: '</>', description: 'Codeblock' },
-  { key: 'blockquote',  label: 'Zitat',         icon: '"',   description: 'Hervorgehobenes Zitat' },
-  { key: 'hr',          label: 'Trennlinie',    icon: '—',   description: 'Horizontale Linie' },
-  { key: 'table',       label: 'Tabelle',       icon: '⊞',   description: 'Tabelle mit 3 × 3 Zellen' },
-  { key: 'image',       label: 'Bild',          icon: '▧',   description: 'Bild über URL oder Datei' },
-  { key: 'toggle',      label: 'Toggle',        icon: '▶T',  description: 'Einklappbarer Block' },
-  { key: 'toggleH1',    label: 'Toggle Titel',  icon: '▶H1', description: 'Toggle in Titelgröße' },
-  { key: 'toggleH2',    label: 'Toggle H2',     icon: '▶H2', description: 'Toggle in H2-Größe' },
-  { key: 'toggleH3',    label: 'Toggle H3',     icon: '▶H3', description: 'Toggle in H3-Größe' },
-]
 
 interface SlashMenuState {
   from: number
@@ -138,13 +122,7 @@ const CANVAS_CENTER_X = CANVAS_W / 2
 const CANVAS_CENTER_Y = CANVAS_H / 2
 const MINIMAP_PADDING = 420
 
-function getSlashItems(query: string) {
-  const normalized = query.trim().toLocaleLowerCase('de')
-  if (!normalized) return ELEMENT_PALETTE
-  return ELEMENT_PALETTE.filter(item =>
-    `${item.label} ${item.description} ${item.key}`.toLocaleLowerCase('de').includes(normalized)
-  )
-}
+const getSlashItems = filterPalette
 
 // Wrap flat content (old notes) in a section so it renders as a card.
 // Sections without stored position render in normal flow first; the layout-pass
