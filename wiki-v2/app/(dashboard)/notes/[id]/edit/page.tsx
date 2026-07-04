@@ -407,25 +407,6 @@ export default function EditNotePage() {
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
             {publishState}
           </span>
-        </div>
-
-        {/* Editor */}
-        {isArticle
-          ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
-          : <Editor content={content} onChange={setContent} />}
-
-        {/* Publish status */}
-        <div style={{
-          marginTop: '20px', padding: '12px 16px', background: 'var(--surface)',
-          border: '1px solid var(--border)', borderRadius: '10px',
-          display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
-        }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
-            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
-            {isPublic
-              ? 'Öffentlich – Bearbeitungen bleiben Entwurf, bis du „Änderungen veröffentlichen“ klickst.'
-              : 'Privater Entwurf – wird automatisch gespeichert. Über „Veröffentlichen“ oben freigeben.'}
-          </span>
           {isPublic && note.published?.slug && (
             <Link
               href={`/notes/${note.published.slug}`}
@@ -436,6 +417,11 @@ export default function EditNotePage() {
             </Link>
           )}
         </div>
+
+        {/* Editor */}
+        {isArticle
+          ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
+          : <Editor content={content} onChange={setContent} />}
 
       </div>
 
