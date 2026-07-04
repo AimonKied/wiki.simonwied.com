@@ -1,16 +1,25 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EmojiPicker from '@/components/editor/EmojiPicker'
+import ArticleToc from '@/components/editor/ArticleToc'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle } from '@/lib/markdownConvert'
 
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
+
+function slugify(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 const DEFAULT_WORKSPACE_CONTENT = {
   type: 'doc',
@@ -63,16 +72,68 @@ export default function NewNotePage() {
   const [emoji, setEmoji] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [content, setContent] = useState<object>(contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT)
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(!!contentMode)
+  const [noteId, setNoteId] = useState<string | null>(null)
+  const [isPublic, setIsPublic] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [importKey, setImportKey] = useState(0)
   const router = useRouter()
   const mdImportRef = useRef<HTMLInputElement>(null)
+  const saveChain = useRef(Promise.resolve())
+  const debounceRef = useRef(0)
+  const hydratedRef = useRef(false)
 
   useEffect(() => {
     if (!contentMode) return
     setContent(contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT)
     setImportKey(k => k + 1)
   }, [contentMode])
+
+  useEffect(() => {
+    if (!contentMode) return
+
+    let cancelled = false
+
+    async function createNoteAndRedirect() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const draftTitle = contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace'
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          title: draftTitle,
+          emoji: null,
+          description: null,
+          content: contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT,
+          content_type: contentMode,
+          is_public: false,
+          user_id: user.id,
+        })
+        .select('id')
+        .single()
+
+      if (cancelled) return
+      if (error || !data) {
+        setSaveStatus('error')
+        setLoading(false)
+        return
+      }
+
+      setNoteId(data.id)
+      router.push(`/notes/${data.id}/edit`)
+    }
+
+    createNoteAndRedirect()
+
+    return () => {
+      cancelled = true
+    }
+  }, [contentMode, router])
 
   function handleMdImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -89,32 +150,74 @@ export default function NewNotePage() {
     e.target.value = ''
   }
 
-  async function handleSave() {
-    if (!contentMode) return
-    if (!title.trim()) return
-    setSaving(true)
+  const persist = useCallback((mode: 'draft' | 'publish' = 'draft') => {
+    if (!contentMode || !noteId) return
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    window.clearTimeout(debounceRef.current)
+    debounceRef.current = 0
 
-    const { data, error } = await supabase
-      .from('notes')
-      .insert({
-        title: title.trim(),
+    const effectiveTitle = title.trim() || (contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')
+    const effectiveSlug = mode === 'publish' ? slugify(effectiveTitle) : null
+
+    const payload: Record<string, unknown> = {
+      title: effectiveTitle,
+      emoji: emoji || null,
+      description: description.trim() || null,
+      content,
+      content_type: contentMode,
+      slug: effectiveSlug,
+    }
+    if (mode === 'publish') {
+      payload.is_public = true
+      payload.published = {
+        title: effectiveTitle,
         emoji: emoji || null,
         description: description.trim() || null,
         content,
-        content_type: contentMode,
-        is_public: false,
-        user_id: user.id,
-      })
-      .select('id')
-      .single()
+        slug: effectiveSlug,
+      }
+    }
 
-    setSaving(false)
-    if (!error && data) router.push(`/notes/${data.id}/edit`)
-  }
+    setSaveStatus('saving')
+    saveChain.current = saveChain.current
+      .then(async () => {
+        const supabase = createClient()
+        const { error } = await supabase.from('notes').update(payload).eq('id', noteId)
+        if (error) {
+          setSaveStatus('error')
+          return
+        }
+        setSaveStatus('saved')
+        if (mode === 'publish') setIsPublic(true)
+      })
+      .catch(() => setSaveStatus('error'))
+  }, [contentMode, noteId, title, emoji, description, content])
+
+  const handlePublish = useCallback(() => {
+    if (!title.trim()) return
+    persist('publish')
+  }, [persist, title])
+
+  useEffect(() => {
+    if (loading || !noteId) return
+    if (!hydratedRef.current) { hydratedRef.current = true; return }
+    setSaveStatus('idle')
+    debounceRef.current = window.setTimeout(() => persist('draft'), 1200)
+    return () => {
+      window.clearTimeout(debounceRef.current)
+      debounceRef.current = 0
+    }
+  }, [loading, noteId, title, description, emoji, content, persist])
+
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (debounceRef.current === 0 && saveStatus !== 'saving') return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [saveStatus])
 
   const modeTitle = contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace'
   const modeDescription = contentMode === 'article'
@@ -171,6 +274,30 @@ export default function NewNotePage() {
             </p>
           </Link>
         </div>
+      </div>
+    )
+  }
+
+  if (loading || !noteId) {
+    return (
+      <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', color: 'var(--muted)', fontSize: '13px' }}>
+        Entwurf wird angelegt…
+      </div>
+    )
+  }
+
+  if (contentMode) {
+    if (saveStatus === 'error') {
+      return (
+        <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', color: 'var(--muted)', fontSize: '13px' }}>
+          Entwurf konnte nicht angelegt werden.
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', color: 'var(--muted)', fontSize: '13px' }}>
+        Entwurf wird angelegt…
       </div>
     )
   }
@@ -279,8 +406,8 @@ export default function NewNotePage() {
             </>
           )}
           <button
-            onClick={handleSave}
-            disabled={saving || !title.trim()}
+            onClick={handlePublish}
+            disabled={!noteId || !title.trim() || isPublic}
             style={{
               padding: '9px 20px',
               background: 'var(--accent)',
@@ -290,14 +417,49 @@ export default function NewNotePage() {
               fontSize: '13px',
               fontWeight: 600,
               fontFamily: 'inherit',
-              cursor: saving || !title.trim() ? 'not-allowed' : 'pointer',
-              opacity: saving || !title.trim() ? 0.6 : 1,
+              cursor: !noteId || !title.trim() || isPublic ? 'not-allowed' : 'pointer',
+              opacity: !noteId || !title.trim() || isPublic ? 0.6 : 1,
               flexShrink: 0,
             }}
           >
-            {saving ? 'Speichert...' : 'Speichern'}
+            {isPublic ? 'Veröffentlicht' : 'Veröffentlichen'}
           </button>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '7px',
+          padding: '7px 11px',
+          border: '1px solid var(--border)',
+          borderRadius: '999px',
+          background: 'var(--surface)',
+          color: 'var(--muted)',
+          fontSize: '12px',
+          fontWeight: 700,
+        }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--border)' }} />
+          {isPublic ? 'Öffentlich' : 'Privater Entwurf'}
+        </span>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '7px',
+          padding: '7px 11px',
+          border: '1px solid var(--border)',
+          borderRadius: '999px',
+          background: 'var(--surface)',
+          color: 'var(--muted)',
+          fontSize: '12px',
+          fontWeight: 600,
+        }}>
+          {saveStatus === 'saving' && 'Speichert…'}
+          {saveStatus === 'saved' && 'Gespeichert'}
+          {saveStatus === 'error' && 'Speichern fehlgeschlagen'}
+          {saveStatus === 'idle' && 'Autosave aktiv'}
+        </span>
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -332,8 +494,11 @@ export default function NewNotePage() {
       </div>
 
       {contentMode === 'article' ? (
-        <div style={{ padding: '8px 0 24px' }}>
-          <ArticleEditor key={importKey} content={content} onChange={setContent} />
+        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', padding: '8px 0 24px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ArticleEditor key={importKey} content={content} onChange={setContent} />
+          </div>
+          <ArticleToc content={content} />
         </div>
       ) : (
         <Editor content={content} onChange={setContent} />
