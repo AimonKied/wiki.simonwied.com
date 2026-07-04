@@ -2278,7 +2278,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
               >
-                ⠿
+                {/* Braille glyph only fills the upper part of its em box (dots 7/8
+                    empty) and looks too high next to “+” — nudge it down optically. */}
+                <span style={{ display: 'block', transform: 'translateY(1.5px)' }}>⠿</span>
               </div>
 
               {isArticleMode && blockMenuOpen && blockMenuPos && createPortal(
