@@ -30,6 +30,7 @@ import java from 'highlight.js/lib/languages/java'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { ToggleExtension } from './ToggleNode'
+import { CalloutExtension } from './CalloutNode'
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
@@ -780,6 +781,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       TaskItem.configure({ nested: true }),
       SectionExtension,
       ToggleExtension,
+      CalloutExtension,
     ],
     content: initialContent || {
       type: 'doc',
@@ -910,6 +912,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     else if (key === 'bulletList') chain.toggleBulletList().run()
     else if (key === 'orderedList') chain.toggleOrderedList().run()
     else if (key === 'taskList') chain.toggleTaskList().run()
+    else if (key === 'callout') chain.insertContent({ type: 'callout', content: [{ type: 'paragraph' }] }).run()
     else if (key === 'codeBlock') chain.setCodeBlock().run()
     else if (key === 'blockquote') chain.toggleBlockquote().run()
     else if (key === 'hr') chain.setHorizontalRule().run()

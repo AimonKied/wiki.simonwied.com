@@ -30,6 +30,7 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
+import { CalloutExtension } from './CalloutNode'
 import { ELEMENT_PALETTE } from './elementPalette'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
@@ -202,6 +203,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TaskItem.configure({ nested: true }),
       SectionExtension,
       ToggleExtension,
+      CalloutExtension,
     ],
     content: normalizeArticleContent(content),
     editable,
@@ -329,6 +331,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     if (key === 'bulletList')  { chain.toggleBulletList().run(); return }
     if (key === 'orderedList') { chain.toggleOrderedList().run(); return }
     if (key === 'taskList')    { chain.toggleTaskList().run(); return }
+    if (key === 'callout')     { chain.insertContent({ type: 'callout', content: [{ type: 'paragraph' }] }).run(); return }
     if (key === 'codeBlock')   { chain.setCodeBlock().run(); return }
     if (key === 'blockquote')  { chain.toggleBlockquote().run(); return }
     if (key === 'hr')          { chain.setHorizontalRule().run(); return }

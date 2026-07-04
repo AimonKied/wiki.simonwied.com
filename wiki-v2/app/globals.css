@@ -293,6 +293,38 @@ body::before {
   padding-left: 24px;
 }
 
+/* Callout-Block (Notion-Stil) — Farbton via data-color, funktioniert in Light + Dark */
+.wiki-callout {
+  --callout-tint: #eab308;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--callout-tint) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--callout-tint) 28%, transparent);
+}
+
+.wiki-callout[data-color="gray"]   { --callout-tint: #64748b; }
+.wiki-callout[data-color="yellow"] { --callout-tint: #eab308; }
+.wiki-callout[data-color="orange"] { --callout-tint: #ea580c; }
+.wiki-callout[data-color="red"]    { --callout-tint: #ef4444; }
+.wiki-callout[data-color="green"]  { --callout-tint: #16a34a; }
+.wiki-callout[data-color="blue"]   { --callout-tint: #2563eb; }
+
+.wiki-callout .wiki-callout-content > p {
+  margin: 0 0 6px;
+}
+
+.wiki-callout .wiki-callout-content > p:last-child {
+  margin-bottom: 0;
+}
+
+.wiki-callout-swatch-gray   { background: color-mix(in srgb, #64748b 30%, transparent); }
+.wiki-callout-swatch-yellow { background: color-mix(in srgb, #eab308 30%, transparent); }
+.wiki-callout-swatch-orange { background: color-mix(in srgb, #ea580c 30%, transparent); }
+.wiki-callout-swatch-red    { background: color-mix(in srgb, #ef4444 30%, transparent); }
+.wiki-callout-swatch-green  { background: color-mix(in srgb, #16a34a 30%, transparent); }
+.wiki-callout-swatch-blue   { background: color-mix(in srgb, #2563eb 30%, transparent); }
+
 [data-article-editor="true"] .ProseMirror blockquote {
   margin: 20px 0;
   padding: 14px 18px;

@@ -103,14 +103,24 @@ export function mdToArticleJson(md: string): object {
       continue
     }
 
-    // Blockquote
+    // Blockquote — a leading emoji marks a callout (`> 💡 Text`)
     if (line.startsWith('>')) {
       const quoteLines: string[] = []
       while (i < lines.length && lines[i].startsWith('>')) {
         quoteLines.push(lines[i].slice(1).trim())
         i++
       }
-      current.push({ type: 'blockquote', content: [para(parseInline(quoteLines.join(' ')))] })
+      const quoteText = quoteLines.join(' ')
+      const emojiMatch = quoteText.match(/^(\p{Extended_Pictographic}️?)\s+/u)
+      if (emojiMatch) {
+        current.push({
+          type: 'callout',
+          attrs: { emoji: emojiMatch[1], color: 'yellow' },
+          content: [para(parseInline(quoteText.slice(emojiMatch[0].length)))],
+        })
+      } else {
+        current.push({ type: 'blockquote', content: [para(parseInline(quoteText))] })
+      }
       continue
     }
 
@@ -294,6 +304,13 @@ function nodeToMd(node: MdNode): string {
     case 'blockquote': {
       const inner = (node.content ?? []).map(nodeToMd).join('\n')
       return inner.split('\n').map(l => `> ${l}`).join('\n')
+    }
+
+    // Color survives only in the DB JSON, not in Markdown — reimport falls back to yellow
+    case 'callout': {
+      const emoji = (node.attrs?.emoji as string) ?? '💡'
+      const inner = (node.content ?? []).map(nodeToMd).join('\n')
+      return inner.split('\n').map((l, idx) => (idx === 0 ? `> ${emoji} ${l}` : `> ${l}`)).join('\n')
     }
 
     case 'bulletList':
