@@ -179,11 +179,20 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
       ArticleDocument,
       Placeholder.configure({
-        placeholder: ({ node }) => {
-          if (node.type.name === 'paragraph') return 'Schreibe etwas oder druecke /'
-          return ''
-        },
+        // Blocks live inside section nodes; without includeChildren the plugin
+        // never descends into them and no placeholder ever rendered.
+        includeChildren: true,
         showOnlyCurrent: false,
+        placeholder: ({ editor: ed, node, pos, hasAnchor }) => {
+          // Notion-like: hint only on the focused empty line, and only for
+          // top-level lines — not inside tables, toggles or callouts.
+          if (node.type.name !== 'paragraph' || !hasAnchor) return ''
+          try {
+            const $pos = ed.state.doc.resolve(pos)
+            if ($pos.depth !== 1 || $pos.parent.type.name !== 'section') return ''
+          } catch { return '' }
+          return 'Schreibe etwas oder drücke „/“ für Befehle'
+        },
       }),
       TextStyle,
       ResizableImage,
