@@ -132,9 +132,6 @@ interface ArticleEditorProps {
   content?: object | null
   onChange?: (json: object) => void
   editable?: boolean
-  // Fill the parent's height and scroll the writing area internally
-  // (so the page itself never scrolls).
-  fillHeight?: boolean
 }
 
 function withArticleMode(json: object) {
@@ -173,7 +170,7 @@ function dispatchAddElement(key: string, targetPos?: number) {
   document.dispatchEvent(new CustomEvent('wiki-editor-add-element', { detail: { key, targetPos } }))
 }
 
-export default function ArticleEditor({ content, onChange, editable = true, fillHeight = false }: ArticleEditorProps) {
+export default function ArticleEditor({ content, onChange, editable = true }: ArticleEditorProps) {
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
@@ -481,10 +478,9 @@ export default function ArticleEditor({ content, onChange, editable = true, fill
         display: 'grid',
         gridTemplateColumns: editable ? `minmax(0, ${articleWidth}px) 88px` : 'minmax(0, 820px)',
         gap: '14px',
-        alignItems: fillHeight ? 'stretch' : 'start',
+        alignItems: 'start',
         justifyContent: 'start',
         width: '100%',
-        ...(fillHeight ? { height: '100%', gridTemplateRows: '100%' } : {}),
       }}
     >
       {slashMenu && (
@@ -721,18 +717,9 @@ export default function ArticleEditor({ content, onChange, editable = true, fill
       <div
         data-article-editor="true"
         data-article-editable={editable ? 'true' : 'false'}
-        style={{
-          ...(editable ? { width: `${articleWidth}px`, maxWidth: '100%' } : {}),
-          ...(fillHeight ? { height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 } : {}),
-        }}
+        style={editable ? { width: `${articleWidth}px`, maxWidth: '100%' } : undefined}
       >
-        {fillHeight ? (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <EditorContent editor={editor} />
-          </div>
-        ) : (
-          <EditorContent editor={editor} />
-        )}
+        <EditorContent editor={editor} />
         {editable && (
           <button
             type="button"
