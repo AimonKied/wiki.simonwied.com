@@ -25,13 +25,11 @@ import json from 'highlight.js/lib/languages/json'
 import sql from 'highlight.js/lib/languages/sql'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
-import { Fragment } from '@tiptap/pm/model'
-import type { Node as PMNode } from '@tiptap/pm/model'
 import { SectionExtension, sectionSel } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
 import { CalloutExtension } from './CalloutNode'
-import { ELEMENT_PALETTE, filterPalette } from './elementPalette'
+import { filterPalette } from './elementPalette'
 
 const TEXT_STYLE_MARK = 'wikiTextStyle'
 
@@ -176,7 +174,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
-  const lastInsertPosRef = useRef<number | null>(null)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
@@ -280,7 +277,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
 
   function syncSlashMenu(ed: TiptapEditor) {
     const { selection } = ed.state
-    if (selection.empty) lastInsertPosRef.current = selection.from
     if (!selection.empty || !ed.isEditable) {
       setSlashMenu(null)
       return
@@ -337,69 +333,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     if (key === 'hr')          { chain.setHorizontalRule().run(); return }
     if (key === 'table')       { chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); return }
     window.requestAnimationFrame(() => dispatchAddElement(key, menu.from))
-  }
-
-  function createBlockFromSelection() {
-    const { state } = editor
-    const { selection } = state
-    const { $from, $to } = selection
-
-    // Find section depth
-    let sectionDepth = -1
-    for (let d = $from.depth; d >= 0; d--) {
-      if ($from.node(d).type.name === 'section') { sectionDepth = d; break }
-    }
-    if (sectionDepth < 0) return
-
-    const sectionNode = $from.node(sectionDepth)
-    const sectionPos = $from.before(sectionDepth)
-
-    const firstIdx = $from.index(sectionDepth)
-    const lastIdx = $to.index(sectionDepth)
-
-    if (firstIdx === lastIdx && sectionNode.childCount === 1) return
-
-    const before: PMNode[] = []
-    const selected: PMNode[] = []
-    const after: PMNode[] = []
-
-    sectionNode.forEach((child, _offset, index) => {
-      if (index < firstIdx) before.push(child)
-      else if (index <= lastIdx) selected.push(child)
-      else after.push(child)
-    })
-
-    if (!selected.length) return
-
-    const { schema } = state
-    const newSections: PMNode[] = []
-    if (before.length) newSections.push(schema.nodes.section.create(null, before))
-    newSections.push(schema.nodes.section.create(null, selected))
-    if (after.length) newSections.push(schema.nodes.section.create(null, after))
-
-    if (newSections.length <= 1) return
-
-    editor.view.dispatch(
-      state.tr.replaceWith(sectionPos, sectionPos + sectionNode.nodeSize, Fragment.fromArray(newSections))
-    )
-  }
-
-  function startPaletteDrag(e: React.DragEvent, key: string) {
-    e.dataTransfer.setData('application/x-wiki-element', key)
-    e.dataTransfer.effectAllowed = 'copy'
-  }
-
-  function getBottomBlockInsertPos() {
-    let insertPos: number | null = null
-    editor.state.doc.forEach((node, offset) => {
-      if (node.type.name === 'section') insertPos = offset + node.nodeSize - 1
-    })
-    return insertPos
-  }
-
-  function insertPaletteElement(key: string) {
-    const targetPos = lastInsertPosRef.current ?? getBottomBlockInsertPos()
-    dispatchAddElement(key, targetPos ?? undefined)
   }
 
   function getTableRect() {
@@ -464,7 +397,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       data-article-editable={editable ? 'true' : 'false'}
       style={{
         display: 'grid',
-        gridTemplateColumns: editable ? 'minmax(0, 1fr) 88px' : 'minmax(0, 820px)',
+        gridTemplateColumns: editable ? 'minmax(0, 1fr)' : 'minmax(0, 820px)',
         gap: '14px',
         alignItems: 'start',
         justifyContent: 'start',
@@ -710,80 +643,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         <EditorContent editor={editor} />
       </div>
 
-      {editable && (
-        <aside
-          data-article-tool-palette="true"
-          style={{
-            position: 'sticky',
-            top: 14,
-            alignSelf: 'start',
-            maxHeight: 'calc(100vh - 28px)',
-            overflowY: 'auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 34px)',
-            gap: '5px',
-            padding: '8px',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-          }}
-        >
-          {ELEMENT_PALETTE.map(item => (
-            <button
-              key={item.key}
-              type="button"
-              draggable
-              title={`${item.label} einfuegen`}
-              onClick={() => insertPaletteElement(item.key)}
-              onDragStart={e => startPaletteDrag(e, item.key)}
-              style={{
-                width: 34,
-                height: 34,
-                border: '1px solid transparent',
-                borderRadius: '6px',
-                background: 'none',
-                color: 'var(--text)',
-                cursor: 'grab',
-                fontFamily: 'inherit',
-                fontSize: item.icon.length > 2 ? 9 : 11,
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                userSelect: 'none',
-              }}
-            >
-              {item.icon}
-            </button>
-          ))}
-          <div style={{ gridColumn: '1 / -1', height: 1, background: 'var(--border)', margin: '2px 0' }} />
-          <button
-            type="button"
-            title="Auswahl als neuen Block abtrennen"
-            onClick={createBlockFromSelection}
-            style={{
-              gridColumn: '1 / -1',
-              height: 34,
-              border: '1px solid transparent',
-              borderRadius: '6px',
-              background: 'none',
-              color: 'var(--accent)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 9,
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              userSelect: 'none',
-              gap: 4,
-            }}
-          >
-            ÷ Block
-          </button>
-        </aside>
-      )}
 
       <style>{`
         [data-article-editor] .ProseMirror {
