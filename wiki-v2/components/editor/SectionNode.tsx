@@ -2228,7 +2228,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             data-article-block-controls="true"
             style={{
               position: 'absolute',
-              top: isArticleMode ? 3 : 8,
+              // Callout boxes have border + inner padding, so their first text line
+              // sits lower than a plain block's — shift the controls down to match.
+              top: isArticleMode ? (node.childCount > 0 && node.child(0).type.name === 'callout' ? 19 : 3) : 8,
               right: isArticleMode ? undefined : 8,
               left: isArticleMode ? 2 : undefined,
               display: 'flex',
