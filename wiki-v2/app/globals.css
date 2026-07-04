@@ -73,6 +73,12 @@ body::before {
   z-index: 0;
 }
 
+/* While the article editor is open the text sits directly on the page —
+   drop the grid so long-form text stays readable (canvas keeps it). */
+body[data-calm-bg="true"]::before {
+  display: none;
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -136,14 +142,10 @@ body::before {
   width: 100%;
 }
 
+/* Editing: Notion-style — the writing surface IS the page, no floating panel */
 [data-article-editor="true"][data-article-editable="true"] {
-  background: var(--editor-surface);
-  border: 1px solid var(--editor-border);
-  border-radius: 14px;
-  box-shadow:
-    0 18px 52px var(--shadow-soft),
-    0 2px 8px var(--shadow-faint);
-  padding: 34px 44px 6px;
+  background: transparent;
+  padding: 8px 0 6px;
   min-width: 0;
   position: relative;
 }
@@ -183,37 +185,6 @@ body::before {
 
 [data-article-editor="true"][data-article-editable="true"] .ProseMirror [data-section-card="true"] {
   background: transparent !important;
-}
-
-.article-width-resize-handle {
-  position: absolute;
-  top: 18px;
-  right: -7px;
-  bottom: 18px;
-  width: 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  cursor: ew-resize;
-}
-
-.article-width-resize-handle::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 6px;
-  width: 2px;
-  height: 64px;
-  border-radius: 999px;
-  background: var(--border);
-  transform: translateY(-50%);
-  transition: background 0.15s, box-shadow 0.15s;
-}
-
-.article-width-resize-handle:hover::before,
-.article-width-resize-handle:focus-visible::before {
-  background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 [data-article-editor="true"] .ProseMirror h1,

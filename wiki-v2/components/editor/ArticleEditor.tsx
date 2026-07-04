@@ -67,9 +67,6 @@ const FONT_FAMILIES = [
 ]
 
 const FONT_SIZES = ['12px', '14px', '15px', '16px', '18px', '19px', '24px', '26px', '32px', '40px', '48px']
-const ARTICLE_EDITOR_DEFAULT_WIDTH = 820
-const ARTICLE_EDITOR_MIN_WIDTH = 620
-const ARTICLE_EDITOR_MAX_WIDTH = 1160
 
 const bBtn = (active: boolean, extra?: React.CSSProperties): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -176,7 +173,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
   const [fontSizeMenuOpen, setFontSizeMenuOpen] = useState(false)
-  const [articleWidth, setArticleWidth] = useState(ARTICLE_EDITOR_DEFAULT_WIDTH)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
@@ -223,6 +219,14 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     slashMenuRef.current = slashMenu
   }, [slashMenu])
+
+  // Writing surface sits directly on the page since the panel was removed —
+  // hide the decorative grid while editing so text stays readable.
+  useEffect(() => {
+    if (!editable) return
+    document.body.setAttribute('data-calm-bg', 'true')
+    return () => document.body.removeAttribute('data-calm-bg')
+  }, [editable])
 
   useEffect(() => {
     const readTheme = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
@@ -458,32 +462,13 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     editor.commands.setTextSelection(editor.state.selection.to)
     editor.commands.blur()
   }
-  const startArticleResize = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startWidth = articleWidth
-    const onPointerMove = (event: PointerEvent) => {
-      const nextWidth = Math.min(
-        ARTICLE_EDITOR_MAX_WIDTH,
-        Math.max(ARTICLE_EDITOR_MIN_WIDTH, startWidth + event.clientX - startX),
-      )
-      setArticleWidth(nextWidth)
-    }
-    const onPointerUp = () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-    }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-  }
-
   return (
     <div
       data-article-editor-shell="true"
       data-article-editable={editable ? 'true' : 'false'}
       style={{
         display: 'grid',
-        gridTemplateColumns: editable ? `minmax(0, ${articleWidth}px) 88px` : 'minmax(0, 820px)',
+        gridTemplateColumns: editable ? 'minmax(0, 1fr) 88px' : 'minmax(0, 820px)',
         gap: '14px',
         alignItems: 'start',
         justifyContent: 'start',
@@ -724,18 +709,9 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       <div
         data-article-editor="true"
         data-article-editable={editable ? 'true' : 'false'}
-        style={editable ? { width: `${articleWidth}px`, maxWidth: '100%' } : undefined}
+        style={editable ? { width: '100%' } : undefined}
       >
         <EditorContent editor={editor} />
-        {editable && (
-          <button
-            type="button"
-            className="article-width-resize-handle"
-            onPointerDown={startArticleResize}
-            title="Schreibbereich breiter ziehen"
-            aria-label="Schreibbereich breiter ziehen"
-          />
-        )}
       </div>
 
       {editable && (
