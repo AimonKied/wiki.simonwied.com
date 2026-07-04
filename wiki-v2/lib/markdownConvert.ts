@@ -114,6 +114,22 @@ export function mdToArticleJson(md: string): object {
       continue
     }
 
+    // Task list — must run before the bullet list check, `- [ ]` matches both
+    if (/^[*\-+]\s\[[ xX]\]\s/.test(line)) {
+      const items: MdNode[] = []
+      while (i < lines.length && /^[*\-+]\s\[[ xX]\]\s/.test(lines[i])) {
+        const checked = /^[*\-+]\s\[[xX]\]/.test(lines[i])
+        items.push({
+          type: 'taskItem',
+          attrs: { checked },
+          content: [para(parseInline(lines[i].replace(/^[*\-+]\s\[[ xX]\]\s/, '')))],
+        })
+        i++
+      }
+      current.push({ type: 'taskList', content: items })
+      continue
+    }
+
     // Bullet list
     if (/^[*\-+]\s/.test(line)) {
       const items: MdNode[] = []
@@ -288,6 +304,11 @@ function nodeToMd(node: MdNode): string {
     case 'orderedList':
       return (node.content ?? []).map((item, i) =>
         `${i + 1}. ${(item.content ?? []).map(nodeToMd).join(' ')}`
+      ).join('\n')
+
+    case 'taskList':
+      return (node.content ?? []).map(item =>
+        `- [${item.attrs?.checked ? 'x' : ' '}] ${(item.content ?? []).map(nodeToMd).join(' ')}`
       ).join('\n')
 
     case 'horizontalRule':

@@ -16,6 +16,12 @@ export function createLineElement(editor: TiptapEditor, key: string, content: Fr
     const item = schema.nodes.listItem.create(null, paragraph)
     return schema.nodes[key].create(null, item)
   }
+  if (key === 'taskList') {
+    if (!schema.nodes.taskList) return null
+    const paragraph = schema.nodes.paragraph.create(null, content)
+    const item = schema.nodes.taskItem.create({ checked: false }, paragraph)
+    return schema.nodes.taskList.create(null, item)
+  }
   if (key === 'hr') return schema.nodes.horizontalRule.create()
   if (key === 'table') {
     const cell = () => schema.nodes.tableCell.create(null, schema.nodes.paragraph.create())

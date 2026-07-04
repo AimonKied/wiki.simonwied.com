@@ -16,6 +16,7 @@ export const ELEMENT_PALETTE: ElementPaletteItem[] = [
   { key: 'blockquote',  label: 'Zitat',             icon: '"',   group: 'Basic', keywords: 'quote zitat callout' },
   { key: 'bulletList',  label: 'Liste',             icon: 'UL',  group: 'Listen', keywords: 'bullet liste unordered punkte' },
   { key: 'orderedList', label: 'Numm. Liste',       icon: '1.',  group: 'Listen', keywords: 'nummeriert ordered liste zahl' },
+  { key: 'taskList',    label: 'To-do-Liste',       icon: '☑',   group: 'Listen', keywords: 'todo task checkbox checkliste aufgabe haken abhaken erledigt' },
   { key: 'table',       label: 'Tabelle',           icon: 'TB',  group: 'Media', keywords: 'table tabelle grid daten' },
   { key: 'image',       label: 'Bild',              icon: 'IMG', group: 'Media', keywords: 'image img bild foto jpg png' },
   { key: 'codeBlock',   label: 'Codeblock',         icon: '</>', group: 'Media', keywords: 'code programmieren snippet pre' },

@@ -9,6 +9,7 @@ import Document from '@tiptap/extension-document'
 import Placeholder from '@tiptap/extension-placeholder'
 import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
+import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
@@ -197,6 +198,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TableRow,
       TableHeader,
       TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       SectionExtension,
       ToggleExtension,
     ],
@@ -325,6 +328,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     if (key === 'h3')          { chain.setHeading({ level: 3 }).run(); return }
     if (key === 'bulletList')  { chain.toggleBulletList().run(); return }
     if (key === 'orderedList') { chain.toggleOrderedList().run(); return }
+    if (key === 'taskList')    { chain.toggleTaskList().run(); return }
     if (key === 'codeBlock')   { chain.setCodeBlock().run(); return }
     if (key === 'blockquote')  { chain.toggleBlockquote().run(); return }
     if (key === 'hr')          { chain.setHorizontalRule().run(); return }

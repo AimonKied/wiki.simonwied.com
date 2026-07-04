@@ -10,6 +10,7 @@ import Document from '@tiptap/extension-document'
 import { createLineElement, transformVisualLine } from './editorTransforms'
 import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
+import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
@@ -775,6 +776,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       TableRow,
       TableHeader,
       TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       SectionExtension,
       ToggleExtension,
     ],
@@ -906,6 +909,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     else if (key === 'h3') chain.setHeading({ level: 3 }).run()
     else if (key === 'bulletList') chain.toggleBulletList().run()
     else if (key === 'orderedList') chain.toggleOrderedList().run()
+    else if (key === 'taskList') chain.toggleTaskList().run()
     else if (key === 'codeBlock') chain.setCodeBlock().run()
     else if (key === 'blockquote') chain.toggleBlockquote().run()
     else if (key === 'hr') chain.setHorizontalRule().run()
