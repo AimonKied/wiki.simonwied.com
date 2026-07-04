@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Note, Category } from '@/lib/types'
 import Link from 'next/link'
 import RightSidebar from '@/components/editor/RightSidebar'
+import ArticleToc from '@/components/editor/ArticleToc'
 import EmojiPicker from '@/components/editor/EmojiPicker'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdownConvert'
@@ -426,6 +427,7 @@ export default function EditNotePage() {
       </div>
 
       {!isArticle && <RightSidebar content={content} />}
+      {isArticle && <ArticleToc content={content} />}
 
       {/* Publish modal — portalled to body so the editor's transform (fadeIn)
           doesn't clip the fixed overlay to a rectangle */}

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import EditorViewer from '@/components/editor/EditorViewer'
+import ArticleToc from '@/components/editor/ArticleToc'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
 export default async function PublicNotePage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +29,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
   const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
 
   return (
-    <div style={{ width: '100%', maxWidth: isArticle ? '1040px' : '860px', animation: 'fadeIn 0.2s ease both' }}>
+    <div style={{ width: '100%', maxWidth: isArticle ? '1240px' : '860px', animation: 'fadeIn 0.2s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
         <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <Link href="/" style={{ color: 'var(--muted)', textDecoration: 'none' }}>
@@ -92,7 +93,16 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
         )}
       </div>
 
-      <EditorViewer content={pub.content} contentType={note.content_type as 'article' | 'workspace'} />
+      {isArticle && pub.content ? (
+        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <EditorViewer content={pub.content} contentType="article" />
+          </div>
+          <ArticleToc content={pub.content} />
+        </div>
+      ) : (
+        <EditorViewer content={pub.content} contentType={note.content_type as 'article' | 'workspace'} />
+      )}
     </div>
   )
 }
