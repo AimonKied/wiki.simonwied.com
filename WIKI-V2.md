@@ -4,8 +4,8 @@
 
 Eigenes Wiki fuer private und oeffentliche Inhalte. Nutzer koennen zwei Arten von Inhalten erstellen:
 
-- **Artikel**: klassische, lineare Seiten wie in Wiki v1, optimiert fuer Lesen, Rezepte, Guides und Referenzen.
-- **Workspace Canvas**: freie Arbeitsflaechen wie der aktuelle v2-Editor mit verschiebbaren Bloecken, Pan und Zoom.
+- **Artikel**: sollen sich so nah wie moeglich an Notion anfuehlen — Block-Editor mit Slash-Menue, Drag-Handle, allen gaengigen Block-Typen und interner Verlinkung. Leitfrage bei jedem Artikel-Feature: "Wie macht Notion das?"
+- **Workspace Canvas**: das Alleinstellungsmerkmal gegenueber Notion — freie Arbeitsflaechen mit verschiebbaren Bloecken, Pan und Zoom. Bleibt bewusst eigenstaendig.
 
 Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien haben, damit sie auf der Homepage gefiltert und unter Kategorien gefunden werden koennen, zum Beispiel `Rezepte`, `Security` oder `Development`.
 
@@ -281,7 +281,8 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 
 - [x] Kategorie-Slugs in `migrate/page.tsx` auf neues Set umstellen (siehe Tabelle oben)
 - [x] Migrations-Route setzt `published`-Snapshot fuer oeffentliche Artikel
-- [ ] v1-Inhalte lokal ueber `/migrate` in die DB migrieren und Ergebnis pruefen
+- [x] v1-Inhalte lokal ueber `/migrate` in die DB migriert (alle 7 Seiten oeffentlich)
+- [ ] **Migrations-Bug**: Codebloecke enthalten literale `<span class="hl-...">`-Tags aus dem v1-Syntax-Highlighting — `v1Parser.ts` muss die Spans strippen, danach betroffene Artikel neu migrieren
 
 ### Deploy
 
@@ -289,10 +290,47 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 - [ ] Supabase-Credentials als Vercel Environment Variables setzen
 - [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
 
-### Danach / Nice-to-have
+---
 
-- [ ] Mermaid-Diagramme (geplant laut Tech Stack)
+## Roadmap: Artikel → Notion-Paritaet
+
+Ziel: Artikel-Editor und -Ansicht fuehlen sich wie Notion an. Der Canvas-Workspace bleibt separat und eigenstaendig.
+
+Schon auf Notion-Niveau: Slash-Menue, Block-Palette, Drag-Handle (⠿) mit "Umwandeln in"/"Duplizieren", Toggles, Tabellen, Codebloecke mit Highlighting, resizable Bilder, Text-Formatierung (BubbleMenu), Links (StarterKit), Platzhalter, Emoji-Icon pro Seite, Markdown-Import/Export, Inhaltsverzeichnis rechts, Dark Mode.
+
+### Phase 1 — fehlende Kern-Bloecke (fertige TipTap-Extensions, je klein)
+
+- [ ] To-do-Liste / Checkboxen (`@tiptap/extension-task-list` + `task-item`)
+- [ ] Callout-Block (farbige Hinweisbox mit Emoji, eigener Node)
+- [ ] Video-Block (MediaNodes hat bisher nur Bilder; Upload-Pfad existiert schon)
+
+### Phase 2 — Verlinkung und Finden (Wiki-Kern)
+
+- [ ] Schnellsuche (Cmd+K) ueber eigene Notizen + oeffentliche Inhalte
+- [ ] Interne Links: `@`- oder `[[`-Trigger im Editor verlinkt auf andere Notizen
+- [ ] Anker-Links auf Ueberschriften (TOC-Eintraege und oeffentliche URLs teilbar machen)
+
+### Phase 3 — Seiten-Features
+
+- [ ] Cover-Bild pro Artikel (wie Notion-Header)
+- [ ] Templates (z. B. Rezept-Vorlage bei "Neuer Artikel")
+- [ ] Papierkorb: Soft-Delete mit Wiederherstellen statt endgueltigem Loeschen
+- [ ] Favoriten/Pinnen in der Sidebar
+
+### Phase 4 — Layout und Extras
+
+- [ ] Spalten-Layout (Bloecke nebeneinander)
+- [ ] Embeds/Bookmark-Karten (Link-Preview)
+- [ ] Backlinks ("Verlinkt von" unter dem Artikel)
+- [ ] Mathe-Formeln (KaTeX)
+- [ ] Mermaid-Diagramme
+- [ ] Versionen/Seiten-Historie (ueber den `published`-Snapshot hinaus)
+
+### Unabhaengig davon (App-Ebene)
+
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
 - [ ] Public-Regel per DB-Trigger/Constraint absichern (aktuell nur App-Validierung)
 - [ ] Bekannte TS-Fehler fixen (10 gesamt, alle pre-existing): `tippyOptions` am Table-BubbleMenu in `Editor.tsx`, `never`-Typen in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`
-- [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten nach erfolgreicher Migration
+- [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten
+
+Bewusst ausgelassen (Single-User): Kollaboration, Kommentare, Rechteverwaltung, Datenbank-Views, Synced Blocks.
