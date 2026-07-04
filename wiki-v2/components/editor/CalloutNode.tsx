@@ -166,7 +166,9 @@ export const CalloutExtension = Node.create({
         popover.appendChild(emojiRow)
         popover.appendChild(colorRow)
         btnWrap.appendChild(popover)
-        document.addEventListener('mousedown', onOutside)
+        // Defer: the mousedown that opened the popover is still propagating and
+        // would hit the outside-click listener immediately, closing it again.
+        window.setTimeout(() => document.addEventListener('mousedown', onOutside), 0)
       }
 
       btn.addEventListener('mousedown', e => {

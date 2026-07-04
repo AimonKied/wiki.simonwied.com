@@ -303,6 +303,12 @@ body::before {
   border: 1px solid color-mix(in srgb, var(--callout-tint) 28%, transparent);
 }
 
+/* In article mode every block is its own section (which already provides the
+   spacing) — a top margin would push the box below the ⠿/+ block controls. */
+[data-article-editor="true"] .ProseMirror .wiki-callout {
+  margin: 2px 0;
+}
+
 .wiki-callout[data-color="gray"]   { --callout-tint: #64748b; }
 .wiki-callout[data-color="yellow"] { --callout-tint: #eab308; }
 .wiki-callout[data-color="orange"] { --callout-tint: #ea580c; }
