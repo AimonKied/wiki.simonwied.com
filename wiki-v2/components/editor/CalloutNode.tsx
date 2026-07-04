@@ -3,12 +3,101 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
+import type { EditorView } from '@tiptap/pm/view'
 import { TextSelection } from '@tiptap/pm/state'
 
 export const CALLOUT_COLORS = ['gray', 'yellow', 'orange', 'red', 'green', 'blue'] as const
 export type CalloutColor = typeof CALLOUT_COLORS[number]
 
 const CALLOUT_EMOJIS = ['💡', '⚠️', 'ℹ️', '✅', '❗', '🔥', '📌', '❓', '🚀', '📝']
+
+// The section wrapper re-mounts its child node views on almost every interaction,
+// so the picker cannot live inside the node view DOM — it would be destroyed the
+// moment it opens. Instead it is a single document-level overlay (Notion does the
+// same): anchored to the emoji's screen position, updating the node via its
+// document position, which stays valid across node-view re-mounts.
+let activePopover: { el: HTMLDivElement; close: () => void } | null = null
+
+function closeCalloutPopover() {
+  activePopover?.close()
+}
+
+function openCalloutPopover(btn: HTMLButtonElement, view: EditorView, pos: number) {
+  if (activePopover) { closeCalloutPopover(); return }
+
+  const el = document.createElement('div')
+  const rect = btn.getBoundingClientRect()
+  el.style.cssText = [
+    'position:fixed', `left:${rect.left}px`, `top:${rect.bottom + 4}px`, 'z-index:100000',
+    'background:var(--surface)', 'border:1px solid var(--border)',
+    'border-radius:8px', 'padding:8px', 'box-shadow:0 8px 24px rgba(0,0,0,0.16)',
+    'display:flex', 'flex-direction:column', 'gap:8px', 'width:max-content',
+  ].join(';')
+
+  function setAttrs(attrs: Record<string, unknown>) {
+    const node = view.state.doc.nodeAt(pos)
+    if (!node || node.type.name !== 'callout') return
+    view.dispatch(view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, ...attrs }))
+  }
+
+  const emojiRow = document.createElement('div')
+  emojiRow.style.cssText = 'display:grid;grid-template-columns:repeat(5,28px);gap:2px;'
+  for (const em of CALLOUT_EMOJIS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = em
+    b.style.cssText = 'background:none;border:none;cursor:pointer;font-size:16px;padding:3px;border-radius:5px;'
+    b.addEventListener('mouseenter', () => { b.style.background = 'var(--surface2, rgba(128,128,128,0.15))' })
+    b.addEventListener('mouseleave', () => { b.style.background = 'none' })
+    b.addEventListener('mousedown', e => {
+      e.preventDefault()
+      setAttrs({ emoji: em })
+      closeCalloutPopover()
+    })
+    emojiRow.appendChild(b)
+  }
+
+  const colorRow = document.createElement('div')
+  colorRow.style.cssText = 'display:flex;gap:5px;'
+  for (const color of CALLOUT_COLORS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.title = color
+    b.className = `wiki-callout-swatch wiki-callout-swatch-${color}`
+    b.style.cssText = 'width:20px;height:20px;border-radius:5px;border:1px solid var(--border);cursor:pointer;'
+    b.addEventListener('mousedown', e => {
+      e.preventDefault()
+      setAttrs({ color })
+      closeCalloutPopover()
+    })
+    colorRow.appendChild(b)
+  }
+
+  el.appendChild(emojiRow)
+  el.appendChild(colorRow)
+  document.body.appendChild(el)
+
+  function onOutside(e: MouseEvent) {
+    if (!el.contains(e.target as globalThis.Node)) closeCalloutPopover()
+  }
+  function onScroll() { closeCalloutPopover() }
+
+  function close() {
+    el.remove()
+    document.removeEventListener('mousedown', onOutside)
+    window.removeEventListener('scroll', onScroll, true)
+    activePopover = null
+  }
+
+  // Defer: the mousedown that opened the popover is still propagating and would
+  // hit the outside-click listener immediately, closing it again.
+  window.setTimeout(() => {
+    document.addEventListener('mousedown', onOutside)
+    window.addEventListener('scroll', onScroll, true)
+  }, 0)
+
+  activePopover = { el, close }
+}
 
 export const CalloutExtension = Node.create({
   name: 'callout',
@@ -86,7 +175,7 @@ export const CalloutExtension = Node.create({
       const row = document.createElement('div')
       row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;'
 
-      // Emoji button — opens a small picker popover (edit mode only)
+      // Emoji button — opens the document-level picker (edit mode only)
       const btn = document.createElement('button')
       btn.setAttribute('contenteditable', 'false')
       btn.type = 'button'
@@ -100,83 +189,15 @@ export const CalloutExtension = Node.create({
       ].join(';')
       btn.textContent = String(currentNode.attrs.emoji)
 
-      let popover: HTMLDivElement | null = null
-
-      function closePopover() {
-        popover?.remove()
-        popover = null
-        document.removeEventListener('mousedown', onOutside)
-      }
-
-      function onOutside(e: MouseEvent) {
-        if (popover && !popover.contains(e.target as globalThis.Node)) closePopover()
-      }
-
-      function setAttrsOnNode(attrs: Record<string, unknown>) {
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault()
+        if (!editor.isEditable) return
         if (typeof getPos !== 'function') return
         const pos = getPos()
         if (pos === undefined) return
-        view.dispatch(view.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, ...attrs }))
-      }
-
-      function openPopover() {
-        if (popover) { closePopover(); return }
-        popover = document.createElement('div')
-        popover.setAttribute('contenteditable', 'false')
-        popover.style.cssText = [
-          'position:absolute', 'z-index:1000', 'top:calc(100% + 4px)', 'left:0',
-          'background:var(--surface)', 'border:1px solid var(--border)',
-          'border-radius:8px', 'padding:8px', 'box-shadow:0 8px 24px rgba(0,0,0,0.16)',
-          'display:flex', 'flex-direction:column', 'gap:8px', 'width:max-content',
-        ].join(';')
-
-        const emojiRow = document.createElement('div')
-        emojiRow.style.cssText = 'display:grid;grid-template-columns:repeat(5,28px);gap:2px;'
-        for (const em of CALLOUT_EMOJIS) {
-          const b = document.createElement('button')
-          b.type = 'button'
-          b.textContent = em
-          b.style.cssText = 'background:none;border:none;cursor:pointer;font-size:16px;padding:3px;border-radius:5px;'
-          b.addEventListener('mouseenter', () => { b.style.background = 'var(--surface2, rgba(128,128,128,0.15))' })
-          b.addEventListener('mouseleave', () => { b.style.background = 'none' })
-          b.addEventListener('mousedown', e => {
-            e.preventDefault()
-            setAttrsOnNode({ emoji: em })
-            closePopover()
-          })
-          emojiRow.appendChild(b)
-        }
-
-        const colorRow = document.createElement('div')
-        colorRow.style.cssText = 'display:flex;gap:5px;'
-        for (const color of CALLOUT_COLORS) {
-          const b = document.createElement('button')
-          b.type = 'button'
-          b.title = color
-          b.className = `wiki-callout-swatch wiki-callout-swatch-${color}`
-          b.style.cssText = 'width:20px;height:20px;border-radius:5px;border:1px solid var(--border);cursor:pointer;'
-          b.addEventListener('mousedown', e => {
-            e.preventDefault()
-            setAttrsOnNode({ color })
-            closePopover()
-          })
-          colorRow.appendChild(b)
-        }
-
-        popover.appendChild(emojiRow)
-        popover.appendChild(colorRow)
-        btnWrap.appendChild(popover)
-        // Defer: the mousedown that opened the popover is still propagating and
-        // would hit the outside-click listener immediately, closing it again.
-        window.setTimeout(() => document.addEventListener('mousedown', onOutside), 0)
-      }
-
-      btn.addEventListener('mousedown', e => {
-        e.preventDefault()
-        if (editor.isEditable) openPopover()
+        openCalloutPopover(btn, view, pos)
       })
 
-      // Relative wrapper so the popover anchors to the emoji
       const btnWrap = document.createElement('div')
       btnWrap.setAttribute('contenteditable', 'false')
       btnWrap.style.cssText = 'position:relative;flex-shrink:0;'
@@ -204,13 +225,11 @@ export const CalloutExtension = Node.create({
         },
 
         stopEvent(event: Event) {
-          const target = event.target as globalThis.Node
-          return btnWrap.contains(target)
+          return btnWrap.contains(event.target as globalThis.Node)
         },
 
-        destroy() {
-          closePopover()
-        },
+        // No cleanup of the popover here: the section wrapper re-mounts this node
+        // view constantly, and the overlay must survive those re-mounts.
       }
     }
   },
