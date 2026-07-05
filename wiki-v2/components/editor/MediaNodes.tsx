@@ -1,6 +1,6 @@
 'use client'
 
-import Image from '@tiptap/extension-image'
+import Image, { type ImageOptions } from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useRef, useState, useCallback, useEffect } from 'react'
@@ -259,8 +259,10 @@ export const ResizableImage = Image.extend({
   draggable: true,
 
   addOptions() {
+    // parent existiert zur Laufzeit immer (Image definiert addOptions), nur
+    // der Typ von this.parent ist optional — daher der Cast
     return {
-      ...this.parent?.(),
+      ...(this.parent?.() as ImageOptions),
       allowBase64: true,
     }
   },

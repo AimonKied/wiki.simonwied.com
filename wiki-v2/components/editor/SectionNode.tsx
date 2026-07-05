@@ -2777,10 +2777,14 @@ export const SectionExtension = Node.create({
         const sectionNode = state.doc.nodeAt(sectionPos)
         if (!sectionNode) return false
 
+        // for-Schleife statt doc.forEach: Zuweisungen in Callbacks verfolgt
+        // TS nicht, previous waere nach dem null-Check sonst `never`
         let previous: { node: PMNode; pos: number } | null = null
-        state.doc.forEach((candidate, offset) => {
+        for (let i = 0, offset = 0; i < state.doc.childCount; i++) {
+          const candidate = state.doc.child(i)
           if (candidate.type.name === 'section' && offset < sectionPos) previous = { node: candidate, pos: offset }
-        })
+          offset += candidate.nodeSize
+        }
         if (!previous) return false
 
         const tr = state.tr
