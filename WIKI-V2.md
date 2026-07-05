@@ -274,6 +274,14 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Stempel beim Oeffnen im Editor und beim Ansehen der eigenen oeffentlichen Seite (nur Owner); `updated_at`-Trigger ignoriert reine Oeffnen-Updates
 - Migration 8b in `migration.sql` (Spalte + Trigger-Anpassung), am 2026-07-05 in Supabase ausgefuehrt
 
+### Erledigt (Runde 6 — Mobile/Responsive)
+
+- Sidebar wird unter 768px zum Off-Canvas-Drawer: fixe Topbar mit Hamburger + Logo, Backdrop, schliesst bei Navigation/Escape/Backdrop-Klick, Body-Scroll-Lock
+- Shell-Styles (`.sidebar-nav`, `.app-main`, `.mobile-topbar`, `.sidebar-backdrop`) von Inline-Styles nach `globals.css` verlagert, damit Media Queries greifen
+- Haupt-Layouts (Dashboard, Public, Home) mit mobilem Padding und Platz fuer die Topbar
+- Artikel-TOC und Canvas-Outline unter 1100px ausgeblendet (ruetschen sonst per flex-wrap unter den Inhalt)
+- Breite Tabellen scrollen horizontal (`.tableWrapper`), Public-Titel skaliert per clamp, Login-/Such-Inputs 16px auf Mobil (verhindert iOS-Auto-Zoom)
+
 ---
 
 ## UX-Regeln
@@ -364,6 +372,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 ### Unabhaengig davon (App-Ebene)
 
+- [ ] Canvas-Editor Touch-Bedienung (Pan/Pinch-Zoom/Block-Drag per Touch) — Ansicht ist mobil nutzbar, Bearbeiten braucht Maus
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
 - [ ] Public-Regel per DB-Trigger/Constraint absichern (aktuell nur App-Validierung)
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
