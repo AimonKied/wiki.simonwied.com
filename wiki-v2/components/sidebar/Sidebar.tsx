@@ -562,6 +562,32 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   useEffect(() => { setMounted(true) }, [])
   const pathname = mounted ? realPathname : ''
 
+  // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  // Navigation schliesst den Drawer — State-Anpassung waehrend des Renders
+  // (React-Muster fuer abgeleiteten State, kein Effect noetig)
+  const [lastPath, setLastPath] = useState(realPathname)
+  if (lastPath !== realPathname) {
+    setLastPath(realPathname)
+    setDrawerOpen(false)
+  }
+
+  // Escape schliesst, Body-Scroll gesperrt solange offen
+  useEffect(() => {
+    if (!drawerOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setDrawerOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [drawerOpen])
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -569,21 +595,47 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   }
 
   return (
-    <nav style={{
-      width: '260px',
-      minHeight: '100vh',
-      background: 'var(--surface)',
-      borderRight: '1px solid var(--border)',
-      padding: '28px 0',
-      position: 'sticky',
-      top: 0,
-      height: '100vh',
-      overflowY: 'auto',
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      zIndex: 1,
-    }}>
+    <>
+    {/* Nur auf Mobil sichtbar (CSS): Topbar mit Hamburger + Logo */}
+    <div className="mobile-topbar">
+      <button
+        type="button"
+        onClick={() => setDrawerOpen(o => !o)}
+        aria-label={drawerOpen ? 'Navigation schließen' : 'Navigation öffnen'}
+        aria-expanded={drawerOpen}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '40px',
+          height: '40px',
+          background: 'none',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          color: 'var(--text)',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="18" x2="20" y2="18" />
+        </svg>
+      </button>
+      <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
+        <Logo height={22} />
+      </Link>
+    </div>
+
+    {/* Nur auf Mobil sichtbar (CSS): Backdrop hinter dem offenen Drawer */}
+    <div
+      className="sidebar-backdrop"
+      data-open={drawerOpen || undefined}
+      onClick={() => setDrawerOpen(false)}
+      aria-hidden="true"
+    />
+
+    <nav className="sidebar-nav" data-open={drawerOpen || undefined}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
         <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
           <Logo height={28} />
@@ -624,5 +676,6 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
         </div>
       </div>
     </nav>
+    </>
   )
 }
