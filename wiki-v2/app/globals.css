@@ -44,6 +44,10 @@ html[data-theme="dark"] {
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Sicherheitsnetz gegen horizontales Scrollen der Seite: clip statt hidden,
+   damit kein Scroll-Container entsteht (haelt position: sticky intakt) */
+html { overflow-x: clip; }
+
 body {
   background: var(--bg);
   color: var(--text);

@@ -329,8 +329,10 @@ export default function EditNotePage() {
             />
           </div>
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '4px', flexWrap: 'wrap' }}>
+          {/* Action buttons — minWidth 0 statt flexShrink 0: die Zeile darf
+              schrumpfen, die Buttons brechen dann um (sonst sprengt ihre
+              max-content-Breite auf Mobil die Seite) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, marginTop: '4px', flexWrap: 'wrap' }}>
             <ThemeToggle />
             {saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Speichert…</span>}
             {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>{isPublic ? 'Entwurf gespeichert' : 'Gespeichert'}</span>}
