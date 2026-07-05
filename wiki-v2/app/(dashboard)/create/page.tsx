@@ -66,6 +66,7 @@ const DEFAULT_ARTICLE_CONTENT = {
 export default function NewNotePage() {
   const searchParams = useSearchParams()
   const typeParam = searchParams.get('type')
+  const draftParam = searchParams.get('draft')
   const contentMode = typeParam === 'article' || typeParam === 'workspace' ? typeParam : null
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -79,6 +80,7 @@ export default function NewNotePage() {
   const [importKey, setImportKey] = useState(0)
   const router = useRouter()
   const mdImportRef = useRef<HTMLInputElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
   const hydratedRef = useRef(false)
@@ -94,7 +96,7 @@ export default function NewNotePage() {
 
     let cancelled = false
 
-    async function createNoteAndRedirect() {
+    async function loadOrCreateDraft() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -102,11 +104,44 @@ export default function NewNotePage() {
         return
       }
 
-      const draftTitle = contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace'
+      if (draftParam) {
+        const { data, error } = await supabase
+          .from('notes')
+          .select('*')
+          .eq('id', draftParam)
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (cancelled) return
+        if (error || !data) {
+          setSaveStatus('error')
+          setLoading(false)
+          return
+        }
+
+        const noteData = data as {
+          title: string
+          emoji: string | null
+          description: string | null
+          content: object | null
+          content_type: 'article' | 'workspace'
+          is_public: boolean
+        }
+        setNoteId(draftParam)
+        setTitle(noteData.title)
+        setEmoji(noteData.emoji ?? '')
+        setDescription(noteData.description ?? '')
+        setContent(noteData.content ?? (noteData.content_type === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT))
+        setIsPublic(noteData.is_public)
+        setSaveStatus('saved')
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('notes')
         .insert({
-          title: draftTitle,
+          title: '',
           emoji: null,
           description: null,
           content: contentMode === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT,
@@ -125,15 +160,17 @@ export default function NewNotePage() {
       }
 
       setNoteId(data.id)
-      router.push(`/notes/${data.id}/edit`)
+      router.replace(`/create?type=${contentMode}&draft=${data.id}`)
+      setLoading(false)
+      setSaveStatus('saved')
     }
 
-    createNoteAndRedirect()
+    loadOrCreateDraft()
 
     return () => {
       cancelled = true
     }
-  }, [contentMode, router])
+  }, [contentMode, draftParam, router])
 
   function handleMdImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -156,8 +193,8 @@ export default function NewNotePage() {
     window.clearTimeout(debounceRef.current)
     debounceRef.current = 0
 
-    const effectiveTitle = title.trim() || (contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')
-    const effectiveSlug = mode === 'publish' ? slugify(effectiveTitle) : null
+    const effectiveTitle = title.trim()
+    const effectiveSlug = mode === 'publish' && effectiveTitle ? slugify(effectiveTitle) : null
 
     const payload: Record<string, unknown> = {
       title: effectiveTitle,
@@ -218,6 +255,21 @@ export default function NewNotePage() {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [saveStatus])
+
+  useEffect(() => {
+    if (contentMode !== 'article' || loading || !noteId) return
+    const isDefaultTitle = title === 'Neuer Artikel' || !title.trim()
+    if (!isDefaultTitle) return
+
+    const raf = window.requestAnimationFrame(() => {
+      const input = titleInputRef.current
+      if (!input) return
+      input.focus()
+      input.select()
+    })
+
+    return () => window.cancelAnimationFrame(raf)
+  }, [contentMode, loading, noteId, title])
 
   const modeTitle = contentMode === 'article' ? 'Neuer Artikel' : 'Neuer Workspace'
   const modeDescription = contentMode === 'article'
@@ -286,22 +338,6 @@ export default function NewNotePage() {
     )
   }
 
-  if (contentMode) {
-    if (saveStatus === 'error') {
-      return (
-        <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', color: 'var(--muted)', fontSize: '13px' }}>
-          Entwurf konnte nicht angelegt werden.
-        </div>
-      )
-    }
-
-    return (
-      <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%', color: 'var(--muted)', fontSize: '13px' }}>
-        Entwurf wird angelegt…
-      </div>
-    )
-  }
-
   return (
     <div style={{ animation: 'fadeIn 0.2s ease both', width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
@@ -341,6 +377,7 @@ export default function NewNotePage() {
             {modeTitle}
           </div>
           <input
+            ref={titleInputRef}
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder={contentMode === 'article' ? 'Titel des Artikels...' : 'Titel des Workspaces...'}
@@ -356,6 +393,7 @@ export default function NewNotePage() {
               fontFamily: 'var(--font-display)',
               width: '100%',
               padding: 0,
+              caretColor: 'var(--accent)',
             }}
           />
           <input
