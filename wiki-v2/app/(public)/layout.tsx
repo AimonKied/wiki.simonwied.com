@@ -8,7 +8,7 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
       <Sidebar isLoggedIn={!!user} />
-      <main style={{ flex: 1, minWidth: 0, padding: '32px clamp(22px, 3vw, 48px) 48px', overflowY: 'auto' }}>
+      <main style={{ flex: 1, minWidth: 0, padding: '32px clamp(22px, 3vw, 48px) 48px', overflowY: 'visible' }}>
         {children}
       </main>
     </div>

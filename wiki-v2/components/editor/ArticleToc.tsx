@@ -63,15 +63,17 @@ export default function ArticleToc({
     if (!entries.length) return
 
     const mainEl = document.querySelector('main') as HTMLElement | null
-    const headings = headingElements(containerSelector)
-    if (!headings.length) return
-
     let raf = 0
 
     function updateActive() {
       cancelAnimationFrame(raf)
       raf = window.requestAnimationFrame(() => {
-        const threshold = (mainEl?.getBoundingClientRect().top ?? 0) + 140
+        // Query fresh on every tick: the editor mounts client-side after this
+        // effect runs, so a list captured at setup time would stay empty.
+        const headings = headingElements(containerSelector)
+        if (!headings.length) return
+        // The page (body) scrolls, so the threshold is viewport-relative
+        const threshold = 140
         let active = 0
 
         for (let i = 0; i < headings.length; i++) {
