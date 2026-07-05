@@ -196,42 +196,333 @@ function SidebarSection({
 }
 
 function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
-  const visibleNotes = notes.slice(0, 8)
+  const router = useRouter()
+  const listRef = useRef<HTMLDivElement>(null)
+  const reloadNotesRef = useRef<null | (() => Promise<void>)>(null)
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<Note | null>(null)
+  const [recentNotes, setRecentNotes] = useState<Note[]>(notes.slice(0, 8))
+
+  useEffect(() => {
+    setRecentNotes(notes.slice(0, 8))
+  }, [notes])
+
+  useEffect(() => {
+    if (!openMenuId) return
+    function onDocClick(e: MouseEvent) {
+      if (listRef.current?.contains(e.target as Node)) return
+      setOpenMenuId(null)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpenMenuId(null)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [openMenuId])
+
+  useEffect(() => {
+    if (!pendingDeleteNote) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPendingDeleteNote(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [pendingDeleteNote])
+
+  useEffect(() => {
+    let cancelled = false
+    let supabaseClient: ReturnType<typeof createClient> | null = null
+    let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null
+
+    async function setupLiveNotes() {
+      const supabase = createClient()
+      supabaseClient = supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      const loadRecentNotes = async () => {
+        const { data } = await supabase
+          .from('notes')
+          .select('id, title, emoji, content_type, is_public, slug, updated_at')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(8)
+
+        if (!cancelled && data) {
+          setRecentNotes(data as Note[])
+        }
+      }
+
+      reloadNotesRef.current = loadRecentNotes
+      await loadRecentNotes()
+
+      channel = supabase
+        .channel(`sidebar-notes-${user.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'notes',
+          filter: `user_id=eq.${user.id}`,
+        }, () => {
+          void loadRecentNotes()
+        })
+        .subscribe()
+    }
+
+    void setupLiveNotes()
+
+    return () => {
+      cancelled = true
+      reloadNotesRef.current = null
+      if (channel && supabaseClient) void supabaseClient.removeChannel(channel)
+    }
+  }, [])
+
+  // Fallbacks that don't need Supabase realtime: saves in this tab dispatch
+  // 'wiki-notes-changed', plus refetch on window focus and on navigation.
+  useEffect(() => {
+    const reload = () => { void reloadNotesRef.current?.() }
+    document.addEventListener('wiki-notes-changed', reload)
+    window.addEventListener('focus', reload)
+    return () => {
+      document.removeEventListener('wiki-notes-changed', reload)
+      window.removeEventListener('focus', reload)
+    }
+  }, [])
+
+  // Notion-style live title: the edit page broadcasts every keystroke on
+  // title/emoji; patch the local list directly — no DB round trip involved.
+  useEffect(() => {
+    function onPatch(e: Event) {
+      const detail = (e as CustomEvent<{ id?: string; title?: string; emoji?: string | null }>).detail
+      if (!detail?.id) return
+      setRecentNotes(current => current.map(n =>
+        n.id === detail.id
+          ? {
+              ...n,
+              ...(detail.title !== undefined ? { title: detail.title } : {}),
+              ...(detail.emoji !== undefined ? { emoji: detail.emoji } : {}),
+            }
+          : n
+      ))
+    }
+    document.addEventListener('wiki-note-patched', onPatch)
+    return () => document.removeEventListener('wiki-note-patched', onPatch)
+  }, [])
+
+  useEffect(() => {
+    void reloadNotesRef.current?.()
+  }, [pathname])
+
+  async function deleteNote(noteId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('notes').delete().eq('id', noteId)
+    if (error) return
+    await reloadNotesRef.current?.()
+    setOpenMenuId(null)
+    setPendingDeleteNote(null)
+    setHoveredNoteId(null)
+    if (pathname === `/notes/${noteId}/edit`) {
+      router.push('/dashboard')
+      return
+    }
+  }
+
+  const visibleNotes = recentNotes
   if (!visibleNotes.length) return null
   return (
-    <div style={{ padding: '0 12px', marginBottom: '10px' }}>
+    <div ref={listRef} style={{ padding: '0 12px', marginBottom: '10px' }}>
       <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
         Zuletzt
       </div>
       {visibleNotes.map(note => {
         const href = `/notes/${note.id}/edit`
         const isActive = pathname === href
+        const isArticle = note.content_type === 'article'
+        const showMenu = openMenuId === note.id
+        const showActions = isArticle && (hoveredNoteId === note.id || showMenu)
         return (
-          <Link
+          <div
             key={note.id}
-            href={href}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 8px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              color: isActive ? 'var(--text)' : 'var(--muted)',
-              background: isActive ? 'var(--surface2)' : 'transparent',
-              textDecoration: 'none',
-              transition: 'all 0.15s',
-              overflow: 'hidden',
-            }}
+            onMouseEnter={() => setHoveredNoteId(note.id)}
+            onMouseLeave={() => { if (openMenuId !== note.id) setHoveredNoteId(null) }}
+            style={{ position: 'relative' }}
           >
-            <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? (note.content_type === 'article' ? '📄' : '🗂️')}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {note.title}
-            </span>
-            {note.is_public && (
-              <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--muted)', fontWeight: 700 }}>O</span>
+            <Link
+              href={href}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 28px 6px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                color: isActive ? 'var(--text)' : 'var(--muted)',
+                background: isActive ? 'var(--surface2)' : 'transparent',
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+                overflow: 'hidden',
+              }}
+            >
+              <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? (note.content_type === 'article' ? '📄' : '🗂️')}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {note.title || (note.content_type === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')}
+              </span>
+              {note.is_public && (
+                <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--muted)', fontWeight: 700 }}>O</span>
+              )}
+            </Link>
+
+            {isArticle && (
+              <button
+                type="button"
+                aria-label="Artikeloptionen"
+                onClick={e => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setOpenMenuId(current => current === note.id ? null : note.id)
+                  setHoveredNoteId(note.id)
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '20px',
+                  height: '20px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: showActions ? 'var(--surface2)' : 'transparent',
+                  color: showActions ? 'var(--text)' : 'var(--muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: showActions ? 1 : 0,
+                  pointerEvents: showActions ? 'auto' : 'none',
+                  transition: 'opacity 0.12s, background 0.12s, color 0.12s',
+                }}
+              >
+                ⋯
+              </button>
             )}
-          </Link>
+
+            {showMenu && isArticle && (
+              <div style={{
+                position: 'absolute',
+                right: '6px',
+                top: 'calc(100% + 4px)',
+                zIndex: 40,
+                width: '168px',
+                padding: '6px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenMenuId(null)
+                    setPendingDeleteNote(note)
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: 'transparent',
+                    color: 'var(--accent2)',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  Löschen
+                </button>
+              </div>
+            )}
+
+            {pendingDeleteNote?.id === note.id && (
+              <div
+                onClick={() => setPendingDeleteNote(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 220,
+                  background: 'rgba(0,0,0,0.45)',
+                  backdropFilter: 'blur(3px)',
+                  WebkitBackdropFilter: 'blur(3px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '18px',
+                }}
+              >
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    width: '100%',
+                    maxWidth: '360px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '14px',
+                    padding: '18px',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>
+                    Artikel löschen?
+                  </div>
+                  <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                    „{note.title || 'Unbenannter Artikel'}“ wird endgültig gelöscht.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteNote(null)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteNote(note.id)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'var(--accent2)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )
       })}
     </div>

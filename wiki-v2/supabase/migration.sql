@@ -88,6 +88,18 @@ create trigger notes_updated_at
   before update on notes
   for each row execute function update_updated_at_column();
 
+-- 8a. Realtime: without this, postgres_changes subscriptions (sidebar "Zuletzt")
+--     connect fine but never receive any events.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'notes'
+  ) then
+    alter publication supabase_realtime add table notes;
+  end if;
+end $$;
+
 -- 8. Draft/publish split: `published` holds the frozen public snapshot.
 --    The live note columns are the working draft; public pages read `published`.
 alter table notes

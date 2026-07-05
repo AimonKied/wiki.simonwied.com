@@ -135,6 +135,8 @@ export default function EditNotePage() {
           )
         }
         setSaveStatus('saved')
+        // Sidebar "Zuletzt" refetches on this — instant even without Supabase realtime
+        document.dispatchEvent(new Event('wiki-notes-changed'))
         if (mode === 'publish') { setIsPublic(true); setNote(n => n ? { ...n, is_public: true, published: snapshot } : n) }
         if (mode === 'unpublish') { setIsPublic(false); setNote(n => n ? { ...n, is_public: false } : n) }
       })
@@ -153,6 +155,12 @@ export default function EditNotePage() {
     setPublishModalOpen(false)
   }, [persist, selectedCategories])
   const handleUnpublish = useCallback(() => { persist('unpublish') }, [persist])
+
+  // Notion-style: broadcast title/emoji per keystroke so the sidebar entry
+  // updates in the same frame, before any save round trip.
+  const patchSidebar = useCallback((patch: { title?: string; emoji?: string | null }) => {
+    document.dispatchEvent(new CustomEvent('wiki-note-patched', { detail: { id, ...patch } }))
+  }, [id])
 
   async function handleDelete() {
     if (!confirm('Notiz wirklich löschen?')) return
@@ -267,7 +275,7 @@ export default function EditNotePage() {
             </button>
             {pickerOpen && (
               <EmojiPicker
-                onSelect={e => { setEmoji(e); setPickerOpen(false) }}
+                onSelect={e => { setEmoji(e); patchSidebar({ emoji: e || null }); setPickerOpen(false) }}
                 onClose={() => setPickerOpen(false)}
               />
             )}
@@ -280,7 +288,7 @@ export default function EditNotePage() {
             </div>
             <input
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={e => { setTitle(e.target.value); patchSidebar({ title: e.target.value }) }}
               onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
               style={{
                 fontSize: '28px', fontWeight: 800, background: 'none', border: 'none',
