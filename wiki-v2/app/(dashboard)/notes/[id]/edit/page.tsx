@@ -16,6 +16,23 @@ import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdown
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
 
+function menuItemStyle(color?: string): React.CSSProperties {
+  return {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 10px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'transparent',
+    color: color ?? 'var(--muted)',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    transition: 'background 0.1s',
+  }
+}
+
 function slugify(title: string) {
   return title
     .toLowerCase()
@@ -49,6 +66,26 @@ export default function EditNotePage() {
   const mdImportRef = useRef<HTMLInputElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
+  // Sekundaere Aktionen (MD-Import/-Export, Zurueckziehen, Loeschen) im ⋯-Menue
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
+  const actionsMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (actionsMenuRef.current?.contains(e.target as Node)) return
+      setActionsMenuOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setActionsMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [actionsMenuOpen])
 
   useEffect(() => {
     async function load() {
@@ -337,86 +374,96 @@ export default function EditNotePage() {
             {saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Speichert…</span>}
             {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>{isPublic ? 'Entwurf gespeichert' : 'Gespeichert'}</span>}
             {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
-            {isArticle && (
-              <>
-                <input
-                  ref={mdImportRef}
-                  type="file"
-                  accept=".md,text/markdown"
-                  style={{ display: 'none' }}
-                  onChange={handleMdImport}
-                />
-                <button
-                  type="button"
-                  onClick={() => mdImportRef.current?.click()}
-                  style={{
-                    padding: '9px 14px', background: 'none', color: 'var(--muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
-                    fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
-                  }}
-                >
-                  MD importieren
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMdExport}
-                  style={{
-                    padding: '9px 14px', background: 'none', color: 'var(--muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
-                    fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
-                  }}
-                >
-                  MD exportieren
-                </button>
-              </>
-            )}
             <button
-              onClick={handleDelete}
+              onClick={openPublishModal}
+              title={isPublic ? 'Aktuellen Stand öffentlich übernehmen' : undefined}
               style={{
-                padding: '9px 14px', background: 'none', color: 'var(--muted)',
-                border: '1px solid var(--border)', borderRadius: '8px',
-                fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
+                padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                fontFamily: 'inherit', cursor: 'pointer',
               }}
             >
-              Löschen
+              {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
             </button>
-            {isPublic ? (
-              <>
-                <button
-                  onClick={handleUnpublish}
-                  title="Notiz wieder privat schalten"
-                  style={{
-                    padding: '9px 16px', background: 'none', color: 'var(--muted)',
-                    border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                    fontFamily: 'inherit', cursor: 'pointer',
-                  }}
-                >
-                  Zurückziehen
-                </button>
-                <button
-                  onClick={openPublishModal}
-                  title="Aktuellen Stand öffentlich übernehmen"
-                  style={{
-                    padding: '9px 20px', background: 'var(--accent)', color: '#fff',
-                    border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
-                    fontFamily: 'inherit', cursor: 'pointer',
-                  }}
-                >
-                  Änderungen veröffentlichen
-                </button>
-              </>
-            ) : (
+
+            {/* ⋯-Menue fuer sekundaere Aktionen */}
+            {isArticle && (
+              <input
+                ref={mdImportRef}
+                type="file"
+                accept=".md,text/markdown"
+                style={{ display: 'none' }}
+                onChange={handleMdImport}
+              />
+            )}
+            <div ref={actionsMenuRef} style={{ position: 'relative' }}>
               <button
-                onClick={openPublishModal}
+                type="button"
+                onClick={() => setActionsMenuOpen(o => !o)}
+                title="Weitere Aktionen"
+                aria-expanded={actionsMenuOpen}
                 style={{
-                  padding: '9px 20px', background: 'var(--accent)', color: '#fff',
-                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
-                  fontFamily: 'inherit', cursor: 'pointer',
+                  padding: '9px 12px', background: actionsMenuOpen ? 'var(--surface2)' : 'none',
+                  color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px',
+                  fontSize: '15px', fontFamily: 'inherit', cursor: 'pointer', lineHeight: 1,
                 }}
               >
-                Veröffentlichen
+                ⋯
               </button>
-            )}
+              {actionsMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 150,
+                  width: '200px', display: 'flex', flexDirection: 'column', gap: '2px',
+                  padding: '6px', background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: '10px', boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+                  animation: 'fadeIn 0.12s ease both',
+                }}>
+                  {isArticle && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { setActionsMenuOpen(false); mdImportRef.current?.click() }}
+                        style={menuItemStyle()}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        MD importieren
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setActionsMenuOpen(false); handleMdExport() }}
+                        style={menuItemStyle()}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        MD exportieren
+                      </button>
+                    </>
+                  )}
+                  {isPublic && (
+                    <button
+                      type="button"
+                      title="Notiz wieder privat schalten"
+                      onClick={() => { setActionsMenuOpen(false); handleUnpublish() }}
+                      style={menuItemStyle()}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      Zurückziehen
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setActionsMenuOpen(false); handleDelete() }}
+                    style={menuItemStyle('var(--accent2)')}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    Löschen
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
