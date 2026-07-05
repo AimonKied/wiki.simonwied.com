@@ -17,11 +17,9 @@ npm run lint
 npx tsc --noEmit
 ```
 
-Known current check noise (10 pre-existing type errors):
-
-- `components/editor/Editor.tsx`: TipTap `BubbleMenu` type mismatch around `tippyOptions`.
-- `components/editor/SectionNode.tsx`: `never`-typed positions in a selection helper.
-- `components/editor/MediaNodes.tsx`: `ImageOptions` signature mismatch.
+`npx tsc --noEmit` passes with zero errors. `npm run lint` has a handful of
+known pre-existing `react-hooks` findings (sync setState in effects) that are
+tolerated noise.
 
 ## Article Editor
 

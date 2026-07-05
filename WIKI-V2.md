@@ -316,7 +316,7 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 
 ### Setup (einmalig im Supabase SQL Editor)
 
-- [ ] Block 8a aus `migration.sql` ausfuehren (`notes` in Realtime-Publication) — sonst ist "Zuletzt" nur im eigenen Tab live
+- [x] Block 8a aus `migration.sql` ausgefuehrt (`notes` in Realtime-Publication)
 - [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
 
@@ -366,7 +366,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
 - [ ] Public-Regel per DB-Trigger/Constraint absichern (aktuell nur App-Validierung)
-- [ ] Bekannte TS-Fehler fixen (10 gesamt, alle pre-existing): `tippyOptions` am Table-BubbleMenu in `Editor.tsx`, `never`-Typen in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`
+- [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
 - [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten
 
 Bewusst ausgelassen (Single-User): Kollaboration, Kommentare, Rechteverwaltung, Datenbank-Views, Synced Blocks.
