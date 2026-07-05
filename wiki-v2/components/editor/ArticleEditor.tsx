@@ -186,7 +186,9 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         placeholder: ({ editor: ed, node, pos, hasAnchor }) => {
           // Notion-like: hint only on the focused empty line, and only for
           // top-level lines — not inside tables, toggles or callouts.
-          if (node.type.name !== 'paragraph' || !hasAnchor) return ''
+          // isFocused: ohne Fokus im Editor (z. B. Cursor im Titel oder nach
+          // dem Laden) soll gar kein Hinweis erscheinen.
+          if (!ed.isFocused || node.type.name !== 'paragraph' || !hasAnchor) return ''
           try {
             const $pos = ed.state.doc.resolve(pos)
             if ($pos.depth !== 1 || $pos.parent.type.name !== 'section') return ''
