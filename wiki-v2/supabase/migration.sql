@@ -100,6 +100,23 @@ begin
   end if;
 end $$;
 
+-- 8b. "Zuletzt"-Verlauf: last_opened_at wird beim Oeffnen der Edit-Seite
+--     gesetzt. Der updated_at-Trigger ignoriert reine Oeffnen-Updates,
+--     sonst wuerde jedes Oeffnen die "geaendert"-Sortierung verfaelschen.
+alter table notes
+  add column if not exists last_opened_at timestamptz;
+
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+  if (to_jsonb(new) - 'last_opened_at' - 'updated_at')
+     is distinct from (to_jsonb(old) - 'last_opened_at' - 'updated_at') then
+    new.updated_at = now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
 -- 8. Draft/publish split: `published` holds the frozen public snapshot.
 --    The live note columns are the working draft; public pages read `published`.
 alter table notes

@@ -20,6 +20,8 @@ export interface Note {
   published?: PublishedSnapshot | null
   created_at: string
   updated_at: string
+  // Wann zuletzt im Editor geoeffnet; speist die "Zuletzt"-Liste der Sidebar
+  last_opened_at?: string | null
 }
 
 export interface Category {
