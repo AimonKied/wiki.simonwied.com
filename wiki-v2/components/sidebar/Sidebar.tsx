@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { createNote } from '@/lib/createNote'
 import type { Note } from '@/lib/types'
 import Logo from '@/components/Logo'
 
@@ -15,14 +16,15 @@ const workspaceNav = [
   { label: 'Arbeitsbereich', href: '/dashboard' },
 ]
 
-const newContentOptions = [
-  { label: 'Artikel', href: '/create?type=article' },
-  { label: 'Canvas Workspace', href: '/create?type=workspace' },
+const newContentOptions: Array<{ label: string; type: 'article' | 'workspace' }> = [
+  { label: 'Artikel', type: 'article' },
+  { label: 'Canvas Workspace', type: 'workspace' },
 ]
 
 function NewContentNavItem() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [creating, setCreating] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -118,29 +120,40 @@ function NewContentNavItem() {
           }}
         >
           {newContentOptions.map(opt => {
-            const isSelected = selected === opt.href
+            const isCreating = creating === opt.type
             return (
-              <Link
-                key={opt.href}
-                href={opt.href}
-                onClick={() => { setSelected(opt.href); setOpen(false) }}
+              <button
+                key={opt.type}
+                type="button"
+                disabled={creating !== null}
+                onClick={async () => {
+                  setCreating(opt.type)
+                  const id = await createNote(opt.type)
+                  setCreating(null)
+                  setOpen(false)
+                  if (id) router.push(`/notes/${id}/edit`)
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   padding: '8px 10px',
                   borderRadius: '6px',
+                  border: 'none',
+                  width: '100%',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
                   fontSize: '13px',
-                  color: isSelected ? 'var(--text)' : 'var(--muted)',
-                  background: isSelected ? 'var(--surface2)' : 'transparent',
-                  textDecoration: 'none',
+                  color: isCreating ? 'var(--text)' : 'var(--muted)',
+                  background: isCreating ? 'var(--surface2)' : 'transparent',
+                  cursor: creating ? 'wait' : 'pointer',
                   transition: 'all 0.1s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                onMouseLeave={e => { if (!isCreating) e.currentTarget.style.background = 'transparent' }}
               >
-                {opt.label}
-              </Link>
+                {isCreating ? 'Wird erstellt…' : opt.label}
+              </button>
             )
           })}
         </div>

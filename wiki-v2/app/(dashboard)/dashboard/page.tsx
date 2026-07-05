@@ -71,8 +71,7 @@ export default async function DashboardPage() {
             color: 'var(--muted)',
             fontSize: '13px',
           }}>
-            Noch keine Inhalte.{' '}
-            <Link href="/create" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Neuen Inhalt erstellen</Link>
+            Noch keine Inhalte. Lege oben über „Neuer Inhalt“ deinen ersten Artikel oder Workspace an.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1,24 +1,26 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createNote } from '@/lib/createNote'
 
-const OPTIONS = [
+const OPTIONS: Array<{ type: 'article' | 'workspace'; title: string; description: string }> = [
   {
-    href: '/create?type=article',
+    type: 'article',
     title: 'Artikel',
     description: 'Linearer Text fuer Guides, Rezepte, Cheatsheets und laengere Notizen.',
   },
   {
-    href: '/create?type=workspace',
+    type: 'workspace',
     title: 'Canvas Workspace',
     description: 'Freie Flaeche fuer strukturierte Bloecke, Skizzen und visuelle Arbeitsstaende.',
   },
 ]
 
 export default function NewContentButton() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [creating, setCreating] = useState<string | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -91,29 +93,42 @@ export default function NewContentButton() {
           }}
         >
           {OPTIONS.map(opt => {
-            const isSelected = selected === opt.href
+            const isCreating = creating === opt.type
             return (
-              <Link
-                key={opt.href}
-                href={opt.href}
-                onClick={() => setSelected(opt.href)}
+              <button
+                key={opt.type}
+                type="button"
+                disabled={creating !== null}
+                onClick={async () => {
+                  setCreating(opt.type)
+                  const id = await createNote(opt.type)
+                  setCreating(null)
+                  setOpen(false)
+                  if (id) router.push(`/notes/${id}/edit`)
+                }}
                 style={{
                   display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  border: 'none',
+                  fontFamily: 'inherit',
                   padding: '12px 14px',
                   borderRadius: '8px',
                   color: 'var(--text)',
-                  textDecoration: 'none',
-                  background: isSelected ? 'var(--surface2)' : 'transparent',
+                  background: isCreating ? 'var(--surface2)' : 'transparent',
+                  cursor: creating ? 'wait' : 'pointer',
                   transition: 'background 0.1s',
                 }}
-                onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--surface2)' }}
-                onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
+                onMouseEnter={e => { if (!creating) e.currentTarget.style.background = 'var(--surface2)' }}
+                onMouseLeave={e => { if (!creating) e.currentTarget.style.background = 'transparent' }}
               >
-                <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '4px' }}>{opt.title}</div>
+                <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '4px' }}>
+                  {isCreating ? 'Wird erstellt…' : opt.title}
+                </div>
                 <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.5 }}>
                   {opt.description}
                 </p>
-              </Link>
+              </button>
             )
           })}
         </div>

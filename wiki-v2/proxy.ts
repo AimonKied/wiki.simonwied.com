@@ -26,9 +26,6 @@ export async function proxy(request: NextRequest) {
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (!user && request.nextUrl.pathname.startsWith('/create')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
   if (!user && request.nextUrl.pathname.startsWith('/notes/') && request.nextUrl.pathname.includes('/edit')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
