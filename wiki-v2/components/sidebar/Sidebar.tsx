@@ -346,7 +346,15 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
     }
   }
 
-  const visibleNotes = recentNotes
+  // The note being edited belongs at the top immediately (like Notion), not
+  // first after the next save bumps its updated_at in the DB.
+  const activeNoteId = pathname.startsWith('/notes/') ? pathname.split('/')[2] : null
+  const visibleNotes = activeNoteId && recentNotes.some(n => n.id === activeNoteId)
+    ? [
+        ...recentNotes.filter(n => n.id === activeNoteId),
+        ...recentNotes.filter(n => n.id !== activeNoteId),
+      ]
+    : recentNotes
   if (!visibleNotes.length) return null
   return (
     <div ref={listRef} style={{ padding: '0 12px', marginBottom: '10px' }}>
