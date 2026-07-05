@@ -72,7 +72,7 @@ export default function RightSidebar({ content }: { content: object }) {
   if (!sections.length) return null
 
   return (
-    <aside style={{
+    <aside className="canvas-outline" style={{
       width: '190px',
       flexShrink: 0,
       position: 'sticky',

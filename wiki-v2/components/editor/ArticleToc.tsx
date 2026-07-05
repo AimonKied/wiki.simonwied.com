@@ -107,7 +107,7 @@ export default function ArticleToc({
   if (!entries.length) return null
 
   return (
-    <aside style={{
+    <aside className="article-toc" style={{
       width: 'clamp(220px, 19vw, 260px)',
       flexShrink: 0,
       position: 'sticky',
