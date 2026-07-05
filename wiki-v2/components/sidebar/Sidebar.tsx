@@ -386,8 +386,15 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {note.title || (note.content_type === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')}
               </span>
-              {note.is_public && (
-                <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '9px', color: 'var(--muted)', fontWeight: 700 }}>O</span>
+              {!note.is_public && (
+                <svg
+                  width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  aria-label="Privat" style={{ marginLeft: 'auto', flexShrink: 0 }}
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
               )}
             </Link>
 
