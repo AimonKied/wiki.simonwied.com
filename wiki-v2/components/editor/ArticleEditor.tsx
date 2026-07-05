@@ -624,20 +624,20 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
                 }}
               >
                 <div style={tableMenuLabelStyle}>ZEILE</div>
-                {tableMenuItem('Zeile davor einfuegen', () => editor.chain().focus().addRowBefore().run())}
-                {tableMenuItem('Zeile danach einfuegen', () => editor.chain().focus().addRowAfter().run())}
-                {tableMenuItem('Zeile loeschen', () => editor.chain().focus().deleteRow().run(), true)}
+                {tableMenuItem('Zeile davor einfügen', () => editor.chain().focus().addRowBefore().run())}
+                {tableMenuItem('Zeile danach einfügen', () => editor.chain().focus().addRowAfter().run())}
+                {tableMenuItem('Zeile löschen', () => editor.chain().focus().deleteRow().run(), true)}
 
                 <div style={tableMenuDividerStyle} />
 
                 <div style={tableMenuLabelStyle}>SPALTE</div>
-                {tableMenuItem('Spalte davor einfuegen', () => editor.chain().focus().addColumnBefore().run())}
-                {tableMenuItem('Spalte danach einfuegen', () => editor.chain().focus().addColumnAfter().run())}
-                {tableMenuItem('Spalte loeschen', () => editor.chain().focus().deleteColumn().run(), true)}
+                {tableMenuItem('Spalte davor einfügen', () => editor.chain().focus().addColumnBefore().run())}
+                {tableMenuItem('Spalte danach einfügen', () => editor.chain().focus().addColumnAfter().run())}
+                {tableMenuItem('Spalte löschen', () => editor.chain().focus().deleteColumn().run(), true)}
 
                 <div style={tableMenuDividerStyle} />
 
-                {tableMenuItem('Tabelle loeschen', () => editor.chain().focus().deleteTable().run(), true)}
+                {tableMenuItem('Tabelle löschen', () => editor.chain().focus().deleteTable().run(), true)}
               </div>
             )}
           </div>

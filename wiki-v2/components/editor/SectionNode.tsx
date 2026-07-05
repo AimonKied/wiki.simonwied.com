@@ -2244,7 +2244,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           >
             {isArticleMode && (
               <button
-                title="Block darunter einfuegen"
+                title="Block darunter einfügen"
                 onMouseDown={e => e.preventDefault()}
                 onClick={e => { e.stopPropagation(); insertArticleSectionAfter() }}
                 style={{
@@ -2266,7 +2266,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               <div
                 ref={dragHandleRef}
                 data-section-drag-handle="true"
-                title={isArticleMode ? 'Ziehen zum Verschieben · Klick fuer Menue · Shift-Klick zum Auswaehlen' : 'Block verschieben / klicken zum Auswählen'}
+                title={isArticleMode ? 'Ziehen zum Verschieben · Klick für Menü · Shift-Klick zum Auswählen' : 'Block verschieben / klicken zum Auswählen'}
                 onMouseDown={handleSectionDragDown}
                 onClick={e => e.stopPropagation()}
                 style={{
@@ -2547,7 +2547,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             {/* Auto size */}
             {(canvasW !== null || canvasH !== null) && (
               <button
-                title="Groesse an Inhalt anpassen"
+                title="Größe an Inhalt anpassen"
                 onClick={e => { e.stopPropagation(); setAutoSize() }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',

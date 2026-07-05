@@ -71,7 +71,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
             fontWeight: 700,
           }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
-            Oeffentlich
+            Öffentlich
           </span>
         </div>
         {pub.emoji && <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>{pub.emoji}</span>}

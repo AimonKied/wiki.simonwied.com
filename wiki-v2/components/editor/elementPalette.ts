@@ -36,8 +36,8 @@ export function filterPalette(query: string): ElementPaletteItem[] {
 // and the block popover on the ⠿ handle so all three offer the same elements.
 export const ELEMENT_PALETTE: ElementPaletteItem[] = [
   { key: 'paragraph',   label: 'Textblock',        icon: 'T',   group: 'Basic', keywords: 'text paragraph absatz normal schreiben', description: 'Normaler Text' },
-  { key: 'h1',          label: 'Titel',             icon: 'H1',  group: 'Basic', keywords: 'titel heading headline ueberschrift gross', description: 'Große Überschrift' },
-  { key: 'h2',          label: 'Ueberschrift',      icon: 'H2',  group: 'Basic', keywords: 'heading headline ueberschrift h2', description: 'Mittlere Überschrift' },
+  { key: 'h1',          label: 'Titel',             icon: 'H1',  group: 'Basic', keywords: 'titel heading headline ueberschrift überschrift gross groß', description: 'Große Überschrift' },
+  { key: 'h2',          label: 'Überschrift',      icon: 'H2',  group: 'Basic', keywords: 'heading headline ueberschrift überschrift h2', description: 'Mittlere Überschrift' },
   { key: 'h3',          label: 'Untertitel',        icon: 'H3',  group: 'Basic', keywords: 'untertitel heading h3 klein', description: 'Kleine Überschrift' },
   { key: 'blockquote',  label: 'Zitat',             icon: '"',   group: 'Basic', keywords: 'quote zitat', description: 'Hervorgehobenes Zitat' },
   { key: 'callout',     label: 'Callout',           icon: '💡',  group: 'Basic', keywords: 'callout hinweis info warnung tipp box notiz achtung wichtig', description: 'Hinweisbox mit Emoji und Farbe' },
@@ -50,6 +50,6 @@ export const ELEMENT_PALETTE: ElementPaletteItem[] = [
   { key: 'hr',          label: 'Trennlinie',        icon: '-',   group: 'Basic', keywords: 'linie divider separator trennlinie', description: 'Horizontale Linie' },
   { key: 'toggle',      label: 'Toggle',            icon: '▶T',  group: 'Toggle', keywords: 'toggle aufklappen details', description: 'Einklappbarer Block' },
   { key: 'toggleH1',    label: 'Toggle Titel',      icon: '▶H1', group: 'Toggle', keywords: 'toggle titel aufklappen gross', description: 'Toggle in Titelgröße' },
-  { key: 'toggleH2',    label: 'Toggle H2',         icon: '▶H2', group: 'Toggle', keywords: 'toggle h2 ueberschrift', description: 'Toggle in H2-Größe' },
+  { key: 'toggleH2',    label: 'Toggle H2',         icon: '▶H2', group: 'Toggle', keywords: 'toggle h2 ueberschrift überschrift', description: 'Toggle in H2-Größe' },
   { key: 'toggleH3',    label: 'Toggle H3',         icon: '▶H3', group: 'Toggle', keywords: 'toggle h3 untertitel', description: 'Toggle in H3-Größe' },
 ]

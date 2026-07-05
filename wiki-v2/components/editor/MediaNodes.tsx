@@ -242,7 +242,7 @@ function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPo
                 <span style={DIVIDER} />
                 <button type="button" style={{ ...tbBtn(), color: '#ef4444' }} onClick={() => deleteNode()} title="Löschen">×</button>
               </div>
-              <div onMouseDown={onMouseDown} style={RESIZE_HANDLE} title="Groesse ziehen" />
+              <div onMouseDown={onMouseDown} style={RESIZE_HANDLE} title="Größe ziehen" />
             </>
           )}
         </div>

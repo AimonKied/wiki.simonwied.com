@@ -94,7 +94,7 @@ export default async function HomePage({
                 Bibliothek
               </h1>
               <p style={{ fontSize: '14px', color: 'var(--muted)', maxWidth: '760px', lineHeight: 1.7 }}>
-                Oeffentliche Notizen, Artikel und Workspaces.
+                Öffentliche Notizen, Artikel und Workspaces.
               </p>
             </div>
             <ThemeToggle />
@@ -181,7 +181,7 @@ export default async function HomePage({
             </h2>
             {(activeCategoryTitle || activeTypeTitle) && (
               <Link href="/" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-                Filter zuruecksetzen
+                Filter zurücksetzen
               </Link>
             )}
           </div>

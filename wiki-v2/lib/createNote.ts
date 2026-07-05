@@ -6,7 +6,7 @@ const DEFAULT_WORKSPACE_CONTENT = {
     {
       type: 'section',
       content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Uebersicht' }] },
+        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Übersicht' }] },
         { type: 'paragraph' },
       ],
     },

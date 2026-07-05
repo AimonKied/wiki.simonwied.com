@@ -8,12 +8,12 @@ const OPTIONS: Array<{ type: 'article' | 'workspace'; title: string; description
   {
     type: 'article',
     title: 'Artikel',
-    description: 'Linearer Text fuer Guides, Rezepte, Cheatsheets und laengere Notizen.',
+    description: 'Linearer Text für Guides, Rezepte, Cheatsheets und längere Notizen.',
   },
   {
     type: 'workspace',
     title: 'Canvas Workspace',
-    description: 'Freie Flaeche fuer strukturierte Bloecke, Skizzen und visuelle Arbeitsstaende.',
+    description: 'Freie Fläche für strukturierte Blöcke, Skizzen und visuelle Arbeitsstände.',
   },
 ]
 

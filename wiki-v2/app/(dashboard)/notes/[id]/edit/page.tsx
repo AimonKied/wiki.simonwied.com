@@ -255,7 +255,7 @@ export default function EditNotePage() {
 
   const isArticle = contentType === 'article'
   const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
-  const publishState = isPublic ? 'Oeffentlich sichtbar' : 'Privater Entwurf'
+  const publishState = isPublic ? 'Öffentlich sichtbar' : 'Privater Entwurf'
 
   return (
     <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}>
