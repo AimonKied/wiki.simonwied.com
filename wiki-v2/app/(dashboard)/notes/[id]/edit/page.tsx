@@ -61,6 +61,16 @@ export default function EditNotePage() {
 
       if (noteRes.data) {
         const data = noteRes.data as Note
+        // Oeffnen zaehlt als "zuletzt verwendet"; danach Sidebar-Reload
+        // anstossen — so haengt "Zuletzt" nicht an Supabase-Realtime
+        void supabase
+          .from('notes')
+          .update({ last_opened_at: new Date().toISOString() })
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('last_opened_at konnte nicht gesetzt werden:', error.message)
+            else document.dispatchEvent(new Event('wiki-notes-changed'))
+          })
         setNote(data)
         setTitle(data.title)
         setDescription(data.description ?? '')

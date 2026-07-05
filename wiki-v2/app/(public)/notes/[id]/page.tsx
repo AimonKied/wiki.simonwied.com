@@ -17,6 +17,17 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
     .single()
 
   if (!note || !note.published) notFound()
+
+  // Ansehen der eigenen Notiz zaehlt als "zuletzt verwendet" (Sidebar-Verlauf);
+  // fuer fremde Besucher passiert nichts (RLS laesst nur Owner-Updates zu)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.id === note.user_id) {
+    await supabase
+      .from('notes')
+      .update({ last_opened_at: new Date().toISOString() })
+      .eq('id', note.id)
+  }
+
   // Render the frozen public snapshot, not the owner's live draft.
   const pub = note.published as {
     title: string
