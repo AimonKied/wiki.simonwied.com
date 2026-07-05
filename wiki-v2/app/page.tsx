@@ -86,7 +86,7 @@ export default async function HomePage({
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
       <Sidebar isLoggedIn={!!user} />
-      <main style={{ flex: 1, padding: '32px clamp(22px, 3vw, 48px) 48px', overflowY: 'auto', animation: 'fadeIn 0.2s ease both', minWidth: 0 }}>
+      <main className="app-main" style={{ overflowY: 'auto', animation: 'fadeIn 0.2s ease both' }}>
         <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
             <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>

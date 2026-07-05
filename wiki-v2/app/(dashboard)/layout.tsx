@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
       <Sidebar isLoggedIn={true} notes={(notes ?? []) as Note[]} />
-      <main style={{ flex: 1, minWidth: 0, padding: '32px clamp(22px, 3vw, 48px) 48px', overflowY: 'visible' }}>
+      <main className="app-main" style={{ overflowY: 'visible' }}>
         {children}
       </main>
     </div>
