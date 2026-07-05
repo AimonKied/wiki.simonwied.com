@@ -47,6 +47,7 @@ export default function EditNotePage() {
   const debounceRef = useRef(0)
   const hydratedRef = useRef(false)
   const mdImportRef = useRef<HTMLInputElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
 
   useEffect(() => {
@@ -88,7 +89,8 @@ export default function EditNotePage() {
   // 'publish' = copy the current draft into the frozen public snapshot + go public.
   // 'unpublish' = take the note offline (snapshot stays for a later re-publish).
   const persist = useCallback((mode: 'draft' | 'publish' | 'unpublish' = 'draft') => {
-    if (!title.trim()) return
+    // Drafts may be saved without a title (new notes start empty); publishing needs one.
+    if (mode === 'publish' && !title.trim()) return
     if (mode === 'publish' && selectedCategories.length === 0) {
       setCategoryError(true)
       return
@@ -161,6 +163,15 @@ export default function EditNotePage() {
   const patchSidebar = useCallback((patch: { title?: string; emoji?: string | null }) => {
     document.dispatchEvent(new CustomEvent('wiki-note-patched', { detail: { id, ...patch } }))
   }, [id])
+
+  // Fresh notes arrive here straight from "Neuer Inhalt" with an empty title —
+  // focus it so typing starts immediately (like Notion's new page).
+  useEffect(() => {
+    if (loading || !note || title.trim()) return
+    const raf = window.requestAnimationFrame(() => titleInputRef.current?.focus())
+    return () => window.cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, note])
 
   async function handleDelete() {
     if (!confirm('Notiz wirklich löschen?')) return
@@ -287,7 +298,9 @@ export default function EditNotePage() {
               {publishState}
             </div>
             <input
+              ref={titleInputRef}
               value={title}
+              placeholder="Ohne Titel"
               onChange={e => { setTitle(e.target.value); patchSidebar({ title: e.target.value }) }}
               onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
               style={{
