@@ -108,13 +108,13 @@ wiki-v2/
       EmojiPicker.tsx
       EditorViewer.tsx        Read-only Darstellung
     sidebar/
-      Sidebar.tsx             Linke Navigation ("Zuletzt" live, Neuer-Inhalt-Flyout, Loeschen)
+      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen)
     theme/ThemeToggle.tsx     Dark/Light Toggle
     Logo.tsx                  Wortmarke (theme-adaptiv)
   lib/
     supabase/client.ts
     supabase/server.ts
-    supabase/storage.ts       Upload in Bucket wiki-media
+    supabase/storage.ts       Upload in Bucket wiki-media (WebP-Kompression vor Upload)
     createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
     markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
     v1Parser.ts               v1-HTML → TipTap-Doc
@@ -144,7 +144,8 @@ notes (
   is_public    boolean DEFAULT false,
   content_type text NOT NULL DEFAULT 'workspace',  -- 'article' | 'workspace'
   created_at   timestamptz DEFAULT now(),
-  updated_at   timestamptz DEFAULT now()           -- Auto-Trigger
+  updated_at   timestamptz DEFAULT now(),          -- Auto-Trigger (ignoriert reine Oeffnen-Updates)
+  last_opened_at timestamptz                       -- Stempel beim Oeffnen/Ansehen, speist "Zuletzt"
 )
 
 categories (
@@ -182,7 +183,7 @@ Wenn is_public = true:
   mindestens eine Kategorie muss verknuepft sein
 ```
 
-Storage: Bucket `wiki-media` (public) fuer Bilder/Videos, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner).
+Storage: Bucket `wiki-media` (public) fuer Bilder, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner, keine SELECT-Policy — Public-Bucket liefert ueber die URL, Listing bleibt gesperrt). Bilder werden vor dem Upload clientseitig komprimiert (max 1600px, WebP 85%, Limit 2 MB nach Kompression) — so passen tausende Bilder ins 1-GB-Free-Kontingent statt ~100.
 
 Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in `migration.sql`), sonst liefert `postgres_changes` keine Events und die "Zuletzt"-Liste ist nur im eigenen Tab live.
 
@@ -265,6 +266,14 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Echte Umlaute in allen sichtbaren UI-Strings
 - Alle 27 Editor-Werkzeuge automatisiert im Browser getestet (Slash, Markdown-Kuerzel, BubbleMenu, Duplizieren, Bild-Upload)
 
+### Erledigt (Runde 5 — Storage und Zuletzt-Verlauf)
+
+- Clientseitige Bildkompression vor Upload (Canvas-Resize max 1600px, WebP 85%; SVG/GIF ausgenommen); Eingangslimit 25 MB, gespeichert max 2 MB
+- Storage-Policies idempotent (`drop policy if exists`) und oeffentliche SELECT/Listing-Policy entfernt (Supabase-Sicherheitswarnung behoben)
+- "Zuletzt" in der Sidebar = echter, account-weiter Oeffnen-Verlauf ueber `last_opened_at` statt Auffuellen nach `updated_at`; ohne geoeffnete Notizen bleibt der Abschnitt unsichtbar
+- Stempel beim Oeffnen im Editor und beim Ansehen der eigenen oeffentlichen Seite (nur Owner); `updated_at`-Trigger ignoriert reine Oeffnen-Updates
+- Migration 8b in `migration.sql` (Spalte + Trigger-Anpassung), am 2026-07-05 in Supabase ausgefuehrt
+
 ---
 
 ## UX-Regeln
@@ -308,6 +317,8 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 ### Setup (einmalig im Supabase SQL Editor)
 
 - [ ] Block 8a aus `migration.sql` ausfuehren (`notes` in Realtime-Publication) — sonst ist "Zuletzt" nur im eigenen Tab live
+- [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
+- [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
 
 ### Deploy
 

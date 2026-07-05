@@ -34,6 +34,8 @@ width, the decorative grid is hidden while editing).
 - Blocks: headings, lists, to-dos (nest with `Tab`), tables, code (highlighted),
   images (upload/URL), toggles, callouts (click the emoji for emoji/color
   picker), quotes, dividers.
+- Image uploads are compressed client-side before hitting Supabase Storage
+  (max 1600px, WebP 85%, 2 MB stored limit; SVG/GIF pass through unchanged).
 - Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
   "Umwandeln in" and "Duplizieren", dragging reorders.
 - A sticky table of contents (H2/H3) sits on the right in the editor and the
@@ -96,9 +98,13 @@ lib/
   v1Parser.ts                  v1 HTML → TipTap doc
   supabase/client.ts           browser Supabase client
   supabase/server.ts           server Supabase client
-  supabase/storage.ts          wiki-media bucket upload
+  supabase/storage.ts          wiki-media bucket upload + WebP compression
 ```
 
-Sidebar "Zuletzt" is live: edits broadcast client events, saves trigger a refetch,
-and cross-tab updates come from Supabase realtime (requires block 8a of
-`supabase/migration.sql` to be run once).
+Sidebar "Zuletzt" is a real, account-wide open history: opening a note in the
+editor (or viewing your own published page) stamps `last_opened_at`; the list
+shows only stamped notes, newest first, and stays hidden until something was
+opened. Requires blocks 8a (realtime) and 8b (`last_opened_at` + trigger) of
+`supabase/migration.sql`. The `updated_at` trigger ignores pure open-stamps so
+viewing never reorders the dashboard's "changed" sorting. Edits broadcast
+client events, saves trigger a refetch, cross-tab updates come from realtime.
