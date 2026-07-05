@@ -565,12 +565,10 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Navigation schliesst den Drawer — State-Anpassung waehrend des Renders
-  // (React-Muster fuer abgeleiteten State, kein Effect noetig)
-  const [lastPath, setLastPath] = useState(realPathname)
-  if (lastPath !== realPathname) {
-    setLastPath(realPathname)
-    setDrawerOpen(false)
+  // Klick auf einen Link im Drawer schliesst ihn (Event-Delegation statt
+  // Pathname-Effect: kein setState im Render/Effect, DevTools-freundlich)
+  function onNavClick(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest('a')) setDrawerOpen(false)
   }
 
   // Escape schliesst, Body-Scroll gesperrt solange offen
@@ -589,6 +587,7 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   }, [drawerOpen])
 
   async function handleLogout() {
+    setDrawerOpen(false)
     const supabase = createClient()
     await supabase.auth.signOut()
     router.refresh()
@@ -635,7 +634,7 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       aria-hidden="true"
     />
 
-    <nav className="sidebar-nav" data-open={drawerOpen || undefined}>
+    <nav className="sidebar-nav" data-open={drawerOpen || undefined} onClick={onNavClick}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
         <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
           <Logo height={28} />
