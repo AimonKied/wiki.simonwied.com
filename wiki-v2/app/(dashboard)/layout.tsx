@@ -11,11 +11,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login')
 
+  // "Zuletzt"-Startwert fuer die Sidebar: nur wirklich geoeffnete Notizen
   const { data: notes } = await supabase
     .from('notes')
     .select('id, title, emoji, content_type, is_public, slug, updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(30)
+    .not('last_opened_at', 'is', null)
+    .order('last_opened_at', { ascending: false })
+    .limit(8)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>

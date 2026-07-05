@@ -208,6 +208,8 @@ function SidebarSection({
   )
 }
 
+// "Zuletzt" = Notizen mit last_opened_at, account-weit aus der DB. Die
+// Edit-Seite stempelt beim Oeffnen; nie geoeffnete Notizen erscheinen nicht.
 function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   const router = useRouter()
   const listRef = useRef<HTMLDivElement>(null)
@@ -215,11 +217,14 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [pendingDeleteNote, setPendingDeleteNote] = useState<Note | null>(null)
-  const [recentNotes, setRecentNotes] = useState<Note[]>(notes.slice(0, 8))
+  // Startwert kommt server-seitig, bereits nach last_opened_at sortiert
+  const [recentNotes, setRecentNotes] = useState<Note[]>(notes)
 
+  // Beim Navigieren neu laden; der last_opened_at-Stempel der Edit-Seite
+  // sortiert die geoeffnete Notiz nach vorn.
   useEffect(() => {
-    setRecentNotes(notes.slice(0, 8))
-  }, [notes])
+    void reloadNotesRef.current?.()
+  }, [pathname])
 
   useEffect(() => {
     if (!openMenuId) return
@@ -263,7 +268,8 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
           .from('notes')
           .select('id, title, emoji, content_type, is_public, slug, updated_at')
           .eq('user_id', user.id)
-          .order('updated_at', { ascending: false })
+          .not('last_opened_at', 'is', null)
+          .order('last_opened_at', { ascending: false })
           .limit(8)
 
         if (!cancelled && data) {
@@ -328,10 +334,6 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
     return () => document.removeEventListener('wiki-note-patched', onPatch)
   }, [])
 
-  useEffect(() => {
-    void reloadNotesRef.current?.()
-  }, [pathname])
-
   async function deleteNote(noteId: string) {
     const supabase = createClient()
     const { error } = await supabase.from('notes').delete().eq('id', noteId)
@@ -346,15 +348,9 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
     }
   }
 
-  // The note being edited belongs at the top immediately (like Notion), not
-  // first after the next save bumps its updated_at in the DB.
-  const activeNoteId = pathname.startsWith('/notes/') ? pathname.split('/')[2] : null
-  const visibleNotes = activeNoteId && recentNotes.some(n => n.id === activeNoteId)
-    ? [
-        ...recentNotes.filter(n => n.id === activeNoteId),
-        ...recentNotes.filter(n => n.id !== activeNoteId),
-      ]
-    : recentNotes
+  // Verlaufsreihenfolge kommt aus recentIds: die aktive Notiz wurde beim
+  // Oeffnen bereits nach vorn gebumpt.
+  const visibleNotes = recentNotes
   if (!visibleNotes.length) return null
   return (
     <div ref={listRef} style={{ padding: '0 12px', marginBottom: '10px' }}>
@@ -604,9 +600,9 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
             <SidebarSection title="Privat" items={workspaceNav} pathname={pathname}>
               <NewContentNavItem />
             </SidebarSection>
-            {notes && notes.length > 0 && (
-              <NotesList notes={notes} pathname={pathname} />
-            )}
+            {/* Auch mit leerem Startwert mounten: die Liste fuellt sich
+                client-seitig, sobald die erste Notiz geoeffnet wird */}
+            {notes && <NotesList notes={notes} pathname={pathname} />}
           </>
         )}
       </div>
