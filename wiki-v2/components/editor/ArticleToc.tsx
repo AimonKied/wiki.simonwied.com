@@ -54,8 +54,6 @@ export default function ArticleToc({
 }) {
   const [entries, setEntries] = useState<TocEntry[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
-  const activeEntry = entries[activeIdx]
-  const progress = entries.length > 1 ? activeIdx / (entries.length - 1) : 0
 
   useEffect(() => {
     setEntries(extractHeadings(content))
@@ -104,93 +102,33 @@ export default function ArticleToc({
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  if (entries.length < 3) return null
+  if (!entries.length) return null
 
   return (
     <aside style={{
-      width: 'clamp(210px, 18vw, 260px)',
+      width: 'clamp(220px, 19vw, 260px)',
       flexShrink: 0,
       position: 'sticky',
-      top: 24,
+      top: 20,
       alignSelf: 'flex-start',
-      maxHeight: 'calc(100vh - 48px)',
+      maxHeight: 'calc(100vh - 40px)',
       overflowY: 'auto',
       scrollbarWidth: 'none',
-      padding: '14px 14px 12px',
-      border: '1px solid var(--border)',
-      borderRadius: '16px',
-      background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
-      boxShadow: '0 16px 40px var(--shadow-faint)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
+      padding: '6px 0 6px 18px',
+      borderLeft: '1px solid var(--border)',
     }}>
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          marginBottom: '10px',
-        }}>
-          <div style={{
-            fontSize: '10px',
-            color: 'var(--muted)',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-          }}>
-            Inhalt
-          </div>
-          <div style={{
-            fontSize: '11px',
-            color: 'var(--accent)',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textAlign: 'right',
-          }}>
-            {activeEntry?.text ?? ''}
-          </div>
-        </div>
-
-        <div style={{
-          height: '3px',
-          borderRadius: '999px',
-          background: 'var(--surface2)',
-          overflow: 'hidden',
-          marginBottom: '6px',
-        }}>
-          <div style={{
-            width: `${Math.max(6, progress * 100)}%`,
-            height: '100%',
-            borderRadius: 'inherit',
-            background: 'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--accent3)))',
-            transition: 'width 0.15s ease',
-          }} />
-        </div>
-
-        <div style={{
-          fontSize: '10px',
-          color: 'var(--muted)',
-          textAlign: 'right',
-        }}>
-          {activeIdx + 1} / {entries.length}
-        </div>
+      <div style={{
+        fontSize: '10px',
+        color: 'var(--muted)',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        marginBottom: '10px',
+        paddingLeft: '8px',
+      }}>
+        Inhalt
       </div>
 
-      <div style={{
-        position: 'relative',
-        display: 'grid',
-        gap: '4px',
-      }}>
-        <div style={{
-          position: 'absolute',
-          left: '10px',
-          top: '4px',
-          bottom: '4px',
-          width: '1px',
-          background: 'var(--border)',
-        }} />
+      <div style={{ display: 'grid', gap: '2px' }}>
 
         {entries.map(({ idx, level, text }) => {
           const isActive = idx === activeIdx
@@ -202,44 +140,44 @@ export default function ArticleToc({
               title={text}
               aria-current={isActive ? 'true' : undefined}
               style={{
-                position: 'relative',
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
+                alignItems: 'center',
+                gap: '8px',
                 width: '100%',
-                padding: '8px 10px 8px 0',
+                minHeight: '30px',
+                padding: '5px 8px',
                 paddingLeft: `${8 + (level - 1) * 14}px`,
-                borderRadius: '12px',
+                borderRadius: '6px',
                 border: 'none',
-                background: isActive ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
-                boxShadow: isActive ? 'inset 2px 0 0 var(--accent)' : 'none',
+                background: isActive ? 'color-mix(in srgb, var(--accent) 9%, transparent)' : 'transparent',
                 color: isActive ? 'var(--text)' : 'var(--muted)',
-                fontWeight: isActive ? 700 : 500,
+                fontWeight: isActive ? 600 : 500,
                 fontFamily: 'inherit',
                 textAlign: 'left',
                 cursor: 'pointer',
-                transition: 'background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s',
+                transition: 'background 0.12s, color 0.12s',
+                lineHeight: 1.4,
               }}
               onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text)' }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--muted)' }}
             >
               <span style={{
-                position: 'absolute',
-                left: '6px',
-                top: '14px',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
+                width: '6px',
+                height: '6px',
+                borderRadius: '999px',
+                flexShrink: 0,
+                marginLeft: '-1px',
                 background: isActive ? 'var(--accent)' : 'var(--border)',
-                boxShadow: isActive ? '0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)' : 'none',
-                transition: 'background 0.15s, box-shadow 0.15s',
+                opacity: isActive ? 1 : 0.7,
+                transition: 'background 0.12s, opacity 0.12s',
               }} />
               <span style={{
                 display: 'block',
                 fontSize: level === 1 ? '13px' : '12px',
-                lineHeight: 1.45,
-                whiteSpace: 'normal',
-                overflowWrap: 'anywhere',
+                lineHeight: 1.35,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}>
                 {text}
               </span>
