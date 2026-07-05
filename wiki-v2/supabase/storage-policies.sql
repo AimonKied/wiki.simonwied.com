@@ -4,6 +4,10 @@
 --   Storage → New Bucket → Name: wiki-media → Public: ON → Create
 -- ============================================================
 
+drop policy if exists "wiki_media_upload" on storage.objects;
+drop policy if exists "wiki_media_delete" on storage.objects;
+drop policy if exists "wiki_media_public_read" on storage.objects;
+
 -- Allow authenticated users to upload to their own folder
 create policy "wiki_media_upload"
   on storage.objects for insert
@@ -22,7 +26,5 @@ create policy "wiki_media_delete"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- Public read (bucket is already public, but explicit policy)
-create policy "wiki_media_public_read"
-  on storage.objects for select
-  using (bucket_id = 'wiki-media');
+-- Keine SELECT-Policy: Public-Bucket liefert Dateien ueber die oeffentliche URL aus.
+-- Eine breite SELECT-Policy wuerde Clients erlauben, alle Dateien zu listen.
