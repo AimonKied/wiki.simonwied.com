@@ -227,6 +227,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
             if (e.key === 'Enter' && filtered[0]) router.push(`/notes/${filtered[0].id}/edit`)
           }}
           placeholder="Suchen… (Enter öffnet ersten Treffer)"
+          className="ui-input"
           style={{
             marginLeft: 'auto',
             padding: '7px 12px',
@@ -234,7 +235,6 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
             border: '1px solid var(--border)',
             background: 'var(--surface)',
             color: 'var(--text)',
-            fontSize: '12px',
             fontFamily: 'inherit',
             outline: 'none',
             width: 'min(100%, 220px)',

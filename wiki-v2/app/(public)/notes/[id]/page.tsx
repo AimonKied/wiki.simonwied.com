@@ -87,7 +87,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
         </div>
         {pub.emoji && <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>{pub.emoji}</span>}
         <h1 style={{
-          fontSize: '42px',
+          fontSize: 'clamp(30px, 7vw, 42px)',
           fontWeight: 800,
           marginBottom: '12px',
           letterSpacing: '0.01em',

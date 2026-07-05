@@ -67,6 +67,7 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               required
               placeholder="deine@email.de"
+              className="ui-input"
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -74,7 +75,6 @@ export default function LoginPage() {
                 border: '1px solid var(--border)',
                 borderRadius: '8px',
                 color: 'var(--text)',
-                fontSize: '13px',
                 fontFamily: 'inherit',
                 outline: 'none',
               }}
@@ -91,6 +91,7 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               placeholder="••••••••"
+              className="ui-input"
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -98,7 +99,6 @@ export default function LoginPage() {
                 border: '1px solid var(--border)',
                 borderRadius: '8px',
                 color: 'var(--text)',
-                fontSize: '13px',
                 fontFamily: 'inherit',
                 outline: 'none',
               }}
