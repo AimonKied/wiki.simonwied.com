@@ -82,38 +82,41 @@ wiki-v2/
     api/migrate-v1/           v1-HTML → Notiz (nur lokal, nicht in Produktion)
     (auth)/login/             Login-Seite
     (dashboard)/              Nur eingeloggt
-      create/                 Typ-Auswahl, dann neuer Artikel oder Workspace
-      dashboard/              Private Inhaltsuebersicht
+      dashboard/              Arbeitsbereich: Filter, Suche, Loeschen
       migrate/                UI fuer v1-Migration
       notes/
-        [id]/edit/            Inhalt bearbeiten
+        [id]/edit/            Inhalt bearbeiten ("Neuer Inhalt" legt an und springt direkt hierher; keine /create-Seite mehr)
     (public)/
       notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
     layout.tsx
     page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
   components/
     dashboard/
-      NewContentButton.tsx    Neuer-Inhalt-Button mit Typ-Auswahl
+      NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
+      NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-Menue
     editor/
       Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
-      ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (fillHeight, Griff-Popover)
-      SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer
+      ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
+      ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H2/H3, Scroll-Tracking)
+      SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
       ToggleNode.tsx          Toggle-Element (<details>/<summary>)
-      MediaNodes.tsx          Bild/Video-Nodes (Supabase Storage Upload)
+      CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
+      MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
       RightSidebar.tsx        Workspace-Outline
-      elementPalette.ts       Gemeinsame Element-Palette (Artikel + Canvas)
+      elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
       editorTransforms.ts     Doc-Transformationen
       EmojiPicker.tsx
       EditorViewer.tsx        Read-only Darstellung
     sidebar/
-      Sidebar.tsx             Linke Navigation (letzte Notizen, Neuer-Inhalt-Flyout)
+      Sidebar.tsx             Linke Navigation ("Zuletzt" live, Neuer-Inhalt-Flyout, Loeschen)
     theme/ThemeToggle.tsx     Dark/Light Toggle
     Logo.tsx                  Wortmarke (theme-adaptiv)
   lib/
     supabase/client.ts
     supabase/server.ts
     supabase/storage.ts       Upload in Bucket wiki-media
-    markdownConvert.ts        Markdown-Import/Export fuer Artikel
+    createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
+    markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
     v1Parser.ts               v1-HTML → TipTap-Doc
     types.ts
   supabase/
@@ -181,6 +184,8 @@ Wenn is_public = true:
 
 Storage: Bucket `wiki-media` (public) fuer Bilder/Videos, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner).
 
+Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in `migration.sql`), sonst liefert `postgres_changes` keine Events und die "Zuletzt"-Liste ist nur im eigenen Tab live.
+
 ---
 
 ## Fortschritt
@@ -244,6 +249,22 @@ Storage: Bucket `wiki-media` (public) fuer Bilder/Videos, Policies in `supabase/
 - v1-Migrations-Tooling: `/migrate`-Seite + `api/migrate-v1` + `lib/v1Parser.ts` (nur lokal nutzbar)
 - Hydration-Mismatch in Sidebar behoben
 
+### Erledigt (Runde 4 — Notion-Kurs)
+
+- To-do-Listen mit Checkboxen (TaskList/TaskItem, verschachtelbar per Tab, MD-Roundtrip `- [ ]`)
+- Callout-Block: Emoji + 6 Farben, Picker als Dokument-Overlay (ueberlebt Section-Remounts), MD als `> 💡 …`
+- Inhaltsverzeichnis rechts (Artikel-Editor + oeffentliche Ansicht): sticky beim Scrollen, H2/H3, Aktiv-Tracking, Klick springt zur Sektion
+- Notion-Schreibflaeche: kein Panel mehr, volle Breite, Karo-Grid beim Schreiben ausgeblendet, Seite scrollt (kein interner Scrollbereich)
+- Werkzeug-Palette rechts im Artikel entfernt — Slash-Menue, +-Button und "Umwandeln in" decken alles ab
+- Slash-Hinweis auf leerer Zeile repariert (includeChildren fehlte — Placeholder hatte nie gerendert)
+- Slash-Suche mit Notion-Ranking (exakter Treffer zuerst; "/hr" traf vorher "Ueberschrift")
+- Eine gemeinsame Element-Palette fuer beide Editoren (Canvas hatte veraltete Kopie ohne To-do/Callout)
+- /create entfernt: "Neuer Inhalt" legt direkt an und springt in den Editor; Autofokus auf leerem Titel; Entwuerfe ohne Titel speicherbar
+- Sidebar "Zuletzt" live: Realtime-Publication (Block 8a), Save-Events, Titel aendert sich beim Tippen (Notion-Muster: Client-State broadcastet, DB folgt asynchron), aktive Notiz sofort an Position 1, Schloss-Icon bei privat
+- Arbeitsbereich: Loeschen mit Bestaetigung, Typ-Filter, Suche mit Autofokus (Enter oeffnet ersten Treffer), Artikel/Workspaces nebeneinander, Statistik-Karten entfernt
+- Echte Umlaute in allen sichtbaren UI-Strings
+- Alle 27 Editor-Werkzeuge automatisiert im Browser getestet (Slash, Markdown-Kuerzel, BubbleMenu, Duplizieren, Bild-Upload)
+
 ---
 
 ## UX-Regeln
@@ -284,6 +305,10 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 - [x] v1-Inhalte lokal ueber `/migrate` in die DB migriert (alle 7 Seiten oeffentlich)
 - [ ] **Migrations-Bug**: Codebloecke enthalten literale `<span class="hl-...">`-Tags aus dem v1-Syntax-Highlighting — `v1Parser.ts` muss die Spans strippen, danach betroffene Artikel neu migrieren
 
+### Setup (einmalig im Supabase SQL Editor)
+
+- [ ] Block 8a aus `migration.sql` ausfuehren (`notes` in Realtime-Publication) — sonst ist "Zuletzt" nur im eigenen Tab live
+
 ### Deploy
 
 - [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
@@ -296,12 +321,12 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 
 Ziel: Artikel-Editor und -Ansicht fuehlen sich wie Notion an. Der Canvas-Workspace bleibt separat und eigenstaendig.
 
-Schon auf Notion-Niveau: Slash-Menue, Block-Palette, Drag-Handle (⠿) mit "Umwandeln in"/"Duplizieren", Toggles, Tabellen, Codebloecke mit Highlighting, resizable Bilder, Text-Formatierung (BubbleMenu), Links (StarterKit), Platzhalter, Emoji-Icon pro Seite, Markdown-Import/Export, Inhaltsverzeichnis rechts, Dark Mode.
+Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranking, Drag-Handle (⠿) mit "Umwandeln in"/"Duplizieren", To-dos, Callouts, Toggles, Tabellen, Codebloecke mit Highlighting, resizable Bilder, Text-Formatierung (BubbleMenu), Links (StarterKit), Platzhalter-Hinweis auf leerer Zeile, Emoji-Icon pro Seite, Markdown-Import/Export, stickes Inhaltsverzeichnis, Live-Sidebar, Dark Mode.
 
 ### Phase 1 — fehlende Kern-Bloecke (fertige TipTap-Extensions, je klein)
 
-- [ ] To-do-Liste / Checkboxen (`@tiptap/extension-task-list` + `task-item`)
-- [ ] Callout-Block (farbige Hinweisbox mit Emoji, eigener Node)
+- [x] To-do-Liste / Checkboxen (`@tiptap/extension-list`: TaskList + TaskItem)
+- [x] Callout-Block (farbige Hinweisbox mit Emoji, eigener Node)
 - [ ] Video-Block (MediaNodes hat bisher nur Bilder; Upload-Pfad existiert schon)
 
 ### Phase 2 — Verlinkung und Finden (Wiki-Kern)
