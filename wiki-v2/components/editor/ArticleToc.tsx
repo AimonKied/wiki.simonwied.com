@@ -120,7 +120,13 @@ export default function ArticleToc({
     const el = headingElements(containerSelector)[idx]
     if (!el) return
     setActiveIdx(idx)
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Manual offset instead of scroll-margin-top + scrollIntoView: the fixed
+    // mobile topbar (56px) isn't part of layout flow, and some mobile
+    // browsers overshoot past the target when combining scroll-margin with
+    // smooth scrollIntoView. Computing the target ourselves is predictable.
+    const headerOffset = window.matchMedia('(max-width: 768px)').matches ? 72 : 20
+    const top = el.getBoundingClientRect().top + window.scrollY - headerOffset
+    window.scrollTo({ top, behavior: 'smooth' })
     if (closeMobile) setMobileOpen(false)
   }
 
