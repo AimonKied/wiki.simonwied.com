@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import EditorViewer from '@/components/editor/EditorViewer'
 import ArticleToc from '@/components/editor/ArticleToc'
+import RightSidebar from '@/components/editor/RightSidebar'
+import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
 export default async function PublicNotePage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,7 +23,8 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
   // Ansehen der eigenen Notiz zaehlt als "zuletzt verwendet" (Sidebar-Verlauf);
   // fuer fremde Besucher passiert nichts (RLS laesst nur Owner-Updates zu)
   const { data: { user } } = await supabase.auth.getUser()
-  if (user?.id === note.user_id) {
+  const isOwner = user?.id === note.user_id
+  if (isOwner) {
     await supabase
       .from('notes')
       .update({ last_opened_at: new Date().toISOString() })
@@ -48,70 +51,35 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
   const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
 
   return (
-    <div style={{ width: '100%', maxWidth: isArticle ? '1240px' : '860px', animation: 'fadeIn 0.2s ease both' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <Link href="/" style={{ color: 'var(--muted)', textDecoration: 'none' }}>
-            wiki.simonwied.com
-          </Link>
-          <span style={{ color: 'var(--border)' }}>/</span>
-          <span style={{ color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pub.title}</span>
-        </div>
-        <ThemeToggle />
-      </div>
+    <div
+      className="note-editor-shell"
+      data-content-type={isArticle ? 'article' : 'workspace'}
+      style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap', width: '100%' }}
+    >
+      <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
 
-      <div style={{ marginBottom: '40px' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '7px',
-            padding: '6px 10px',
-            border: '1px solid var(--border)',
-            borderRadius: '999px',
-            background: 'var(--surface)',
-            color: 'var(--muted)',
-            fontSize: '11px',
-            fontWeight: 700,
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isArticle ? '#009955' : '#4488ff' }} />
-            {typeLabel}
-          </span>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '7px',
-            padding: '6px 10px',
-            border: '1px solid var(--border)',
-            borderRadius: '999px',
-            background: 'var(--surface)',
-            color: 'var(--muted)',
-            fontSize: '11px',
-            fontWeight: 700,
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
-            Öffentlich
-          </span>
-        </div>
-        {pub.emoji && <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>{pub.emoji}</span>}
-        <h1 style={{
-          fontSize: 'clamp(30px, 7vw, 42px)',
-          fontWeight: 800,
-          marginBottom: '12px',
-          letterSpacing: '0.01em',
-          lineHeight: 1.1,
-          color: 'var(--accent)',
-          fontFamily: 'var(--font-display)',
-        }}>
-          {pub.title}
-        </h1>
-        {pub.description && (
-          <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6 }}>
-            {pub.description}
-          </p>
-        )}
+        <NoteHeader
+          emoji={pub.emoji ?? ''}
+          title={pub.title}
+          description={pub.description ?? ''}
+          statusLabel="Öffentlich"
+          typeLabel={typeLabel}
+          isArticle={isArticle}
+          isPublic
+          editable={false}
+          actions={<ThemeToggle />}
+          linkRight={isOwner && (
+            <Link
+              href={`/notes/${note.id}/edit`}
+              style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+            >
+              Bearbeiten →
+            </Link>
+          )}
+        />
+
         {authorName && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', fontSize: '12px', color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '-8px 0 22px', fontSize: '12px', color: 'var(--muted)' }}>
             <span
               aria-hidden="true"
               style={{
@@ -139,18 +107,13 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
             </span>
           </div>
         )}
+
+        <EditorViewer content={pub.content} contentType={note.content_type as 'article' | 'workspace'} />
+
       </div>
 
-      {isArticle && pub.content ? (
-        <div className="note-editor-shell" data-content-type="article" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
-          <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
-            <EditorViewer content={pub.content} contentType="article" />
-          </div>
-          <ArticleToc content={pub.content} />
-        </div>
-      ) : (
-        <EditorViewer content={pub.content} contentType={note.content_type as 'article' | 'workspace'} />
-      )}
+      {!isArticle && pub.content && <RightSidebar content={pub.content} />}
+      {isArticle && pub.content && <ArticleToc content={pub.content} />}
     </div>
   )
 }
