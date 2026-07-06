@@ -189,6 +189,7 @@ body[data-calm-bg="true"]::before {
 [data-article-editor="true"] .ProseMirror h1 {
   font-size: 30px;
   margin-top: 10px;
+  font-family: inherit;
 }
 
 [data-article-editor="true"] .ProseMirror h2 {
