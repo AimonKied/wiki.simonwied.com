@@ -331,6 +331,13 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Bestehende Maus-Bedienung unveraendert (PointerEvent ist ein Superset von MouseEvent, dieselbe Delta-/Snap-/Clamp-Logik greift weiter)
 - Bewusst nicht gebaut: Lasso-Mehrfachauswahl per Touch (Konflikt mit Ein-Finger-Pan, bräuchte eigenen Toggle-Button)
 
+### Erledigt (Runde 11 — Workspace-Notiz wirkt mehr wie ein Canvas-Tool)
+
+- `NoteHeader` bekommt einen `floating`-Modus: kompakte einzeilige Kopfleiste (kleines Emoji, Titel, Status-Punkt) statt Titel+Beschreibung+zwei Badges — nur fuer Workspace-Notizen (Edit- und Public-Ansicht), Artikel behalten den vollen Header unveraendert
+- Ab 769px verschwindet `.app-main`s Seiten-Padding komplett, wenn eine Workspace-Notiz drin steckt (`.app-main:has(.note-editor-shell[data-content-type="workspace"])`) — Canvas reicht randlos bis zur Sidebar statt in einer eingebetteten, umrandeten Box zu sitzen
+- Canvas-Box (`Editor.tsx`) verliert Rand/Eckenradius (Hintergrund ist ohnehin `var(--bg)`, identisch zum Seitenhintergrund) und bekommt eine neue `.canvas-viewport`-Klasse statt fester Inline-Hoehe, mit eigenem Media-Query-Wert fuer Mobil (dort bleibt `.app-main`s Padding bestehen, um die Mobil-Topbar freizuhalten)
+- Ein `position:fixed`-Balken war die erste Idee, wurde aber verworfen — haette den Sidebar-Offset (0 wenn eingeklappt, 260px sonst) und die Mobil-Topbar manuell nachbilden muessen; die kompakte Leiste bleibt stattdessen im normalen Dokumentfluss und erbt die Positionierung automatisch
+
 ---
 
 ## UX-Regeln

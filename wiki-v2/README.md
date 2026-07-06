@@ -55,6 +55,13 @@ share the same code path — one finger on empty canvas pans, two fingers pinch-
 zoom. Lasso multi-select stays mouse-only (a touch drag on empty canvas is pan,
 not lasso).
 
+On ≥769px the page chrome gets out of the way: `NoteHeader` renders a compact
+single-line bar (`floating` prop) instead of the full title/description/badges
+block, and `.app-main`'s padding drops to 0 via `.app-main:has(.note-editor-shell
+[data-content-type="workspace"])` in `globals.css`, so the canvas reaches the
+sidebar edge instead of sitting in a bordered, padded box. Article notes are
+unaffected — same `NoteHeader`, `floating` just isn't set.
+
 - Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
 - Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.
 - Drag block edges or corners to resize in any direction. With a multi-selection every selected block gets the same delta.
