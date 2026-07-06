@@ -367,6 +367,7 @@ body[data-calm-bg="true"]::before {
   min-width: 0;
   margin-left: 260px;
   padding: 32px clamp(22px, 3vw, 48px) 48px;
+  transition: margin-left 0.2s ease;
 }
 
 .sidebar-nav {
@@ -385,13 +386,71 @@ body[data-calm-bg="true"]::before {
   display: flex;
   flex-direction: column;
   z-index: 50;
+  transition: transform 0.2s ease;
 }
 
 .mobile-topbar { display: none; }
 .sidebar-backdrop { display: none; }
 .sidebar-close { display: none; }
+.sidebar-collapse { display: none; }
+.sidebar-expand { display: none; }
 .new-content-plus { display: none; }
 .notes-search-toggle { display: none; }
+
+/* Desktop/Tablet: Sidebar einklappbar — Default ist offen (umgekehrt zu
+   Mobil, wo der Drawer standardmaessig zu ist). Zustand persistiert in
+   localStorage, siehe Sidebar.tsx (setzt data-sidebar-collapsed auf body). */
+@media (min-width: 769px) {
+  .sidebar-collapse {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .sidebar-collapse:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .sidebar-nav[data-collapsed] {
+    transform: translateX(-100%);
+  }
+
+  body[data-sidebar-collapsed="true"] .app-main {
+    margin-left: 0;
+  }
+
+  .sidebar-expand {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 55;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: 0 8px 20px var(--shadow-faint);
+  }
+  .sidebar-expand:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  body[data-sidebar-collapsed="true"] .sidebar-expand {
+    display: flex;
+  }
+}
 
 /* Kleine UI-Inputs: 16px auf Mobil verhindert den iOS-Auto-Zoom beim Fokus */
 .ui-input { font-size: 13px; }

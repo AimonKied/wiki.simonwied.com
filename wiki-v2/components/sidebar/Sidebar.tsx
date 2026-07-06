@@ -625,6 +625,28 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  // Desktop/Tablet: Sidebar laesst sich einklappen (umgekehrter Default zu
+  // Mobil — dort startet sie zu, hier startet sie offen). Zustand lebt als
+  // Attribut auf <body>, damit .app-main im selben Tick mitreagieren kann.
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    let stored = false
+    try { stored = localStorage.getItem('wiki-sidebar-collapsed') === '1' } catch {}
+    if (stored) {
+      setCollapsed(true)
+      document.body.setAttribute('data-sidebar-collapsed', 'true')
+    }
+  }, [])
+
+  function toggleCollapsed() {
+    setCollapsed(c => {
+      const next = !c
+      try { localStorage.setItem('wiki-sidebar-collapsed', next ? '1' : '0') } catch {}
+      document.body.setAttribute('data-sidebar-collapsed', String(next))
+      return next
+    })
+  }
+
   // Klick auf einen Link im Drawer schliesst ihn (Event-Delegation statt
   // Pathname-Effect: kein setState im Render/Effect, DevTools-freundlich)
   function onNavClick(e: React.MouseEvent) {
@@ -694,7 +716,22 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       aria-hidden="true"
     />
 
-    <nav className="sidebar-nav" data-open={drawerOpen || undefined} onClick={onNavClick}>
+    {/* Nur auf Desktop/Tablet sichtbar, wenn eingeklappt (CSS): Sidebar wieder oeffnen */}
+    <button
+      type="button"
+      className="sidebar-expand"
+      onClick={toggleCollapsed}
+      aria-label="Navigation öffnen"
+      title="Navigation öffnen"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <line x1="4" y1="6" x2="20" y2="6" />
+        <line x1="4" y1="12" x2="20" y2="12" />
+        <line x1="4" y1="18" x2="20" y2="18" />
+      </svg>
+    </button>
+
+    <nav className="sidebar-nav" data-open={drawerOpen || undefined} data-collapsed={collapsed || undefined} onClick={onNavClick}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
@@ -707,6 +744,20 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
             aria-label="Navigation schließen"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+          {/* Nur auf Desktop/Tablet sichtbar (CSS): Sidebar einklappen */}
+          <button
+            type="button"
+            className="sidebar-collapse"
+            onClick={toggleCollapsed}
+            aria-label="Navigation einklappen"
+            title="Navigation einklappen"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="4" y1="6" x2="20" y2="6" />
               <line x1="4" y1="12" x2="20" y2="12" />
               <line x1="4" y1="18" x2="20" y2="18" />
