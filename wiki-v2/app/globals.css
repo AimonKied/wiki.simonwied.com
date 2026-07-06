@@ -357,20 +357,6 @@ body[data-calm-bg="true"]::before {
   border-radius: 8px;
 }
 
-@media (max-width: 860px) {
-  [data-article-editor="true"] {
-    border-radius: 10px;
-    padding: 26px 24px 6px;
-  }
-}
-
-@media (max-width: 640px) {
-  [data-article-editor="true"] {
-    margin-inline: -8px;
-    padding: 22px 18px 4px;
-  }
-}
-
 /* ── Responsive Shell ─────────────────────────────────────────────────────────
    Breakpoints: 768px = Sidebar wird Drawer, 1100px = Seitenpanels weichen.
    Die Shell-Container (Sidebar, main) leben hier statt in Inline-Styles,
