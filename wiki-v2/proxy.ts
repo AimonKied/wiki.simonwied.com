@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   if (!user && request.nextUrl.pathname.startsWith('/notes/') && request.nextUrl.pathname.includes('/edit')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (user && request.nextUrl.pathname === '/login') {
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
