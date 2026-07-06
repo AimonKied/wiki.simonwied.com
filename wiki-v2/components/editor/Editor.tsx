@@ -211,7 +211,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   // Pan an, sobald ein zweiter Finger dazukommt (Wechsel zu Pinch).
   const activeTouchPointersRef = useRef(new Map<number, { x: number; y: number }>())
   const panSessionRef = useRef<{ cancel: () => void } | null>(null)
-  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null)
+  const pinchRef = useRef<{ startDist: number; startZoom: number; startWorldX: number; startWorldY: number } | null>(null)
   const minimapDragRef = useRef<MinimapDragState | null>(null)
   const legacyTopLeftMigratedRef = useRef(false)
   const initialContentCenteredRef = useRef(false)
@@ -568,9 +568,10 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     }
   }, [editable])
 
+  // Pan/Zoom-Navigation gilt fuer Edit- UND Public-Ansicht — ein Viewer muss
+  // den Canvas genauso bewegen koennen (nur Bearbeiten-Werkzeuge wie Lasso
+  // und Palette bleiben editable-only).
   useEffect(() => {
-    if (!editable) return
-
     function onKeyDown(e: KeyboardEvent) {
       if (e.code !== 'Space') return
       const target = e.target as HTMLElement | null
@@ -641,25 +642,49 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
       if (isTouch) {
         const target = e.target as Element
-        if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap], [data-section-card], [data-section-drag-handle], [data-section-resize-handle]')) return
         if (!target.closest('[data-editor-workspace]')) return
 
+        // Alle Touch-Kontakte im Workspace tracken, BEVOR Ausschluesse greifen —
+        // sonst startet die Zwei-Finger-Geste nie, wenn ein Finger auf einem
+        // Block landet (auf Mobil decken Bloecke fast den ganzen Canvas ab).
         activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
         if (activeTouchPointersRef.current.size === 2) {
-          // Zweiter Finger: laufendes Ein-Finger-Pan abbrechen, auf Pinch wechseln
+          // Zweiter Finger: laufendes Ein-Finger-Pan abbrechen, auf Pinch+Pan
+          // wechseln. Der Weltpunkt unter dem Start-Mittelpunkt bleibt waehrend
+          // der Geste unter dem aktuellen Mittelpunkt (Canva-Verhalten: zwei
+          // Finger pannen und zoomen gleichzeitig, egal wo sie liegen).
           panSessionRef.current?.cancel()
           panSessionRef.current = null
           const pts = Array.from(activeTouchPointersRef.current.values())
+          const midX = (pts[0].x + pts[1].x) / 2
+          const midY = (pts[0].y + pts[1].y) / 2
+          const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+          const rect = workspace?.getBoundingClientRect()
+          const v = viewportRef.current
           pinchRef.current = {
             startDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
-            startZoom: viewportRef.current.zoom,
+            startZoom: v.zoom,
+            startWorldX: rect ? (midX - rect.left - v.x) / v.zoom : 0,
+            startWorldY: rect ? (midY - rect.top - v.y) / v.zoom : 0,
           }
           return
         }
         if (activeTouchPointersRef.current.size > 2) return
+
+        // Ein Finger: auf Bedienelementen nie pannen; auf Bloecken nur im
+        // Hand-Modus oder in der Public-Ansicht (dort gibt es keine
+        // Block-Interaktion, die dem Pan im Weg stehen muesste).
+        if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
+        if (editable && !panModeRef.current && target.closest('[data-section-card], [data-section-drag-handle], [data-section-resize-handle]')) return
       }
 
-      if (!isTouch && (!(spaceDownRef.current || panModeRef.current) || e.button !== 0)) return
+      // Maus/Stift: im Edit-Modus pannt nur Space/Hand-Modus; im Viewer pannt
+      // einfaches Ziehen auf leerem Canvas (Text in Bloecken bleibt markierbar).
+      if (!isTouch) {
+        if (e.button !== 0) return
+        const viewerPan = !editable && !(e.target as Element).closest('[data-section-card]')
+        if (!(spaceDownRef.current || panModeRef.current || viewerPan)) return
+      }
       if (!e.isPrimary) return
       const target = e.target as Element
       if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
@@ -684,9 +709,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       if (isTouch) panSessionRef.current = session
     }
 
-    // Zwei-Finger-Pinch: Distanz-Verhaeltnis zur Startdistanz ergibt den neuen
-    // Zoom, zoomAt() haelt dabei den aktuellen Fingermittelpunkt visuell fest
-    // (gleiche Funktion wie beim Strg/Cmd+Wheel-Zoom, inkl. Clamping).
+    // Zwei-Finger-Geste: Distanz-Verhaeltnis ergibt den Zoom, die Bewegung des
+    // Fingermittelpunkts pannt gleichzeitig — der Weltpunkt unter dem Start-
+    // Mittelpunkt klebt am aktuellen Mittelpunkt (Canva-Verhalten).
     function onTouchTrackMove(e: PointerEvent) {
       if (e.pointerType !== 'touch') return
       if (!activeTouchPointersRef.current.has(e.pointerId)) return
@@ -696,7 +721,21 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
       const midX = (pts[0].x + pts[1].x) / 2
       const midY = (pts[0].y + pts[1].y) / 2
-      zoomAt(midX, midY, pinchRef.current.startZoom * (dist / pinchRef.current.startDist))
+      const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+      if (!workspace) return
+      const rect = workspace.getBoundingClientRect()
+      const pinch = pinchRef.current
+      // Zoom-Clamping wie in zoomAt()
+      const zoom = Math.max(0.25, Math.min(2.5, pinch.startZoom * (dist / pinch.startDist)))
+      window.cancelAnimationFrame(panFrameRef.current)
+      setViewport(() => ({
+        zoom,
+        ...clampViewportPosition(
+          midX - rect.left - pinch.startWorldX * zoom,
+          midY - rect.top - pinch.startWorldY * zoom,
+          zoom
+        ),
+      }))
     }
 
     function onTouchTrackEnd(e: PointerEvent) {
@@ -1564,7 +1603,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           backgroundSize: `${40 * viewport.zoom}px ${40 * viewport.zoom}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
           touchAction: 'none',
-          cursor: panMode ? 'grab' : undefined,
+          cursor: panMode || !editable ? 'grab' : undefined,
         }}
       >
         {editable && (
