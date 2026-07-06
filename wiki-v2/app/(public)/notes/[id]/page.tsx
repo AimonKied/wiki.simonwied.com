@@ -28,6 +28,14 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
       .eq('id', note.id)
   }
 
+  // Autor: oeffentlich lesbarer Anzeigename aus profiles (Spiegel der Auth-Daten)
+  const { data: authorProfile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', note.user_id)
+    .maybeSingle()
+  const authorName = authorProfile?.display_name ?? null
+
   // Render the frozen public snapshot, not the owner's live draft.
   const pub = note.published as {
     title: string
@@ -101,6 +109,35 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6 }}>
             {pub.description}
           </p>
+        )}
+        {authorName && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', fontSize: '12px', color: 'var(--muted)' }}>
+            <span
+              aria-hidden="true"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
+                color: 'var(--accent)',
+                fontSize: '11px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+              }}
+            >
+              {authorName.charAt(0)}
+            </span>
+            <span>
+              Von <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{authorName}</strong>
+            </span>
+            <span style={{ color: 'var(--border)' }}>·</span>
+            <span>
+              {new Date(note.updated_at).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
         )}
       </div>
 
