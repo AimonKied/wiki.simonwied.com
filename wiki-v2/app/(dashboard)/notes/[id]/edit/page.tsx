@@ -59,6 +59,7 @@ export default function EditNotePage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [categoryError, setCategoryError] = useState(false)
   const [publishModalOpen, setPublishModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
@@ -220,10 +221,10 @@ export default function EditNotePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, note])
 
-  async function handleDelete() {
-    if (!confirm('Notiz wirklich löschen?')) return
+  async function confirmDelete() {
     const supabase = createClient()
     await supabase.from('notes').delete().eq('id', id)
+    document.dispatchEvent(new Event('wiki-notes-changed'))
     router.push('/dashboard')
   }
 
@@ -305,10 +306,14 @@ export default function EditNotePage() {
   const publishState = isPublic ? 'Öffentlich sichtbar' : 'Privater Entwurf'
 
   return (
-    <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}>
+    <div
+      className="note-editor-shell"
+      data-content-type={isArticle ? 'article' : 'workspace'}
+      style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}
+    >
 
       {/* Main editor column */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
@@ -371,8 +376,6 @@ export default function EditNotePage() {
               max-content-Breite auf Mobil die Seite) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, marginTop: '4px', flexWrap: 'wrap' }}>
             <ThemeToggle />
-            {saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Speichert…</span>}
-            {saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>{isPublic ? 'Entwurf gespeichert' : 'Gespeichert'}</span>}
             {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
             <button
               onClick={openPublishModal}
@@ -454,7 +457,7 @@ export default function EditNotePage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => { setActionsMenuOpen(false); handleDelete() }}
+                    onClick={() => { setActionsMenuOpen(false); setDeleteModalOpen(true) }}
                     style={menuItemStyle('var(--accent2)')}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
@@ -621,6 +624,62 @@ export default function EditNotePage() {
                 }}
               >
                 {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {deleteModalOpen && createPortal(
+        <div
+          onClick={() => setDeleteModalOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 210,
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px', animation: 'fadeIn 0.12s ease both',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: '380px',
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: '14px', padding: '20px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '6px', fontFamily: 'var(--font-display)' }}>
+              {isArticle ? 'Artikel löschen?' : 'Workspace löschen?'}
+            </div>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+              „{title || 'Ohne Titel'}“ wird endgültig gelöscht.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                style={{
+                  padding: '9px 14px', background: 'none', color: 'var(--muted)',
+                  border: '1px solid var(--border)', borderRadius: '8px',
+                  fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                style={{
+                  padding: '9px 16px', background: 'var(--accent2)', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Löschen
               </button>
             </div>
           </div>
