@@ -43,8 +43,10 @@ export default function NewContentButton() {
     <div ref={wrapRef} style={{ position: 'relative' }}>
       <button
         type="button"
+        className="new-content-button"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
+        aria-label="Neuer Inhalt"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -60,8 +62,11 @@ export default function NewContentButton() {
           cursor: 'pointer',
         }}
       >
-        Neuer Inhalt
+        <span className="new-content-plus" aria-hidden="true">+</span>
+        <span className="new-content-label">Neuer Inhalt</span>
         <span
+          className="new-content-caret"
+          aria-hidden="true"
           style={{
             fontSize: '10px',
             lineHeight: 1,
