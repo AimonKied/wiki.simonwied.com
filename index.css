@@ -47,6 +47,48 @@
   max-width: 560px;
 }
 
+/* Beta-CTA: Link zur neuen Wiki (wiki-v2) */
+.beta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 11px 20px;
+  background: rgba(0,153,85,0.07);
+  border: 1px solid rgba(0,153,85,0.35);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.beta-button:hover {
+  border-color: var(--accent);
+  background: rgba(0,153,85,0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,153,85,0.15);
+}
+
+.beta-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.beta-arrow {
+  color: var(--accent);
+  transition: transform 0.2s;
+}
+
+.beta-button:hover .beta-arrow { transform: translateX(4px); }
+
 .hero-stats {
   display: flex;
   gap: 32px;
