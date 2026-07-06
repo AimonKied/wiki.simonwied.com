@@ -24,6 +24,7 @@ type PublicNote = {
   content_type: string
   updated_at: string
   categories: Category[]
+  author: string | null
 }
 
 export default async function HomePage({
@@ -53,7 +54,7 @@ export default async function HomePage({
     supabase
       .from('notes')
       .select(`
-        id, title, emoji, description, slug, content_type, updated_at, published,
+        id, user_id, title, emoji, description, slug, content_type, updated_at, published,
         note_categories(category_id, categories(id, slug, title, color))
       `)
       .eq('is_public', true)
@@ -62,6 +63,13 @@ export default async function HomePage({
   ])
 
   const categories: Category[] = (catsRes.data ?? []) as Category[]
+
+  // Autoren-Namen: ein Batch-Lookup in profiles statt Join (kein FK notes→profiles)
+  const authorIds = [...new Set((notesRes.data ?? []).map((n: Record<string, unknown>) => n.user_id as string))]
+  const { data: profiles } = authorIds.length > 0
+    ? await supabase.from('profiles').select('id, display_name').in('id', authorIds)
+    : { data: [] }
+  const authorById = new Map((profiles ?? []).map(p => [p.id as string, p.display_name as string]))
 
   // Flatten the nested Supabase join result into a clean shape
   const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => {
@@ -80,6 +88,7 @@ export default async function HomePage({
     categories: ((n.note_categories as Array<{ categories: Category | null }>) ?? [])
       .map(nc => nc.categories)
       .filter((c): c is Category => c !== null),
+    author: authorById.get(n.user_id as string) ?? null,
     }
   })
 
@@ -205,6 +214,7 @@ export default async function HomePage({
                 const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
                 const type = contentTypes.find(t => t.key === note.content_type)
                 const meta = [...note.categories.map(cat => cat.title), type?.title ?? note.content_type].join(' / ')
+                const byline = note.author ? `Von ${note.author}` : null
                 return (
                   <Link
                     key={note.id}
@@ -232,8 +242,9 @@ export default async function HomePage({
                           </p>
                         )}
                       </div>
-                      <div style={{ marginTop: 'auto', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.5 }}>
-                        {meta}
+                      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</span>
+                        {byline && <span style={{ flexShrink: 0 }}>{byline}</span>}
                       </div>
                     </div>
                   </Link>
