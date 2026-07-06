@@ -9,7 +9,7 @@ import type { Note, Category } from '@/lib/types'
 import Link from 'next/link'
 import RightSidebar from '@/components/editor/RightSidebar'
 import ArticleToc from '@/components/editor/ArticleToc'
-import EmojiPicker from '@/components/editor/EmojiPicker'
+import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdownConvert'
 
@@ -48,7 +48,6 @@ export default function EditNotePage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [content, setContent] = useState<object>({})
   const [contentType, setContentType] = useState<'article' | 'workspace'>('workspace')
   const [isPublic, setIsPublic] = useState(false)
@@ -315,183 +314,20 @@ export default function EditNotePage() {
       {/* Main editor column */}
       <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
-
-          {/* Emoji button */}
-          <div style={{ position: 'relative', flexShrink: 0, marginTop: '4px' }}>
-            <button
-              onClick={() => setPickerOpen(o => !o)}
-              title="Emoji auswählen"
-              style={{
-                width: '52px', height: '52px', fontSize: '28px',
-                background: pickerOpen ? 'var(--surface2)' : 'none',
-                border: '1px solid ' + (pickerOpen ? 'var(--border)' : 'transparent'),
-                borderRadius: '10px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.15s', lineHeight: 1,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface2)' }}
-              onMouseLeave={e => { if (!pickerOpen) { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'none' } }}
-            >
-              {emoji || '📄'}
-            </button>
-            {pickerOpen && (
-              <EmojiPicker
-                onSelect={e => { setEmoji(e); patchSidebar({ emoji: e || null }); setPickerOpen(false) }}
-                onClose={() => setPickerOpen(false)}
-              />
-            )}
-          </div>
-
-          {/* Title + Description */}
-          <div style={{ flex: '1 1 420px', minWidth: 'min(100%, 280px)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800 }}>
-              {publishState}
-            </div>
-            <input
-              ref={titleInputRef}
-              value={title}
-              placeholder="Ohne Titel"
-              onChange={e => { setTitle(e.target.value); patchSidebar({ title: e.target.value }) }}
-              onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
-              style={{
-                fontSize: '28px', fontWeight: 800, background: 'none', border: 'none',
-                outline: 'none', color: 'var(--accent)', fontFamily: 'var(--font-display)', width: '100%', padding: 0,
-              }}
-            />
-            <input
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Kurze Beschreibung…"
-              style={{
-                fontSize: '13px', background: 'none', border: 'none', outline: 'none',
-                color: 'var(--muted)', fontFamily: 'inherit', width: '100%', padding: 0,
-              }}
-            />
-          </div>
-
-          {/* Action buttons — minWidth 0 statt flexShrink 0: die Zeile darf
-              schrumpfen, die Buttons brechen dann um (sonst sprengt ihre
-              max-content-Breite auf Mobil die Seite) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, marginTop: '4px', flexWrap: 'wrap' }}>
-            <ThemeToggle />
-            {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
-            <button
-              onClick={openPublishModal}
-              title={isPublic ? 'Aktuellen Stand öffentlich übernehmen' : undefined}
-              style={{
-                padding: '9px 20px', background: 'var(--accent)', color: '#fff',
-                border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
-                fontFamily: 'inherit', cursor: 'pointer',
-              }}
-            >
-              {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
-            </button>
-
-            {/* ⋯-Menue fuer sekundaere Aktionen */}
-            {isArticle && (
-              <input
-                ref={mdImportRef}
-                type="file"
-                accept=".md,text/markdown"
-                style={{ display: 'none' }}
-                onChange={handleMdImport}
-              />
-            )}
-            <div ref={actionsMenuRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setActionsMenuOpen(o => !o)}
-                title="Weitere Aktionen"
-                aria-expanded={actionsMenuOpen}
-                style={{
-                  padding: '9px 12px', background: actionsMenuOpen ? 'var(--surface2)' : 'none',
-                  color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px',
-                  fontSize: '15px', fontFamily: 'inherit', cursor: 'pointer', lineHeight: 1,
-                }}
-              >
-                ⋯
-              </button>
-              {actionsMenuOpen && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 150,
-                  width: '200px', display: 'flex', flexDirection: 'column', gap: '2px',
-                  padding: '6px', background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: '10px', boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
-                  animation: 'fadeIn 0.12s ease both',
-                }}>
-                  {isArticle && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => { setActionsMenuOpen(false); mdImportRef.current?.click() }}
-                        style={menuItemStyle()}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                      >
-                        MD importieren
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setActionsMenuOpen(false); handleMdExport() }}
-                        style={menuItemStyle()}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                      >
-                        MD exportieren
-                      </button>
-                    </>
-                  )}
-                  {isPublic && (
-                    <button
-                      type="button"
-                      title="Notiz wieder privat schalten"
-                      onClick={() => { setActionsMenuOpen(false); handleUnpublish() }}
-                      style={menuItemStyle()}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                    >
-                      Zurückziehen
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setActionsMenuOpen(false); setDeleteModalOpen(true) }}
-                    style={menuItemStyle('var(--accent2)')}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    Löschen
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        {/* Type badge */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '7px',
-            padding: '5px 10px', border: '1px solid var(--border)',
-            borderRadius: '999px', background: 'var(--surface)',
-            color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isArticle ? '#009955' : '#4488ff' }} />
-            {typeLabel}
-          </span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '7px',
-            padding: '5px 10px', border: '1px solid var(--border)',
-            borderRadius: '999px', background: 'var(--surface)',
-            color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
-            {publishState}
-          </span>
-          {isPublic && note.published?.slug && (
+        <NoteHeader
+          emoji={emoji}
+          title={title}
+          description={description}
+          statusLabel={publishState}
+          typeLabel={typeLabel}
+          isArticle={isArticle}
+          isPublic={isPublic}
+          editable
+          titleInputRef={titleInputRef}
+          onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}
+          onTitleChange={v => { setTitle(v); patchSidebar({ title: v }) }}
+          onDescriptionChange={setDescription}
+          linkRight={isPublic && note.published?.slug && (
             <Link
               href={`/notes/${note.published.slug}`}
               target="_blank"
@@ -500,7 +336,103 @@ export default function EditNotePage() {
               /notes/{note.published.slug} ansehen →
             </Link>
           )}
-        </div>
+          actions={
+            <>
+              <ThemeToggle />
+              {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
+              <button
+                onClick={openPublishModal}
+                title={isPublic ? 'Aktuellen Stand öffentlich übernehmen' : undefined}
+                style={{
+                  padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+              </button>
+
+              {/* ⋯-Menue fuer sekundaere Aktionen */}
+              {isArticle && (
+                <input
+                  ref={mdImportRef}
+                  type="file"
+                  accept=".md,text/markdown"
+                  style={{ display: 'none' }}
+                  onChange={handleMdImport}
+                />
+              )}
+              <div ref={actionsMenuRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setActionsMenuOpen(o => !o)}
+                  title="Weitere Aktionen"
+                  aria-expanded={actionsMenuOpen}
+                  style={{
+                    padding: '9px 12px', background: actionsMenuOpen ? 'var(--surface2)' : 'none',
+                    color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px',
+                    fontSize: '15px', fontFamily: 'inherit', cursor: 'pointer', lineHeight: 1,
+                  }}
+                >
+                  ⋯
+                </button>
+                {actionsMenuOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 150,
+                    width: '200px', display: 'flex', flexDirection: 'column', gap: '2px',
+                    padding: '6px', background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: '10px', boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+                    animation: 'fadeIn 0.12s ease both',
+                  }}>
+                    {isArticle && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setActionsMenuOpen(false); mdImportRef.current?.click() }}
+                          style={menuItemStyle()}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          MD importieren
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setActionsMenuOpen(false); handleMdExport() }}
+                          style={menuItemStyle()}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          MD exportieren
+                        </button>
+                      </>
+                    )}
+                    {isPublic && (
+                      <button
+                        type="button"
+                        title="Notiz wieder privat schalten"
+                        onClick={() => { setActionsMenuOpen(false); handleUnpublish() }}
+                        style={menuItemStyle()}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        Zurückziehen
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setActionsMenuOpen(false); setDeleteModalOpen(true) }}
+                      style={menuItemStyle('var(--accent2)')}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          }
+        />
 
         {/* Editor */}
         {isArticle
