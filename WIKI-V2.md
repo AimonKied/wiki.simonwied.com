@@ -20,7 +20,7 @@ Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werde
 | Auth + DB | **Supabase** (PostgreSQL + Row Level Security) |
 | Media | **Supabase Storage** (Bucket `wiki-media`) |
 | Styling | CSS Variables, Dark Mode Toggle; Syne (Headlines), Inter (Body), JetBrains Mono (Code) |
-| Hosting | **Vercel** |
+| Hosting | Self-Hosted (kein Vercel; Next.js `standalone`-Build o.ae., Details offen) |
 | Diagramme | **Mermaid** (geplant) |
 
 ---
@@ -368,10 +368,10 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] `npm run build` laeuft fehlerfrei durch (verifiziert 2026-07-06: Compile + TypeScript + statische Seiten OK)
 - [x] Offene Selbstregistrierung ist Absicht (Multi-User-Wiki), keine Entscheidung noetig
 - [x] `app/robots.ts` + `noindex`-Metadata sperren Suchmaschinen komplett — Wiki ist per Link fuer Freunde gedacht, nicht fuer die Google-Suche
-- [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
-- [ ] Supabase-Credentials als Vercel Environment Variables setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
-- [ ] Custom Domain `wiki.simonwied.com` in Vercel konfigurieren
-- [ ] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben keine eigenen `<title>`/Open-Graph-Metadaten — Teilen des Links in Slack/Discord/WhatsApp zeigt ueberall den generischen "Wiki"-Titel statt Artikeltitel/-beschreibung. `generateMetadata` in `app/(public)/notes/[id]/page.tsx` ergaenzen (Vorschau-Kacheln bleiben trotzdem sinnvoll, auch ohne Suchmaschinen-Indexierung)
+- [x] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben eigene `<title>`/Description/Open-Graph/Twitter-Metadaten via `generateMetadata` (2026-07-06) — Teilen des Links in Slack/Discord/WhatsApp zeigt jetzt Artikeltitel/-beschreibung statt des generischen "Wiki"-Titels
+- [ ] Kein Vercel — Hosting-Plattform/Deploy-Weg noch offen (z. B. eigener Server mit `next build && next start` oder `output: 'standalone'` + Docker/Reverse Proxy)
+- [ ] Supabase-Credentials als Env-Vars beim gewaehlten Hosting setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
+- [ ] Custom Domain `wiki.simonwied.com` beim gewaehlten Hosting/DNS konfigurieren
 - [ ] Public-Regel (`is_public` braucht Slug + Kategorie) nur app-seitig validiert, kein DB-Constraint (siehe Roadmap unten) — bei mehreren Nutzern relevanter als vorher, vor Launch abwaegen
 
 ---
