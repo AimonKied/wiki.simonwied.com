@@ -98,7 +98,9 @@ components/editor/
   EmojiPicker.tsx              emoji picker for note icons
 components/sidebar/
   Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
-                               ⋯ menu (delete, unpublish back to private)
+                               ⋯ menu (delete, unpublish back to private);
+                               collapsible at ≥769px (localStorage-persisted,
+                               default open — mobile drawer default is closed)
 components/
   InlineScript.tsx             theme-init script as a Client Component — must
                                not be a Server Component, or the server/client

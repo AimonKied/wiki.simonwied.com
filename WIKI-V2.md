@@ -108,7 +108,7 @@ wiki-v2/
       EmojiPicker.tsx
       EditorViewer.tsx        Read-only Darstellung
     sidebar/
-      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten)
+      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten, ab 769px einklappbar)
     theme/ThemeToggle.tsx     Dark/Light Toggle
     InlineScript.tsx          Client Component fuer Anti-Flash-Theme-Script im Root-Layout (Server Components liefen im Browser nie erneut, daher eigene Komponente noetig)
     Logo.tsx                  Wortmarke (theme-adaptiv)
@@ -314,6 +314,7 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - "Wiki v2"-Branding entfernt (Titel, READMEs) — das hier ist jetzt die aktuelle Wiki, nicht mehr "v2 neben v1"
 - v1-Migrations-Tooling entfernt (`/migrate`-Seite, `api/migrate-v1`, `lib/v1Parser.ts`) — verbleibende v1-Seiten werden manuell uebertragen
 - `public/service-worker.js` entfernt (war nie registriert, totes Leichtgewicht)
+- Sidebar auf Desktop/iPad (≥769px) einklappbar: Hamburger-Button neben dem Logo (gleiches Icon wie die Mobil-Topbar), schwebender Button zum Wiederoeffnen, Zustand in localStorage. Default offen — umgekehrt zum Mobil-Drawer, der standardmaessig zu ist
 
 ---
 
