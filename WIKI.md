@@ -20,7 +20,7 @@ Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werde
 | Auth + DB | **Supabase** (PostgreSQL + Row Level Security) |
 | Media | **Supabase Storage** (Bucket `wiki-media`) |
 | Styling | CSS Variables, Dark Mode Toggle; Syne (Headlines), Inter (Body), JetBrains Mono (Code) |
-| Hosting | Self-Hosted (kein Vercel; Next.js `standalone`-Build o.ae., Details offen) |
+| Hosting | **Vercel** (Custom Subdomain `wiki.simonwied.com`, Rest der Domain bleibt bei Hetzner) |
 | Diagramme | **Mermaid** (geplant) |
 
 ---
@@ -77,59 +77,58 @@ Das fruehere Set (Security, Development, Ressourcen) wurde entfernt.
 ## Projektstruktur
 
 ```text
-wiki-v2/
-  app/
-    (auth)/login/             Login-Seite
-    (dashboard)/              Nur eingeloggt
-      dashboard/              Arbeitsbereich: Filter, Suche, Loeschen
-      notes/
-        [id]/edit/            Inhalt bearbeiten ("Neuer Inhalt" legt an und springt direkt hierher; keine /create-Seite mehr)
-    (public)/
-      notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
-    layout.tsx
-    page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
-    robots.ts                 Sperrt alle Crawler (Wiki ist fuer Freunde, nicht fuer Google-Suche gedacht)
-  components/
-    dashboard/
-      NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
-      NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-/Privat-schalten-Menue
-    editor/
-      Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
-      ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
-      NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text; floating-Modus = schwebende Overlay-Pille auf dem Canvas (einklappbar)
-      ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Off-Canvas-Drawer mit schwebendem Button
-      SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
-      ToggleNode.tsx          Toggle-Element (<details>/<summary>)
-      CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
-      MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
-      RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel links (einklappbar), unter 1100px rechter Drawer
-      elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
-      editorTransforms.ts     Doc-Transformationen
-      EmojiPicker.tsx
-      EditorViewer.tsx        Read-only Darstellung
-    sidebar/
-      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten, ab 769px einklappbar)
-    theme/ThemeToggle.tsx     Dark/Light Toggle
-    InlineScript.tsx          Client Component fuer Anti-Flash-Theme-Script im Root-Layout (Server Components liefen im Browser nie erneut, daher eigene Komponente noetig)
-    Logo.tsx                  Wortmarke (theme-adaptiv)
-  lib/
-    supabase/client.ts
-    supabase/server.ts
-    supabase/storage.ts       Upload in Bucket wiki-media (WebP-Kompression vor Upload)
-    createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
-    markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
-    types.ts
-  supabase/
-    migration.sql             Schema-Migration (im SQL Editor ausfuehren)
-    storage-policies.sql      Storage-Policies fuer wiki-media
-  proxy.ts                    Auth-Middleware
+app/
+  (auth)/login/             Login-Seite
+  (dashboard)/              Nur eingeloggt
+    dashboard/              Arbeitsbereich: Filter, Suche, Loeschen
+    notes/
+      [id]/edit/            Inhalt bearbeiten ("Neuer Inhalt" legt an und springt direkt hierher; keine /create-Seite mehr)
+  (public)/
+    notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
+  layout.tsx
+  page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
+  robots.ts                 Sperrt alle Crawler (Wiki ist fuer Freunde, nicht fuer Google-Suche gedacht)
+components/
+  dashboard/
+    NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
+    NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-/Privat-schalten-Menue
+  editor/
+    Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
+    ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
+    NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text; floating-Modus = schwebende Overlay-Pille auf dem Canvas (einklappbar)
+    ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Off-Canvas-Drawer mit schwebendem Button
+    SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
+    ToggleNode.tsx          Toggle-Element (<details>/<summary>)
+    CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
+    MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
+    RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel links (einklappbar), unter 1100px rechter Drawer
+    elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
+    editorTransforms.ts     Doc-Transformationen
+    EmojiPicker.tsx
+    EditorViewer.tsx        Read-only Darstellung
+  sidebar/
+    Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten, ab 769px einklappbar)
+  theme/ThemeToggle.tsx     Dark/Light Toggle
+  InlineScript.tsx          Client Component fuer Anti-Flash-Theme-Script im Root-Layout (Server Components liefen im Browser nie erneut, daher eigene Komponente noetig)
+  Logo.tsx                  Wortmarke (theme-adaptiv)
+lib/
+  supabase/client.ts
+  supabase/server.ts
+  supabase/storage.ts       Upload in Bucket wiki-media (WebP-Kompression vor Upload)
+  createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
+  markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
+  types.ts
+supabase/
+  migration.sql             Schema-Migration (im SQL Editor ausfuehren)
+  storage-policies.sql      Storage-Policies fuer wiki-media
+proxy.ts                    Auth-Middleware
 ```
 
 ---
 
 ## Datenbankschema
 
-Komplette Migration liegt in `wiki-v2/supabase/migration.sql`. Stand:
+Komplette Migration liegt in `supabase/migration.sql`. Stand:
 
 ```sql
 notes (
@@ -350,6 +349,25 @@ Ersetzt Teile von Runde 10/11: der Canvas ist jetzt die Seite, alles Chrome schw
 - **Blockliste**: schwebendes Panel links, vertikal zentriert (rechts liegen Palette + Zoom), rueckt bei eingeklappter App-Sidebar nach; per ✕ auf einen runden Button einklappbar (localStorage). Unter 1100px rechter Drawer mit schwebendem Button ueber der Zoom-Leiste — gleiche UX wie das Artikel-TOC, geteilte CSS-Regeln (`.toc-*`/`.outline-*`). Vorher lag das Panel rechts-mittig direkt auf der Element-Palette
 - Verifiziert per Headless-Chromium mit Touch-Emulation (Ein-/Zwei-Finger-Gesten, Pinch, Hand-Modus, Viewer-Pan, Drawer oeffnen/schliessen)
 
+### Erledigt (Runde 13 — Vercel-Deploy-Entscheidung, 2026-07-07)
+
+Runde-9-Entscheidung ("kein Vercel") revidiert: Hetzner Webhosting S hat kein Node.js (nur Static/PHP per FTP), Next.js braucht aber einen laufenden Server (Middleware/`proxy.ts` fuer Auth-Redirects, SSR-Datenladen aus Supabase pro Request). Ein statischer Export wuerde genau das Kernfeature killen ("Inhalte direkt im Browser anlegen" — neue Notizen kaemen erst nach Rebuild).
+
+- Hosting: **Vercel**, Repo-Root direkt als Root Directory im Vercel-Projekt (kein Unterordner mehr)
+- Domain: nur die Subdomain `wiki.simonwied.com` per CNAME auf `cname.vercel-dns.com` — Rest von `simonwied.com` bleibt unangetastet bei Hetzner
+- Root-Landing (`index.html`/`index.css` im Repo-Root) wird ueberfluessig — die Landing lebt jetzt in `app/page.tsx` (Beta-Teaser mit Button zu `/bibliothek`), Vercel bedient die gesamte Subdomain
+
+### Erledigt (Runde 14 — Repo geflacht, kein "v2"-Unterordner mehr, 2026-07-07)
+
+`wiki-v2/` gibt es nicht mehr als Ordner — der Next-App-Code (`app/`, `components/`, `lib/`, `public/`, `supabase/`, `package.json`, `next.config.ts`, `proxy.ts`, `AGENTS.md`, `CLAUDE.md`, `eslint.config.mjs`) ist jetzt Repo-Root, damit die neue Version "die normale Version" ist, nicht mehr "die neue neben der alten". Vorteil: Vercel Root Directory ist einfach der Repo-Root, keine Unterordner-Konfiguration noetig.
+
+- Altes v1 (`index.html`, `index.css`, `nav.js`, `style.css`, `version.js`, `pages/`, `assets/`) liegt jetzt archiviert unter `legacy-v1/` — nirgends mehr verlinkt
+- `README.md` = die neue Root-README (Projekt-Intro + Dev-Docs zusammengefuehrt), alte v1-README als `legacy-v1/README-v1.md` archiviert
+- `WIKI-V2.md` → umbenannt zu `WIKI.md`
+- `package.json`-Name von `wiki-v2.simonwied.com` auf `wiki.simonwied.com`
+- `.gitignore` uebernimmt jetzt das vollstaendige Next.js-Set (vorher zeigte Root-`.gitignore` nur auf `wiki-v2/node_modules` etc.)
+- Alle Git-Historie ueber `git mv` erhalten (Renames, keine Delete+Add-Paare)
+
 ---
 
 ## UX-Regeln
@@ -404,9 +422,12 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Offene Selbstregistrierung ist Absicht (Multi-User-Wiki), keine Entscheidung noetig
 - [x] `app/robots.ts` + `noindex`-Metadata sperren Suchmaschinen komplett — Wiki ist per Link fuer Freunde gedacht, nicht fuer die Google-Suche
 - [x] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben eigene `<title>`/Description/Open-Graph/Twitter-Metadaten via `generateMetadata` (2026-07-06) — Teilen des Links in Slack/Discord/WhatsApp zeigt jetzt Artikeltitel/-beschreibung statt des generischen "Wiki"-Titels
-- [ ] Kein Vercel — Hosting-Plattform/Deploy-Weg noch offen (z. B. eigener Server mit `next build && next start` oder `output: 'standalone'` + Docker/Reverse Proxy)
-- [ ] Supabase-Credentials als Env-Vars beim gewaehlten Hosting setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
-- [ ] Zieldomain ist `wiki.simonwied.com` (entschieden 2026-07-06) — dort laeuft aktuell die statische Landing-Page ("Beta im Aufbau" mit Beta-Button); sobald die Beta deployt ist, `href="#"` des Beta-Buttons in `index.html` auf die Beta-URL zeigen lassen
+- [x] Hosting: **Vercel** (entschieden 2026-07-07, revidiert Runde-9-Entscheidung — Hetzner Webhosting S kann kein Node.js, siehe Runde 13)
+- [ ] Vercel-Projekt anlegen: Repo importieren, Root Directory bleibt Repo-Root (kein Unterordner, Next.js wird automatisch erkannt)
+- [ ] Supabase-Credentials als Env-Vars im Vercel-Projekt setzen (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` aus `.env.local` — kein Service-Role-Key noetig, `.env*` bleibt gitignored)
+- [ ] Custom Domain im Vercel-Projekt: nur die Subdomain `wiki.simonwied.com` hinzufuegen (nicht die Apex-Domain)
+- [ ] DNS-Record beim Domain-Provider anlegen: `wiki.simonwied.com CNAME cname.vercel-dns.com` — Rest von `simonwied.com` bleibt unangetastet bei Hetzner
+- [x] Root aufgeraeumt: v1-Statik liegt archiviert unter `legacy-v1/`, Repo-Root ist jetzt der App-Code (siehe Runde 14)
 - [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 10, 2026-07-06) — Restluecke siehe Datenbankschema oben
 
 ---

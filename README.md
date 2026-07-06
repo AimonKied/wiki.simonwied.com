@@ -1,30 +1,175 @@
-
 # [wiki.simonwied.com](https://wiki.simonwied.com)
 
-A personal, open wiki for any topic — no restrictions on what you can write about. Whether it's cooking, programming, science, music or anything else, every subject has a place here.
+A personal, open wiki for any topic — no restrictions on what you can write about.
+Whether it's cooking, programming, science, music or anything else, every subject
+has a place here.
 
-The wiki is being rebuilt as a Next.js + Supabase app with a canvas-based block editor and accounts (anyone can register and publish). It lives in [`wiki-v2/`](wiki-v2/) and will run on wiki.simonwied.com. See [WIKI-V2.md](WIKI-V2.md) for the roadmap and [wiki-v2/README.md](wiki-v2/README.md) for developer docs.
+Next.js 16 + Supabase app (multi-user: anyone can register and create
+articles/canvas workspaces; visibility per note is private or public). Content
+is created directly in the browser — no Git workflow. See [WIKI.md](WIKI.md)
+for the feature roadmap.
 
 ## Repository layout
 
 ```
-├── index.html / index.css   # Landing page currently served at wiki.simonwied.com
-│                            # ("Beta im Aufbau" teaser with a button into the new wiki)
-├── wiki-v2/                 # The new wiki (Next.js + Supabase), replaces the static site
-├── pages/                   # Archived v1 wiki pages (plain HTML/JS), kept in case
-│                            # some of them get embedded into the new wiki later
-├── style.css / nav.js / version.js   # Shared assets the archived pages depend on
-└── assets/                  # Logo, favicons, fonts
+├── app/, components/, lib/, public/, supabase/   # The wiki app (this README covers it below)
+└── legacy-v1/        # Archived v1 wiki (plain HTML/JS, no longer served)
 ```
 
 The old static wiki (v1) has been retired: its homepage, templates and the
-pull-request contribution flow are gone. Only the content pages under
-`pages/` are kept as an archive — they are not linked from the landing page.
-
-In the new wiki, content is created directly in the browser (no Git workflow):
-register, write articles or build canvas workspaces, keep them private or
-publish them under a public link.
+pull-request contribution flow are gone. `legacy-v1/pages/` keeps the old
+content pages as an archive in case some get rebuilt manually in the new
+editor; nothing under `legacy-v1/` is linked from the live site.
 
 ## License
 
 This project is maintained by [simonwied](https://github.com/aimonkied).
+
+## Development
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Useful checks:
+
+```bash
+npm run lint
+npx tsc --noEmit
+```
+
+`npx tsc --noEmit` passes with zero errors. `npm run lint` has a handful of
+known pre-existing `react-hooks` findings (sync setState in effects) that are
+tolerated noise.
+
+## Article Editor
+
+Articles aim for Notion parity: the writing surface is the page (no panel, full
+width, the decorative grid is hidden while editing).
+
+- Type `/` on an empty line for the block menu (ranked search); an empty focused
+  line shows the hint. Markdown shortcuts work while typing (`#`, `-`, `1.`,
+  `[] `, `>`, ` ``` `, `**bold**`).
+- Blocks: headings, lists, to-dos (nest with `Tab`), tables, code (highlighted),
+  images (upload/URL), toggles, callouts (click the emoji for emoji/color
+  picker), quotes, dividers.
+- Image uploads are compressed client-side before hitting Supabase Storage
+  (max 1600px, WebP 85%, 2 MB stored limit; SVG/GIF pass through unchanged).
+- Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
+  "Umwandeln in" and "Duplizieren", dragging reorders.
+- A sticky table of contents (H1/H2/H3) sits on the right in the editor and
+  the public article view; it tracks the scroll position. Below 1100px it
+  becomes a right-hand off-canvas drawer opened via a floating button.
+- The public note view (`/notes/[slug]`) renders through the same
+  `NoteHeader` component as the editor (`editable={false}`) — Notion share-link
+  parity: viewers see the identical page, just without edit controls.
+- "Neuer Inhalt" creates the note directly and opens `/notes/[id]/edit` with
+  the title focused — there is no separate create page.
+
+## Editor Workspace
+
+The note editor uses a large canvas workspace rather than a narrow document column.
+Pan, pinch-zoom, block drag, resize, and element reorder all run on Pointer
+Events (`components/editor/Editor.tsx`, `SectionNode.tsx`), so mouse and touch
+share the same code path. Touch gestures (Canva-style): one finger on empty
+canvas pans; two fingers pan **and** pinch-zoom simultaneously, anywhere — even
+over blocks (touch contacts are tracked before the block-exclusion checks, or
+the gesture would never start when a finger lands on a block); in hand mode
+(palette ✋) one finger pans over blocks too. Lasso multi-select stays
+mouse-only. The read-only public view gets the same navigation (drag-pan on
+empty canvas, one-finger pan anywhere, pinch, `Ctrl`+wheel) — only editing
+tools (lasso, palette, minimap) stay `editable`-gated.
+
+The canvas is the page (Canva model): `.canvas-viewport` fills the whole
+viewport (`100dvh`; minus the 56px topbar on mobile) and all chrome floats on
+top of it. `NoteHeader` (`floating` prop) renders as an absolutely positioned
+semi-transparent pill; collapsed it shrinks to a round button top-right (same
+chevron SVG, flipped). The zoom bar sits bottom-right, the element palette
+top-right, the minimap bottom-left (hand mode only). On workspace pages the
+body grid overlay and `min-height` are disabled (`body:has(...)` in
+`globals.css`) — otherwise the page background shows as stripes on mobile when
+`dvh`/`vh` diverge. Article notes are unaffected — same `NoteHeader`,
+`floating` just isn't set.
+
+- Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
+- Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.
+- Drag block edges or corners to resize in any direction. With a multi-selection every selected block gets the same delta.
+- The element palette on the right edge (canvas only) inserts elements: click adds to the selected block, drag & drop adds to any block.
+- Every block has a layer (`z`); the `⤒`/`⤓` buttons bring it to front or send it to back. Layer 0 is the floor — sending back pushes the others up instead of going negative (negative z would paint behind the editor surface and become unreachable).
+- "Auto" resets a block to content-sized width/height; new blocks are content-sized by default (max 960px).
+- Hold `Space` and drag with the left mouse button to pan; `Ctrl`/`Cmd` + mouse wheel or the zoom buttons zoom.
+- Blocks snap to matching edges of nearby blocks and show alignment guides (single-block move/resize only).
+- The block outline (`RightSidebar.tsx`) floats on the left, vertically
+  centered (the right edge belongs to palette and zoom bar); clicking an entry
+  pans the block animated to the workspace center, double-click renames. It
+  collapses to a round button (persisted in localStorage) and follows the app
+  sidebar's collapsed state. Below 1100px it becomes a right-hand drawer opened
+  via a floating button above the zoom bar — same UX as the article TOC, shared
+  CSS (`.toc-*`/`.outline-*`).
+
+Section geometry is stored on TipTap section nodes as `x`, `y`, `w`, `h` and `z` attributes.
+Sections without stored positions render in normal flow once; right after the first
+paint a layout pass measures their real heights and migrates them to canvas
+coordinates (outside the undo history).
+
+Notes auto-save 1.5 s after the last change with a status indicator; `Ctrl+S` saves
+immediately. Closing the tab while a save is pending shows a browser warning.
+
+## Structure
+
+```text
+app/
+  (dashboard)/dashboard/       workspace overview: filter, search, delete
+  (dashboard)/notes/[id]/edit/ note editor (articles + canvas)
+  (public)/notes/[id]/         public note view (published snapshot)
+components/dashboard/
+  NewContentButton.tsx         creates a note and jumps into the editor
+  NotesOverview.tsx            dashboard list with filter/search/delete/unpublish
+components/editor/
+  Editor.tsx                   TipTap setup, workspace viewport, pan/zoom/lasso,
+                               element palette, layout migration pass
+  ArticleEditor.tsx            linear Notion-style article editor (slash menu)
+  NoteHeader.tsx               shared header (emoji/title/description/badges) for
+                               edit and public view; `editable` flag toggles
+                               inputs vs. static text; `floating` renders it as
+                               a collapsible overlay pill on the canvas
+  ArticleToc.tsx               sticky table of contents (editor + public view),
+                               right-side drawer below 1100px
+  SectionNode.tsx              section node view: move/resize/snap, selection store,
+                               layers, block controls (+/⠿), clipboard
+  ToggleNode.tsx               collapsible toggle block
+  CalloutNode.tsx              callout block (emoji + color, document-level picker)
+  MediaNodes.tsx               resizable image node (Supabase Storage upload)
+  elementPalette.ts            shared block palette + slash-menu ranking
+  editorTransforms.ts          line/block transformations shared by both editors
+  RightSidebar.tsx             block outline: floating left panel (collapsible),
+                               right-hand drawer below 1100px; click pans block
+                               to workspace center
+  EmojiPicker.tsx              emoji picker for note icons
+components/sidebar/
+  Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
+                               ⋯ menu (delete, unpublish back to private);
+                               collapsible at ≥769px (localStorage-persisted,
+                               default open — mobile drawer default is closed)
+components/
+  InlineScript.tsx             theme-init script as a Client Component — must
+                               not be a Server Component, or the server/client
+                               type ternary never diverges and React warns on
+                               every hydration, not just soft navigations
+lib/
+  createNote.ts                insert new note with per-type default content
+  markdownConvert.ts           article Markdown import/export
+  supabase/client.ts           browser Supabase client
+  supabase/server.ts           server Supabase client
+  supabase/storage.ts          wiki-media bucket upload + WebP compression
+```
+
+Sidebar "Zuletzt" is a real, account-wide open history: opening a note in the
+editor (or viewing your own published page) stamps `last_opened_at`; the list
+shows only stamped notes, newest first, and stays hidden until something was
+opened. Requires blocks 8a (realtime) and 8b (`last_opened_at` + trigger) of
+`supabase/migration.sql`. The `updated_at` trigger ignores pure open-stamps so
+viewing never reorders the dashboard's "changed" sorting. Edits broadcast
+client events, saves trigger a refetch, cross-tab updates come from realtime.
