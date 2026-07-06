@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import EmojiPicker from './EmojiPicker'
+
+const WORKSPACE_HEADER_COLLAPSED_KEY = 'wiki-workspace-header-collapsed'
 
 // Eine Chrome fuer Edit- und Public-Ansicht einer Notiz, damit beide exakt
 // gleich aussehen (Notion-Style: Viewer sieht dieselbe Seite, nur ohne
@@ -43,7 +45,50 @@ export default function NoteHeader({
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  // Workspace-Kopfleiste einklappbar, damit sie dem Canvas nicht dauerhaft
+  // im Weg ist. Zustand in localStorage; body-Attribut lässt Editor.tsx den
+  // Canvas per CSS entsprechend hoeher machen (siehe globals.css).
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    if (!floating) return
+    let stored = false
+    try { stored = localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1' } catch {}
+    if (stored) {
+      setCollapsed(true)
+      document.body.setAttribute('data-workspace-header-collapsed', 'true')
+    }
+    return () => { document.body.removeAttribute('data-workspace-header-collapsed') }
+  }, [floating])
+
+  function toggleCollapsed() {
+    setCollapsed(c => {
+      const next = !c
+      try { localStorage.setItem(WORKSPACE_HEADER_COLLAPSED_KEY, next ? '1' : '0') } catch {}
+      if (next) document.body.setAttribute('data-workspace-header-collapsed', 'true')
+      else document.body.removeAttribute('data-workspace-header-collapsed')
+      return next
+    })
+  }
+
   if (floating) {
+    if (collapsed) {
+      return (
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          title="Kopfleiste einblenden"
+          aria-label="Kopfleiste einblenden"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '28px', height: '18px', marginBottom: '8px',
+            border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px',
+            background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer', fontSize: '10px', lineHeight: 1,
+          }}
+        >
+          ⌄
+        </button>
+      )
+    }
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{emoji || '🗂️'}</span>
@@ -77,6 +122,22 @@ export default function NoteHeader({
             {actions}
           </div>
         )}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          title="Kopfleiste ausblenden"
+          aria-label="Kopfleiste ausblenden"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '22px', height: '22px', flexShrink: 0,
+            border: 'none', borderRadius: '5px',
+            background: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '11px', lineHeight: 1,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
+        >
+          ︿
+        </button>
       </div>
     )
   }

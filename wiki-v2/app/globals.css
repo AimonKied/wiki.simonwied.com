@@ -478,6 +478,18 @@ body[data-calm-bg="true"]::before {
   }
 }
 
+/* Workspace-Kopfleiste eingeklappt (NoteHeader.tsx): Canvas holt sich den
+   frei gewordenen Platz zurueck statt ihn ungenutzt zu lassen. */
+body[data-workspace-header-collapsed="true"] .canvas-viewport {
+  height: calc(100vh - 32px);
+}
+
+@media (max-width: 768px) {
+  body[data-workspace-header-collapsed="true"] .canvas-viewport {
+    height: calc(100vh - 150px);
+  }
+}
+
 @media (min-width: 1101px) {
   .note-editor-shell[data-content-type="article"] {
     padding-right: clamp(250px, 22vw, 300px);
