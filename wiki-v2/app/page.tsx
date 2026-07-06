@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Link from 'next/link'
-import type { Category } from '@/lib/types'
+import type { Category, Note } from '@/lib/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
 const contentTypes = [
@@ -37,8 +37,18 @@ export default async function HomePage({
   const activeCategory = params?.category
   const activeType = params?.type
 
-  // Load categories and public notes in parallel
-  const [catsRes, notesRes] = await Promise.all([
+  // Load categories, public notes and the user's recent notes in parallel.
+  const recentNotesPromise = user
+    ? supabase
+      .from('notes')
+      .select('id, title, emoji, content_type, is_public, slug, updated_at')
+      .eq('user_id', user.id)
+      .not('last_opened_at', 'is', null)
+      .order('last_opened_at', { ascending: false })
+      .limit(8)
+    : Promise.resolve({ data: [] })
+
+  const [catsRes, notesRes, recentNotesRes] = await Promise.all([
     supabase.from('categories').select('*').order('position').order('title'),
     supabase
       .from('notes')
@@ -48,6 +58,7 @@ export default async function HomePage({
       `)
       .eq('is_public', true)
       .order('updated_at', { ascending: false }),
+    recentNotesPromise,
   ])
 
   const categories: Category[] = (catsRes.data ?? []) as Category[]
@@ -85,8 +96,8 @@ export default async function HomePage({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={!!user} />
-      <main className="app-main" style={{ overflowY: 'auto', animation: 'fadeIn 0.2s ease both' }}>
+      <Sidebar isLoggedIn={!!user} notes={(recentNotesRes.data ?? []) as Note[]} />
+      <main className="app-main" style={{ overflowY: 'visible', animation: 'fadeIn 0.2s ease both' }}>
         <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
             <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>
