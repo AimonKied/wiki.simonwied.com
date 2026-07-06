@@ -591,6 +591,10 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   useEffect(() => { setMounted(true) }, [])
   const pathname = mounted ? realPathname : ''
 
+  const navItems = isLoggedIn
+    ? primaryNav
+    : [...primaryNav, { label: 'Anmelden', href: '/login' }, { label: 'Registrieren', href: '/register' }]
+
   // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -685,20 +689,10 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
         <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
           Wissen, Notizen und Workspaces
         </div>
-        {!isLoggedIn && (
-          <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-            <Link href="/login" style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 600, textDecoration: 'none' }}>
-              Anmelden
-            </Link>
-            <Link href="/register" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-              Registrieren
-            </Link>
-          </div>
-        )}
       </div>
 
       <div style={{ flex: 1 }}>
-        <SidebarSection title="Navigation" items={primaryNav} pathname={pathname} />
+        <SidebarSection title="Navigation" items={navItems} pathname={pathname} />
         {isLoggedIn && (
           <>
             <SidebarSection title="Privat" items={workspaceNav} pathname={pathname}>
