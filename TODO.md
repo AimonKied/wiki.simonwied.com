@@ -11,9 +11,10 @@ Deploy-Checkliste.
 - [x] Root-Landing gebaut (jetzt in `app/page.tsx`), Button zu `/bibliothek`.
 - [x] Hosting-Entscheidung: Vercel (Hetzner Webhosting S kann kein Node.js).
 - [x] Repo geflacht: `wiki-v2/` existiert nicht mehr, App-Code ist Repo-Root, v1 archiviert in `legacy-v1/`.
-- [ ] Vercel-Projekt anlegen, Repo importieren (Root Directory = Repo-Root, kein Unterordner mehr).
-- [ ] Env-Vars in Vercel setzen: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Werte aus `.env.local`).
-- [ ] Custom Domain in Vercel: nur Subdomain `wiki.simonwied.com` hinzufuegen.
-- [ ] DNS-CNAME beim Domain-Provider: `wiki.simonwied.com` → `cname.vercel-dns.com`.
-- [ ] Deploy abwarten, `wiki.simonwied.com` testen (Landing → Beta-Button → `/bibliothek` → Login/Register).
-- [ ] `npm install` + `npm run build` lokal am neuen Repo-Root einmal frisch verifizieren (node_modules/.next wurden beim Flatten geloescht).
+- [x] Vercel-Projekt angelegt, Repo importiert.
+- [x] Env-Vars in Vercel gesetzt (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+- [x] Custom Domain `wiki.simonwied.com` + DNS-CNAME eingetragen — DNS propagiert noch (2026-07-07).
+- [x] DNS propagiert, `wiki.simonwied.com` live getestet (Landing → Beta-Button → `/bibliothek` → Login/Register) — funktioniert (2026-07-07).
+- [x] `npm install` + `npm run build` lokal am neuen Repo-Root frisch verifiziert.
+
+Alles erledigt — Beta ist live auf `wiki.simonwied.com`.
