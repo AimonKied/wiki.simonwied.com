@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -21,24 +21,46 @@ const newContentOptions: Array<{ label: string; type: 'article' | 'workspace' }>
   { label: 'Canvas Workspace', type: 'workspace' },
 ]
 
+const NEW_CONTENT_FLYOUT_WIDTH = 200
+
 function NewContentNavItem() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState<string | null>(null)
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const flyRef = useRef<HTMLDivElement>(null)
 
+  const getFlyoutCoords = useCallback(() => {
+    if (!btnRef.current) return null
+    const r = btnRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const margin = 12
+    const width = Math.min(NEW_CONTENT_FLYOUT_WIDTH, viewportWidth - margin * 2)
+    const isMobile = viewportWidth <= 768
+
+    if (isMobile) {
+      return {
+        top: r.bottom + 4,
+        left: Math.max(margin, Math.min(r.left, viewportWidth - width - margin)),
+        width,
+      }
+    }
+
+    // subtract flyout padding (6) + link/button padding diff (1) so the first
+    // option lines up with the "Neuer Inhalt" row
+    return {
+      top: r.top - 7,
+      left: Math.max(margin, Math.min(r.right + 6, viewportWidth - width - margin)),
+      width,
+    }
+  }, [])
+
   function toggle() {
     setOpen(o => {
       const next = !o
-      if (next && btnRef.current) {
-        const r = btnRef.current.getBoundingClientRect()
-        // subtract flyout padding (6) + link/button padding diff (1) so the first
-        // option lines up with the "Neuer Inhalt" row
-        setCoords({ top: r.top - 7, left: r.right + 6 })
-      }
+      if (next) setCoords(getFlyoutCoords())
       return next
     })
   }
@@ -54,13 +76,20 @@ function NewContentNavItem() {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
+    function updatePosition() {
+      setCoords(getFlyoutCoords())
+    }
     document.addEventListener('mousedown', onDocClick)
     document.addEventListener('keydown', onKey)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
     return () => {
       document.removeEventListener('mousedown', onDocClick)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [open])
+  }, [getFlyoutCoords, open])
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
@@ -107,7 +136,7 @@ function NewContentNavItem() {
             top: coords.top,
             left: coords.left,
             zIndex: 100,
-            width: '200px',
+            width: `${coords.width}px`,
             display: 'flex',
             flexDirection: 'column',
             gap: '2px',
@@ -636,9 +665,23 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
 
     <nav className="sidebar-nav" data-open={drawerOpen || undefined} onClick={onNavClick}>
       <div style={{ padding: '0 20px 16px', marginBottom: '16px', borderBottom: '1px solid var(--border)' }}>
-        <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
-          <Logo height={28} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <Link href="/" style={{ display: 'inline-block', textDecoration: 'none', color: 'var(--text)' }} aria-label="Startseite">
+            <Logo height={28} />
+          </Link>
+          <button
+            type="button"
+            className="sidebar-close"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Navigation schließen"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
           Wissen, Notizen und Workspaces
         </div>
