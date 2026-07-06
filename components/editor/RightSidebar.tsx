@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useDraggablePanel } from './useDraggablePanel'
 
 type TipTapNode = {
   type: string
@@ -56,6 +57,13 @@ export default function RightSidebar({ content }: { content: object }) {
       return next
     })
   }
+
+  // Desktop-Panel ist frei verschiebbar (Griff = Kopfzeile), Default-Ort
+  // (rechts neben der Werkzeugleiste) kommt aus globals.css.
+  const { panelRef, position, onHandlePointerDown } = useDraggablePanel('wiki-canvas-outline-position')
+  const positionStyle = position
+    ? { left: position.left, top: position.top, right: 'auto' as const }
+    : undefined
 
   useEffect(() => {
     setSections(extractSections(content))
@@ -187,9 +195,10 @@ export default function RightSidebar({ content }: { content: object }) {
     })
   }
 
-  // Schwebendes Panel ueber dem Canvas (links, vertikal zentriert — rechts
-  // liegen Palette und Zoom-Leiste). Positionierung in globals.css, weil sie
-  // vom Sidebar-Zustand abhaengt. Unter 1100px per CSS ausgeblendet.
+  // Schwebendes Panel ueber dem Canvas, Default-Ort rechts neben der
+  // Werkzeugleiste (CSS in globals.css). Per Griff (Kopfzeile) frei
+  // verschiebbar, Position wird in localStorage gemerkt. Unter 1100px per
+  // CSS ausgeblendet.
   return (
     <>
     {desktopCollapsed ? (
@@ -208,7 +217,7 @@ export default function RightSidebar({ content }: { content: object }) {
         </svg>
       </button>
     ) : (
-    <aside className="canvas-outline" style={{
+    <aside ref={panelRef as React.Ref<HTMLElement>} className="canvas-outline" style={{
       width: '190px',
       maxHeight: '56vh',
       overflowY: 'auto',
@@ -220,11 +229,18 @@ export default function RightSidebar({ content }: { content: object }) {
       border: '1px solid var(--border)',
       borderRadius: '12px',
       boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+      ...positionStyle,
     }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 4px 10px 8px',
-      }}>
+      <div
+        onPointerDown={onHandlePointerDown}
+        title="Ziehen zum Verschieben"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 4px 10px 8px',
+          cursor: 'grab',
+          touchAction: 'none',
+        }}
+      >
         <div style={{
           fontSize: '10px',
           color: 'var(--muted)',

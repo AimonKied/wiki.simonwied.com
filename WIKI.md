@@ -101,7 +101,8 @@ components/
     ToggleNode.tsx          Toggle-Element (<details>/<summary>)
     CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
     MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
-    RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel links (einklappbar), unter 1100px rechter Drawer
+    RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel rechts neben der Werkzeugleiste (Default), frei verschiebbar + einklappbar, unter 1100px rechter Drawer
+    useDraggablePanel.ts    Geteilter Drag-Hook fuer schwebende Panels (Blockliste, Werkzeugleiste), Position in localStorage
     elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
     editorTransforms.ts     Doc-Transformationen
     EmojiPicker.tsx
@@ -368,6 +369,15 @@ Runde-9-Entscheidung ("kein Vercel") revidiert: Hetzner Webhosting S hat kein No
 - `.gitignore` uebernimmt jetzt das vollstaendige Next.js-Set (vorher zeigte Root-`.gitignore` nur auf `wiki-v2/node_modules` etc.)
 - Alle Git-Historie ueber `git mv` erhalten (Renames, keine Delete+Add-Paare)
 
+### Erledigt (Runde 15 — Werkzeugleiste + Blockliste frei verschiebbar, 2026-07-07)
+
+Beide schwebenden Canvas-Panels (Werkzeugleiste = Element-Palette, Blockliste = RightSidebar) sind jetzt per Griff frei verschiebbar statt an einer festen Ecke zu kleben. Default-Ort bleibt reine CSS-Platzierung (kein Hydration-Mismatch); erst nach dem ersten Ziehen greift eine in localStorage gemerkte Pixel-Position — gleiches Muster wie der bestehende `desktopCollapsed`-State in RightSidebar.
+
+- Neuer Hook `useDraggablePanel.ts` (`components/editor/`): liefert `panelRef`, `position`, `onHandlePointerDown`; klemmt die Position beim Ziehen und beim Laden auf die aktuelle Viewport-Groesse
+- Blockliste: Default jetzt rechts neben der Werkzeugleiste (`top:64px; right:110px`), vorher links vertikal zentriert (Sidebar-Zustand hatte keinen Einfluss mehr auf die Position, die Kopfzeile ("Blöcke") ist der Ziehgriff)
+- Werkzeugleiste: neuer 6-Punkte-Griff oben in der Palette (eigenes `<div>`, kein Button) — noetig, damit Ziehen nicht mit dem Cursor/Hand-Modus-Toggle oder dem nativen HTML5-Drag der Einfuege-Buttons kollidiert
+- Verifiziert per Headless-Chromium (temporaere, nicht committete Testroute): Default-Positionen pixelgenau, beide Panels lassen sich ziehen, Cursor/Hand-Modus-Buttons und natives Drag-and-Drop der Palette-Buttons funktionieren unveraendert
+
 ---
 
 ## UX-Regeln
@@ -423,10 +433,9 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] `app/robots.ts` + `noindex`-Metadata sperren Suchmaschinen komplett — Wiki ist per Link fuer Freunde gedacht, nicht fuer die Google-Suche
 - [x] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben eigene `<title>`/Description/Open-Graph/Twitter-Metadaten via `generateMetadata` (2026-07-06) — Teilen des Links in Slack/Discord/WhatsApp zeigt jetzt Artikeltitel/-beschreibung statt des generischen "Wiki"-Titels
 - [x] Hosting: **Vercel** (entschieden 2026-07-07, revidiert Runde-9-Entscheidung — Hetzner Webhosting S kann kein Node.js, siehe Runde 13)
-- [ ] Vercel-Projekt anlegen: Repo importieren, Root Directory bleibt Repo-Root (kein Unterordner, Next.js wird automatisch erkannt)
-- [ ] Supabase-Credentials als Env-Vars im Vercel-Projekt setzen (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` aus `.env.local` — kein Service-Role-Key noetig, `.env*` bleibt gitignored)
-- [ ] Custom Domain im Vercel-Projekt: nur die Subdomain `wiki.simonwied.com` hinzufuegen (nicht die Apex-Domain)
-- [ ] DNS-Record beim Domain-Provider anlegen: `wiki.simonwied.com CNAME cname.vercel-dns.com` — Rest von `simonwied.com` bleibt unangetastet bei Hetzner
+- [x] Vercel-Projekt angelegt, Repo importiert, Root Directory = Repo-Root
+- [x] Supabase-Credentials als Env-Vars im Vercel-Projekt gesetzt (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- [x] Custom Domain `wiki.simonwied.com` im Vercel-Projekt + DNS-CNAME beim Domain-Provider — live und getestet (2026-07-07): Landing → Beta-Button → `/bibliothek` → Login/Register funktioniert
 - [x] Root aufgeraeumt: v1-Statik liegt archiviert unter `legacy-v1/`, Repo-Root ist jetzt der App-Code (siehe Runde 14)
 - [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 10, 2026-07-06) — Restluecke siehe Datenbankschema oben
 

@@ -695,10 +695,12 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
   }
 }
 
-/* Workspace-Blockliste auf Desktop: schwebt links ueber dem Canvas (rechts
-   liegen Palette und Zoom-Leiste), vertikal zentriert. Die linke Kante haengt
-   vom Sidebar-Zustand ab. .outline-desktop-trigger ist der runde Button, auf
-   den das Panel eingeklappt wird. */
+/* Workspace-Blockliste auf Desktop: schwebt rechts neben der Werkzeugleiste
+   (die bei top:64/right:10 liegt, siehe data-element-palette in Editor.tsx).
+   Das ist nur der Default-Ort — beide Panels sind per Griff frei
+   verschiebbar (useDraggablePanel), Position landet in localStorage.
+   .outline-desktop-trigger ist der runde Button, auf den das Panel
+   eingeklappt wird. */
 .outline-desktop-trigger {
   display: none;
 }
@@ -707,15 +709,9 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
   .canvas-outline,
   .outline-desktop-trigger {
     position: fixed;
-    left: 288px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 64px;
+    right: 110px;
     z-index: 60;
-  }
-
-  body[data-sidebar-collapsed="true"] .canvas-outline,
-  body[data-sidebar-collapsed="true"] .outline-desktop-trigger {
-    left: 24px;
   }
 
   .outline-desktop-trigger {

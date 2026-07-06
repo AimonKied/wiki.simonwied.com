@@ -32,6 +32,7 @@ import { SectionExtension, sectionSel } from './SectionNode'
 import { ELEMENT_PALETTE, filterPalette } from './elementPalette'
 import { ToggleExtension } from './ToggleNode'
 import { CalloutExtension } from './CalloutNode'
+import { useDraggablePanel } from './useDraggablePanel'
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, go, rust, java, markdown })
@@ -188,6 +189,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [spacePanVisible, setSpacePanVisible] = useState(false)
   const [panMode, setPanMode] = useState(false)
+  // Werkzeugleiste ist per Griff frei verschiebbar, Default-Ort (top:64/right:10)
+  // kommt aus dem Inline-Style unten.
+  const { panelRef: paletteRef, position: palettePosition, onHandlePointerDown: onPaletteHandlePointerDown } = useDraggablePanel('wiki-canvas-toolbar-position')
   const [minimapBlocks, setMinimapBlocks] = useState<MinimapBlock[]>([])
   const [minimapViewport, setMinimapViewport] = useState<MinimapViewport>({ w: 1200, h: 700 })
   const [minimapBounds, setMinimapBounds] = useState<MinimapBounds>({
@@ -1615,6 +1619,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       >
         {editable && (
           <div
+            ref={paletteRef as React.Ref<HTMLDivElement>}
             data-element-palette="true"
             style={{
               position: 'absolute',
@@ -1629,8 +1634,29 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
               border: '1px solid var(--border)',
               borderRadius: '8px',
               boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+              ...(palettePosition ? { left: palettePosition.left, top: palettePosition.top, right: 'auto' } : {}),
             }}
           >
+            <div
+              onPointerDown={onPaletteHandlePointerDown}
+              title="Werkzeugleiste verschieben"
+              style={{
+                gridColumn: '1 / -1',
+                height: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'grab',
+                touchAction: 'none',
+                color: 'var(--muted)',
+                marginBottom: '2px',
+              }}
+            >
+              <svg width="16" height="6" viewBox="0 0 16 6" fill="currentColor" aria-hidden="true">
+                <circle cx="2" cy="1.5" r="1.3" /><circle cx="8" cy="1.5" r="1.3" /><circle cx="14" cy="1.5" r="1.3" />
+                <circle cx="2" cy="4.5" r="1.3" /><circle cx="8" cy="4.5" r="1.3" /><circle cx="14" cy="4.5" r="1.3" />
+              </svg>
+            </div>
             <button
               type="button"
               title="Cursor-Modus"

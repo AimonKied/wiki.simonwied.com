@@ -96,18 +96,19 @@ body grid overlay and `min-height` are disabled (`body:has(...)` in
 - Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
 - Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.
 - Drag block edges or corners to resize in any direction. With a multi-selection every selected block gets the same delta.
-- The element palette on the right edge (canvas only) inserts elements: click adds to the selected block, drag & drop adds to any block.
+- The element palette (top-right, canvas only) inserts elements: click adds to the selected block, drag & drop adds to any block. Its grip handle (top of the palette) drags the whole toolbar anywhere on screen (`useDraggablePanel`, position persisted in localStorage).
 - Every block has a layer (`z`); the `⤒`/`⤓` buttons bring it to front or send it to back. Layer 0 is the floor — sending back pushes the others up instead of going negative (negative z would paint behind the editor surface and become unreachable).
 - "Auto" resets a block to content-sized width/height; new blocks are content-sized by default (max 960px).
 - Hold `Space` and drag with the left mouse button to pan; `Ctrl`/`Cmd` + mouse wheel or the zoom buttons zoom.
 - Blocks snap to matching edges of nearby blocks and show alignment guides (single-block move/resize only).
-- The block outline (`RightSidebar.tsx`) floats on the left, vertically
-  centered (the right edge belongs to palette and zoom bar); clicking an entry
-  pans the block animated to the workspace center, double-click renames. It
-  collapses to a round button (persisted in localStorage) and follows the app
-  sidebar's collapsed state. Below 1100px it becomes a right-hand drawer opened
-  via a floating button above the zoom bar — same UX as the article TOC, shared
-  CSS (`.toc-*`/`.outline-*`).
+- The block outline (`RightSidebar.tsx`) floats top-right next to the element
+  palette by default; clicking an entry pans the block animated to the
+  workspace center, double-click renames. Its header row is a drag handle
+  (`useDraggablePanel`) — grab it to move the panel anywhere, position
+  persists in localStorage. It collapses to a round button (persisted
+  separately) instead of following the app sidebar's collapsed state. Below
+  1100px it becomes a right-hand drawer opened via a floating button above
+  the zoom bar — same UX as the article TOC, shared CSS (`.toc-*`/`.outline-*`).
 
 Section geometry is stored on TipTap section nodes as `x`, `y`, `w`, `h` and `z` attributes.
 Sections without stored positions render in normal flow once; right after the first
@@ -144,9 +145,11 @@ components/editor/
   MediaNodes.tsx               resizable image node (Supabase Storage upload)
   elementPalette.ts            shared block palette + slash-menu ranking
   editorTransforms.ts          line/block transformations shared by both editors
-  RightSidebar.tsx             block outline: floating left panel (collapsible),
-                               right-hand drawer below 1100px; click pans block
-                               to workspace center
+  RightSidebar.tsx             block outline: floating panel top-right by default,
+                               draggable (collapsible), right-hand drawer below
+                               1100px; click pans block to workspace center
+  useDraggablePanel.ts         shared drag hook for floating panels (element
+                               palette, block outline), position in localStorage
   EmojiPicker.tsx              emoji picker for note icons
 components/sidebar/
   Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
