@@ -3,8 +3,11 @@ import InlineScript from '@/components/InlineScript'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Wiki v2',
-  description: 'Persönliches Knowledge Management System',
+  title: 'Wiki',
+  description: 'Wiki für Freunde',
+  // Fuer Freunde gedacht, nicht fuer die oeffentliche Google-Suche —
+  // robots.ts blockt Crawler zusaetzlich auf robots.txt-Ebene.
+  robots: { index: false, follow: false },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
