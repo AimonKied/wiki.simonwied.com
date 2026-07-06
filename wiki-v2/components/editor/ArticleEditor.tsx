@@ -229,12 +229,11 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   }, [slashMenu])
 
   // Writing surface sits directly on the page since the panel was removed —
-  // hide the decorative grid while editing so text stays readable.
+  // hide the decorative grid so text stays readable (edit and read-only alike).
   useEffect(() => {
-    if (!editable) return
     document.body.setAttribute('data-calm-bg', 'true')
     return () => document.body.removeAttribute('data-calm-bg')
-  }, [editable])
+  }, [])
 
   useEffect(() => {
     const readTheme = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
@@ -408,7 +407,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       data-article-editable={editable ? 'true' : 'false'}
       style={{
         display: 'grid',
-        gridTemplateColumns: editable ? 'minmax(0, 1fr)' : 'minmax(0, 820px)',
+        gridTemplateColumns: 'minmax(0, 1fr)',
         gap: '14px',
         alignItems: 'start',
         justifyContent: 'start',

@@ -142,28 +142,14 @@ body[data-calm-bg="true"]::before {
   transform: translateY(1px);
 }
 
+/* Notion-style — the writing surface IS the page, no floating panel.
+   Read-only view (published notes) uses the exact same surface as editing. */
 [data-article-editor="true"] {
   width: 100%;
-}
-
-/* Editing: Notion-style — the writing surface IS the page, no floating panel */
-[data-article-editor="true"][data-article-editable="true"] {
   background: transparent;
   padding: 8px 0 6px;
   min-width: 0;
   position: relative;
-}
-
-/* Published/read-only view: same surface panel as the editor */
-[data-article-editor="true"][data-article-editable="false"] {
-  background: var(--editor-surface);
-  border: 1px solid var(--editor-border);
-  border-radius: 14px;
-  box-shadow:
-    0 18px 52px var(--shadow-soft),
-    0 2px 8px var(--shadow-faint);
-  padding: 34px 44px;
-  min-width: 0;
 }
 
 [data-article-editor="true"] .ProseMirror {
@@ -371,14 +357,14 @@ body[data-calm-bg="true"]::before {
 }
 
 @media (max-width: 860px) {
-  [data-article-editor="true"][data-article-editable="true"] {
+  [data-article-editor="true"] {
     border-radius: 10px;
     padding: 26px 24px 6px;
   }
 }
 
 @media (max-width: 640px) {
-  [data-article-editor="true"][data-article-editable="true"] {
+  [data-article-editor="true"] {
     margin-inline: -8px;
     padding: 22px 18px 4px;
   }
