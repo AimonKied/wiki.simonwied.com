@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -6,6 +7,34 @@ import ArticleToc from '@/components/editor/ArticleToc'
 import RightSidebar from '@/components/editor/RightSidebar'
 import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+
+// Eigene Title/Description/OG-Tags pro Notiz, statt ueberall der generischen
+// Root-Metadata — sonst zeigt jeder geteilte Link (Slack/WhatsApp/...) nur
+// "Wiki" statt Artikeltitel und -beschreibung. robots(noindex) erbt vom
+// Root-Layout, wird hier nicht angefasst.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id: slug } = await params
+  const supabase = await createClient()
+  const { data: note } = await supabase
+    .from('notes')
+    .select('published')
+    .eq('published->>slug', slug)
+    .eq('is_public', true)
+    .single()
+
+  if (!note?.published) return {}
+
+  const pub = note.published as { title: string; description: string | null; emoji: string | null }
+  const title = pub.emoji ? `${pub.emoji} ${pub.title}` : pub.title
+  const description = pub.description ?? undefined
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: 'article' },
+    twitter: { card: 'summary', title, description },
+  }
+}
 
 export default async function PublicNotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: slug } = await params
