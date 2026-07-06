@@ -695,16 +695,59 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
   }
 }
 
-/* Inhaltsverzeichnis als rechter Drawer, Ersatz fuer die ausgeblendete
-   .article-toc unter 1100px (analog zum linken Sidebar-Drawer). */
+/* Workspace-Blockliste auf Desktop: schwebt links ueber dem Canvas (rechts
+   liegen Palette und Zoom-Leiste), vertikal zentriert. Die linke Kante haengt
+   vom Sidebar-Zustand ab. .outline-desktop-trigger ist der runde Button, auf
+   den das Panel eingeklappt wird. */
+.outline-desktop-trigger {
+  display: none;
+}
+
+@media (min-width: 1101px) {
+  .canvas-outline,
+  .outline-desktop-trigger {
+    position: fixed;
+    left: 288px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+  }
+
+  body[data-sidebar-collapsed="true"] .canvas-outline,
+  body[data-sidebar-collapsed="true"] .outline-desktop-trigger {
+    left: 24px;
+  }
+
+  .outline-desktop-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: 0 8px 24px var(--shadow-faint);
+  }
+}
+
+/* Rechte Drawer unter 1100px: Artikel-TOC (.toc-*) und Workspace-Blockliste
+   (.outline-*) teilen sich Optik und Verhalten (analog zum linken
+   Sidebar-Drawer) — Ersatz fuer die ausgeblendeten Seitenpanels. */
 .toc-mobile-trigger,
 .toc-drawer-backdrop,
-.toc-drawer {
+.toc-drawer,
+.outline-mobile-trigger,
+.outline-drawer-backdrop,
+.outline-drawer {
   display: none;
 }
 
 @media (max-width: 1100px) {
-  .toc-mobile-trigger {
+  .toc-mobile-trigger,
+  .outline-mobile-trigger {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -722,7 +765,13 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     z-index: 65;
   }
 
-  .toc-drawer-backdrop {
+  /* Blockliste: ueber der Zoom-Leiste, die unten rechts im Canvas liegt */
+  .outline-mobile-trigger {
+    bottom: 66px;
+  }
+
+  .toc-drawer-backdrop,
+  .outline-drawer-backdrop {
     display: block;
     position: fixed;
     inset: 0;
@@ -732,12 +781,14 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     pointer-events: none;
     transition: opacity 0.2s ease;
   }
-  .toc-drawer-backdrop[data-open] {
+  .toc-drawer-backdrop[data-open],
+  .outline-drawer-backdrop[data-open] {
     opacity: 1;
     pointer-events: auto;
   }
 
-  .toc-drawer {
+  .toc-drawer,
+  .outline-drawer {
     display: block;
     position: fixed;
     top: 0;
@@ -754,7 +805,8 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     transition: transform 0.2s ease;
     z-index: 80;
   }
-  .toc-drawer[data-open] {
+  .toc-drawer[data-open],
+  .outline-drawer[data-open] {
     transform: translateX(0);
   }
 }
