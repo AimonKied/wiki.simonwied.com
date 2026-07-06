@@ -133,7 +133,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+        <div style={{ marginTop: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <Link href="/register" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
+            Noch kein Konto? Registrieren
+          </Link>
           <Link href="/" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
             ← Zurück zur Startseite
           </Link>
