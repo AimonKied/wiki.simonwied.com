@@ -21,6 +21,7 @@ export default function NoteHeader({
   titleInputRef,
   actions,
   linkRight,
+  floating,
 }: {
   emoji: string
   title: string
@@ -36,8 +37,49 @@ export default function NoteHeader({
   titleInputRef?: React.Ref<HTMLInputElement>
   actions?: React.ReactNode
   linkRight?: React.ReactNode
+  // Kompakte einzeilige Kopfleiste statt Titel+Beschreibung+Badges — fuer
+  // Workspace-Notizen, deren Canvas selbst im Vordergrund stehen soll.
+  floating?: boolean
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  if (floating) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{emoji || '🗂️'}</span>
+        {editable ? (
+          <input
+            ref={titleInputRef}
+            value={title}
+            placeholder="Ohne Titel"
+            onChange={e => onTitleChange?.(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
+            style={{
+              flex: '1 1 200px', minWidth: 0, fontSize: '15px', fontWeight: 700, background: 'none', border: 'none',
+              outline: 'none', color: 'var(--text)', fontFamily: 'inherit', padding: 0,
+            }}
+          />
+        ) : (
+          <span style={{
+            flex: '1 1 200px', minWidth: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {title || 'Ohne Titel'}
+          </span>
+        )}
+        <span
+          title={isPublic ? 'Öffentlich' : 'Privater Entwurf'}
+          style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: isPublic ? 'var(--accent)' : 'var(--muted)' }}
+        />
+        {linkRight}
+        {actions && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
+            {actions}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>

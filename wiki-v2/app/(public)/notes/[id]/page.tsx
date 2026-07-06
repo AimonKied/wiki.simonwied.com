@@ -95,6 +95,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           typeLabel={typeLabel}
           isArticle={isArticle}
           isPublic
+          floating={!isArticle}
           editable={false}
           actions={<ThemeToggle />}
           linkRight={isOwner && (

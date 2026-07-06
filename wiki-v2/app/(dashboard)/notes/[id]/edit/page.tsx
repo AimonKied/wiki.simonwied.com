@@ -328,6 +328,7 @@ export default function EditNotePage() {
           typeLabel={typeLabel}
           isArticle={isArticle}
           isPublic={isPublic}
+          floating={!isArticle}
           editable
           titleInputRef={titleInputRef}
           onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}

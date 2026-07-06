@@ -370,6 +370,15 @@ body[data-calm-bg="true"]::before {
   transition: margin-left 0.2s ease;
 }
 
+/* Workspace-Notizen: Canvas soll wie eine eigene Arbeitsflaeche wirken statt
+   ein eingebettetes Widget -- Seiten-Padding raus, randlos bis zur Sidebar.
+   Nur ab 769px: auf Mobil haelt das Padding die fixe Mobil-Topbar frei. */
+@media (min-width: 769px) {
+  .app-main:has(.note-editor-shell[data-content-type="workspace"]) {
+    padding: 0;
+  }
+}
+
 .sidebar-nav {
   width: 260px;
   min-height: 100vh;
@@ -454,6 +463,20 @@ body[data-calm-bg="true"]::before {
 
 /* Kleine UI-Inputs: 16px auf Mobil verhindert den iOS-Auto-Zoom beim Fokus */
 .ui-input { font-size: 13px; }
+
+/* Canvas-Viewport-Hoehe: haengt davon ab, wie viel Platz das umgebende Chrome
+   reserviert -- auf Mobil bleibt .app-mains Padding bestehen (Mobil-Topbar),
+   auf Desktop ist es dank .canvas-viewport-Regel oben schon 0. */
+.canvas-viewport {
+  height: calc(100vh - 80px);
+  min-height: 520px;
+}
+
+@media (max-width: 768px) {
+  .canvas-viewport {
+    height: calc(100vh - 190px);
+  }
+}
 
 @media (min-width: 1101px) {
   .note-editor-shell[data-content-type="article"] {

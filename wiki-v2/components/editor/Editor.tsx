@@ -1549,13 +1549,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
       <div
         data-editor-workspace="true"
+        className="canvas-viewport"
         onDragOver={onWorkspaceDragOver}
         onDrop={onWorkspaceDrop}
         style={{
           position: 'relative',
-          height: 'calc(100vh - 180px)',
-          minHeight: '520px',
-          borderRadius: '12px',
           overflow: 'hidden',
           background: 'var(--bg)',
           backgroundImage: [
@@ -1564,7 +1562,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
           ].join(', '),
           backgroundSize: `${40 * viewport.zoom}px ${40 * viewport.zoom}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
-          border: '1px solid var(--border)',
           touchAction: 'none',
           cursor: panMode ? 'grab' : undefined,
         }}
