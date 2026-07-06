@@ -132,3 +132,46 @@ set published = jsonb_build_object(
   'slug',        slug
 )
 where is_public = true and published is null;
+
+-- 9. Profiles: oeffentlich lesbarer Anzeigename pro User. auth.users ist fuer
+--    Besucher nicht lesbar, daher wird der display_name aus den Auth-Metadaten
+--    per Trigger hierher gespiegelt (Autor-Anzeige bei oeffentlichen Inhalten).
+create table if not exists profiles (
+  id           uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null,
+  updated_at   timestamptz default now()
+);
+
+alter table profiles enable row level security;
+
+drop policy if exists "profiles_public_read" on profiles;
+create policy "profiles_public_read" on profiles
+  for select using (true);
+
+-- Sync bei Signup und Metadaten-/E-Mail-Aenderung; Fallback: E-Mail-Prefix
+-- (Bestandskonten von vor dem Anzeigename-Feld haben keinen display_name)
+create or replace function sync_profile_from_auth()
+returns trigger as $$
+begin
+  insert into profiles (id, display_name, updated_at)
+  values (
+    new.id,
+    coalesce(nullif(new.raw_user_meta_data->>'display_name', ''), split_part(new.email, '@', 1)),
+    now()
+  )
+  on conflict (id) do update
+    set display_name = excluded.display_name, updated_at = now();
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_upsert on auth.users;
+create trigger on_auth_user_upsert
+  after insert or update of raw_user_meta_data, email on auth.users
+  for each row execute function sync_profile_from_auth();
+
+-- Backfill bestehender Konten
+insert into profiles (id, display_name)
+select id, coalesce(nullif(raw_user_meta_data->>'display_name', ''), split_part(email, '@', 1))
+from auth.users
+on conflict (id) do update set display_name = excluded.display_name;
