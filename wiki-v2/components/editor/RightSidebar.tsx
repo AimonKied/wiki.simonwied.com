@@ -61,29 +61,40 @@ export default function RightSidebar({ content }: { content: object }) {
     setSections(extractSections(content))
   }, [content])
 
-  // Scroll tracking — page scrolls on body, older views may still scroll main.
+  // Aktiv-Tracking wie beim Artikel-TOC, nur ist die "Leseposition" hier der
+  // Canvas-Viewport statt des Seiten-Scrolls: aktiv ist der Block, dessen
+  // Mitte der Workspace-Mitte am naechsten liegt. Der Editor meldet jede
+  // Viewport-Aenderung (Pan/Zoom) per wiki-editor-viewport-change.
   useEffect(() => {
-    const mainEl = document.querySelector('main')
+    let raf = 0
 
-    function onScroll() {
-      const cards = Array.from(document.querySelectorAll('[data-section-card]'))
-      if (!cards.length) return
-      const threshold = 160
-      let active = 0
-      for (let i = 0; i < cards.length; i++) {
-        if (cards[i].getBoundingClientRect().top <= threshold) active = i
-      }
-      setActiveIdx(active)
+    function updateActive() {
+      cancelAnimationFrame(raf)
+      raf = window.requestAnimationFrame(() => {
+        const workspace = document.querySelector('[data-editor-workspace]')
+        const cards = Array.from(document.querySelectorAll('[data-section-card]'))
+        if (!workspace || !cards.length) return
+        const wsRect = workspace.getBoundingClientRect()
+        const centerX = wsRect.left + wsRect.width / 2
+        const centerY = wsRect.top + wsRect.height / 2
+        let active = 0
+        let bestDist = Infinity
+        for (let i = 0; i < cards.length; i++) {
+          const r = cards[i].getBoundingClientRect()
+          const dist = Math.hypot(r.left + r.width / 2 - centerX, r.top + r.height / 2 - centerY)
+          if (dist < bestDist) { bestDist = dist; active = i }
+        }
+        setActiveIdx(active)
+      })
     }
 
-    onScroll()
-    mainEl?.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
+    updateActive()
+    document.addEventListener('wiki-editor-viewport-change', updateActive)
+    window.addEventListener('resize', updateActive, { passive: true })
     return () => {
-      mainEl?.removeEventListener('scroll', onScroll)
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      cancelAnimationFrame(raf)
+      document.removeEventListener('wiki-editor-viewport-change', updateActive)
+      window.removeEventListener('resize', updateActive)
     }
   }, [])
 

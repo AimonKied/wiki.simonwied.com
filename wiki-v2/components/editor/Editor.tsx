@@ -1183,6 +1183,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Blockliste (RightSidebar) trackt den aktiven Block anhand des Viewports —
+  // der Canvas scrollt nicht, klassische Scroll-Listener feuern hier nie,
+  // also meldet der Editor jede Pan/Zoom-Aenderung selbst.
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent('wiki-editor-viewport-change'))
+  }, [viewport])
+
   if (!editor) return null
   const slashItems = slashMenu ? getSlashItems(slashMenu.query) : []
 
