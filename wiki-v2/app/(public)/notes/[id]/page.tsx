@@ -105,8 +105,8 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
       </div>
 
       {isArticle && pub.content ? (
-        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="note-editor-shell" data-content-type="article" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
+          <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
             <EditorViewer content={pub.content} contentType="article" />
           </div>
           <ArticleToc content={pub.content} />
