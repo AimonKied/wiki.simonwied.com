@@ -36,8 +36,12 @@ width, the decorative grid is hidden while editing).
   (max 1600px, WebP 85%, 2 MB stored limit; SVG/GIF pass through unchanged).
 - Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
   "Umwandeln in" and "Duplizieren", dragging reorders.
-- A sticky table of contents (H2/H3) sits on the right in the editor and the
-  public article view; it tracks the scroll position.
+- A sticky table of contents (H1/H2/H3) sits on the right in the editor and
+  the public article view; it tracks the scroll position. Below 1100px it
+  becomes a right-hand off-canvas drawer opened via a floating button.
+- The public note view (`/notes/[slug]`) renders through the same
+  `NoteHeader` component as the editor (`editable={false}`) — Notion share-link
+  parity: viewers see the identical page, just without edit controls.
 - "Neuer Inhalt" creates the note directly and opens `/notes/[id]/edit` with
   the title focused — there is no separate create page.
 
@@ -73,12 +77,16 @@ app/
   (public)/notes/[id]/         public note view (published snapshot)
 components/dashboard/
   NewContentButton.tsx         creates a note and jumps into the editor
-  NotesOverview.tsx            dashboard list with filter/search/delete
+  NotesOverview.tsx            dashboard list with filter/search/delete/unpublish
 components/editor/
   Editor.tsx                   TipTap setup, workspace viewport, pan/zoom/lasso,
                                element palette, layout migration pass
   ArticleEditor.tsx            linear Notion-style article editor (slash menu)
-  ArticleToc.tsx               sticky table of contents (editor + public view)
+  NoteHeader.tsx               shared header (emoji/title/description/badges) for
+                               edit and public view; `editable` flag toggles
+                               inputs vs. static text
+  ArticleToc.tsx               sticky table of contents (editor + public view),
+                               right-side drawer below 1100px
   SectionNode.tsx              section node view: move/resize/snap, selection store,
                                layers, block controls (+/⠿), clipboard
   ToggleNode.tsx               collapsible toggle block
@@ -89,7 +97,13 @@ components/editor/
   RightSidebar.tsx             canvas outline, click pans block to workspace center
   EmojiPicker.tsx              emoji picker for note icons
 components/sidebar/
-  Sidebar.tsx                  main navigation, live "Zuletzt" list
+  Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
+                               ⋯ menu (delete, unpublish back to private)
+components/
+  InlineScript.tsx             theme-init script as a Client Component — must
+                               not be a Server Component, or the server/client
+                               type ternary never diverges and React warns on
+                               every hydration, not just soft navigations
 lib/
   createNote.ts                insert new note with per-type default content
   markdownConvert.ts           article Markdown import/export

@@ -93,11 +93,12 @@ wiki-v2/
   components/
     dashboard/
       NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
-      NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-Menue
+      NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-/Privat-schalten-Menue
     editor/
       Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
       ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
-      ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H2/H3, Scroll-Tracking)
+      NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text
+      ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Off-Canvas-Drawer mit schwebendem Button
       SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
       ToggleNode.tsx          Toggle-Element (<details>/<summary>)
       CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
@@ -108,8 +109,9 @@ wiki-v2/
       EmojiPicker.tsx
       EditorViewer.tsx        Read-only Darstellung
     sidebar/
-      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen)
+      Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten)
     theme/ThemeToggle.tsx     Dark/Light Toggle
+    InlineScript.tsx          Client Component fuer Anti-Flash-Theme-Script im Root-Layout (Server Components liefen im Browser nie erneut, daher eigene Komponente noetig)
     Logo.tsx                  Wortmarke (theme-adaptiv)
   lib/
     supabase/client.ts
@@ -162,9 +164,15 @@ note_categories (
   category_id uuid → categories ON DELETE CASCADE,
   PRIMARY KEY (note_id, category_id)
 )
+
+profiles (
+  id           uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+  display_name text NOT NULL,          -- Trigger-Sync aus auth.users bei Signup/Metadaten-/E-Mail-Aenderung
+  updated_at   timestamptz DEFAULT now()
+)
 ```
 
-RLS: Kategorien oeffentlich lesbar; `note_categories` lesbar wenn Notiz public, Owner darf alles.
+RLS: Kategorien oeffentlich lesbar; `note_categories` lesbar wenn Notiz public, Owner darf alles; `profiles` oeffentlich lesbar (Autor-Anzeige auf oeffentlichen Seiten), da `auth.users` selbst fuer Besucher nicht abfragbar ist.
 
 Draft/Publish-Modell:
 
@@ -282,6 +290,25 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Artikel-TOC und Canvas-Outline unter 1100px ausgeblendet (ruetschen sonst per flex-wrap unter den Inhalt)
 - Breite Tabellen scrollen horizontal (`.tableWrapper`), Public-Titel skaliert per clamp, Login-/Such-Inputs 16px auf Mobil (verhindert iOS-Auto-Zoom)
 
+### Erledigt (Runde 6b — Autor/Anzeigename)
+
+- `profiles`-Tabelle mit `display_name`, per Trigger aus `auth.users` gespiegelt (Migration Block 9), da `auth.users` fuer Besucher nicht lesbar ist
+- Anzeigename statt E-Mail in der Dashboard-Begruessung
+- Autor-Byline (Avatar-Initiale + Name + Datum) auf oeffentlichen Notiz-Seiten und Bibliothek-Karten
+
+### Erledigt (Runde 7 — Notion-Share-Parity und Mobile-Politur)
+
+- **Public- und Edit-Ansicht sind jetzt dieselbe Komponente**: neue `NoteHeader`-Komponente (Emoji/Titel/Beschreibung/Badges) mit `editable`-Flag, von Edit- und Public-Seite gleichermassen genutzt — Notion-Style: Betrachter sehen exakt dieselbe Seite, nur ohne Bearbeiten-Rechte. Public-Ansicht bekommt dieselbe Breite, dieselben Badges, RightSidebar-Outline fuer Workspaces und einen "Bearbeiten"-Link fuer den Owner
+- "Privat schalten" (Notiz von oeffentlich zurueck auf privat) jetzt auch aus dem ⋯-Menue in Sidebar ("Zuletzt") und Dashboard-Uebersicht moeglich, nicht mehr nur im Edit-Screen; gilt fuer Artikel und Workspaces gleichermassen
+- Grid-Hintergrund und 820px-Breitenlimit im readonly-Artikel entfernt (Ueberbleibsel des fruehen Card-Looks) — Artikel-Inhalt ist in Edit und Public jetzt exakt gleich breit
+- Artikel-H1 nutzt die Artikelschrift (Inter) statt der globalen Display-Schrift (Syne); H1-Ueberschriften erscheinen jetzt auch im Inhaltsverzeichnis (vorher bewusst ausgeschlossen)
+- Klick unterhalb des Artikelinhalts (leere Flaeche) setzt den Cursor auf die naechstgelegene Zeile statt nichts zu tun — wichtig auf leeren/kurzen Seiten, wo die letzte Zeile unsichtbar ist
+- Mobile Artikel-Breite: Reste der alten Card-Innenabstaende (24px/18px + `margin-inline`-Hack) entfernt, die den Inhalt auf Mobil enger machten als auf Desktop; linker 44px-Block-Gutter (Platz fuer Hover-only ⠿/+-Controls) ist unter 640px auf 0 gesetzt, symmetrisch zu rechts
+- Inhaltsverzeichnis als rechter Off-Canvas-Drawer unter 1100px (schwebender Button, Backdrop, Escape/Auto-Close beim Anspringen einer Ueberschrift) — vorher gab es unter 1100px gar keinen Zugriff aufs TOC
+- TOC-Sprungziel wird per `getBoundingClientRect()`/`window.scrollTo()` manuell berechnet (mobiler Header-Offset), nicht mehr per `scroll-margin-top` + `scrollIntoView` — letzteres schoss auf manchen mobilen Browsern ueber die Ueberschrift hinaus
+- Theme-Init-Script als eigene Client Component (`InlineScript.tsx`) ausgelagert: als Server Component im Root-Layout loeste der `type`-Ternary (text/javascript vs. text/plain) nie den Client-Zweig aus, React warnte bei jeder Hydration vor einem nie ausgefuehrten Script-Tag
+- Theme-Toggle auf der 404-Seite ergaenzt (Rest der Seite nutzte schon Theme-Variablen)
+
 ---
 
 ## UX-Regeln
@@ -327,12 +354,19 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 - [x] Block 8a aus `migration.sql` ausgefuehrt (`notes` in Realtime-Publication)
 - [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
+- [x] Block 9 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
 
 ### Deploy
 
+- [x] `npm run build` laeuft fehlerfrei durch (verifiziert 2026-07-06: Compile + TypeScript + statische Seiten OK)
 - [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
-- [ ] Supabase-Credentials als Vercel Environment Variables setzen
+- [ ] Supabase-Credentials als Vercel Environment Variables setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
 - [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
+- [ ] **Entscheidung noetig**: `/register` ist aktuell offene Selbstregistrierung ohne Einladungscode. Projekt ist als Single-User gedacht (siehe unten) — vor Live-Schaltung entweder in Supabase Auth "Signups" deaktivieren (Account nur manuell/per Einladung anlegen) oder bewusst offenlassen, falls Mehrbenutzer doch erwuenscht ist. RLS filtert zwar sauber nach `user_id`, aber fremde Konten wuerden trotzdem euer Supabase-Kontingent (DB/Storage) mitnutzen
+- [ ] Kein `robots.txt`/`sitemap.ts` vorhanden — fuer eine oeffentlich auffindbare Wiki mit Kategorie-Discovery vor Launch nachtragen, sonst indexiert Google nur zufaellig verlinkte Seiten
+- [ ] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben keine eigenen `<title>`/Open-Graph-Metadaten — Teilen in Slack/Discord/Twitter zeigt ueberall den generischen "Wiki v2"-Titel statt Artikeltitel/-beschreibung. `generateMetadata` in `app/(public)/notes/[id]/page.tsx` ergaenzen
+- [ ] `public/service-worker.js` liegt im Repo, wird aber nirgends registriert (kein `navigator.serviceWorker.register`-Aufruf) — totes Leichtgewicht, entweder anbinden (Offline/PWA) oder loeschen
+- [ ] Public-Regel (`is_public` braucht Slug + Kategorie) nur app-seitig validiert, kein DB-Constraint (siehe Roadmap unten) — fuer einen Single-User-Kontext geringes Risiko, aber vor Launch bewusst abwaegen
 
 ---
 
