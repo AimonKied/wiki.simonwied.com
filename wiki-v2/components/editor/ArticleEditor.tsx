@@ -685,6 +685,14 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           padding: 3px 0 3px 44px !important;
           box-shadow: none !important;
         }
+        /* The 44px left gutter reserves room for the ⠿/+ hover controls, which
+           only matter with a mouse. On touch screens that space just reads as
+           a lopsided left margin, so drop it and match the (0) right side. */
+        @media (max-width: 640px) {
+          [data-article-editor] [data-section-card] {
+            padding-left: 0 !important;
+          }
+        }
         [data-article-editor] [data-section-card] h1 {
           font-size: 30px;
           line-height: 1.2;
