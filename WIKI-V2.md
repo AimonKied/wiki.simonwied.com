@@ -1,13 +1,13 @@
-# Wiki v2 - Persoenliches Knowledge Management System
+# Wiki fuer Freunde
 
 ## Vision
 
-Eigenes Wiki fuer private und oeffentliche Inhalte. Nutzer koennen zwei Arten von Inhalten erstellen:
+Multi-User-Wiki fuer private und oeffentliche Inhalte — jeder kann sich registrieren und eigene Artikel/Workspaces anlegen. Oeffentliche Inhalte sind per Link teilbar (fuer Freunde gedacht), aber bewusst nicht fuer Suchmaschinen gedacht: `robots.ts` sperrt Crawler komplett, Seiten tragen `noindex`. Nutzer koennen zwei Arten von Inhalten erstellen:
 
 - **Artikel**: sollen sich so nah wie moeglich an Notion anfuehlen — Block-Editor mit Slash-Menue, Drag-Handle, allen gaengigen Block-Typen und interner Verlinkung. Leitfrage bei jedem Artikel-Feature: "Wie macht Notion das?"
 - **Workspace Canvas**: das Alleinstellungsmerkmal gegenueber Notion — freie Arbeitsflaechen mit verschiebbaren Bloecken, Pan und Zoom. Bleibt bewusst eigenstaendig.
 
-Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien haben, damit sie auf der Homepage gefiltert und unter Kategorien gefunden werden koennen, zum Beispiel `Rezepte`, `Security` oder `Development`.
+Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien haben, damit sie auf der Homepage gefiltert und unter Kategorien gefunden werden koennen, zum Beispiel `Rezepte`, `Technik` oder `Informatik`.
 
 ---
 
@@ -79,17 +79,16 @@ Das fruehere Set (Security, Development, Ressourcen) wurde entfernt.
 ```text
 wiki-v2/
   app/
-    api/migrate-v1/           v1-HTML → Notiz (nur lokal, nicht in Produktion)
     (auth)/login/             Login-Seite
     (dashboard)/              Nur eingeloggt
       dashboard/              Arbeitsbereich: Filter, Suche, Loeschen
-      migrate/                UI fuer v1-Migration
       notes/
         [id]/edit/            Inhalt bearbeiten ("Neuer Inhalt" legt an und springt direkt hierher; keine /create-Seite mehr)
     (public)/
       notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
     layout.tsx
     page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
+    robots.ts                 Sperrt alle Crawler (Wiki ist fuer Freunde, nicht fuer Google-Suche gedacht)
   components/
     dashboard/
       NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
@@ -119,7 +118,6 @@ wiki-v2/
     supabase/storage.ts       Upload in Bucket wiki-media (WebP-Kompression vor Upload)
     createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
     markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
-    v1Parser.ts               v1-HTML → TipTap-Doc
     types.ts
   supabase/
     migration.sql             Schema-Migration (im SQL Editor ausfuehren)
@@ -255,7 +253,7 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Markdown-Import/Export fuer Artikel (`lib/markdownConvert.ts`)
 - Bild/Video-Upload in Supabase Storage (`wiki-media`, MediaNodes)
 - Toggle-Element (`ToggleNode`)
-- v1-Migrations-Tooling: `/migrate`-Seite + `api/migrate-v1` + `lib/v1Parser.ts` (nur lokal nutzbar)
+- v1-Migrations-Tooling: `/migrate`-Seite + `api/migrate-v1` + `lib/v1Parser.ts` (nur lokal nutzbar) — 2026-07-06 wieder entfernt, verbleibende v1-Seiten werden manuell uebertragen
 - Hydration-Mismatch in Sidebar behoben
 
 ### Erledigt (Runde 4 — Notion-Kurs)
@@ -309,6 +307,14 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Theme-Init-Script als eigene Client Component (`InlineScript.tsx`) ausgelagert: als Server Component im Root-Layout loeste der `type`-Ternary (text/javascript vs. text/plain) nie den Client-Zweig aus, React warnte bei jeder Hydration vor einem nie ausgefuehrten Script-Tag
 - Theme-Toggle auf der 404-Seite ergaenzt (Rest der Seite nutzte schon Theme-Variablen)
 
+### Erledigt (Runde 8 — Multi-User, Freunde statt Google)
+
+- Klargestellt: Wiki ist Multi-User (offene Registrierung ist Absicht, kein Single-User-Projekt)
+- `app/robots.ts` + `robots: { index: false, follow: false }` im Root-Layout: Wiki ist fuer Freunde per Link gedacht, nicht fuer die oeffentliche Google-Suche
+- "Wiki v2"-Branding entfernt (Titel, READMEs) — das hier ist jetzt die aktuelle Wiki, nicht mehr "v2 neben v1"
+- v1-Migrations-Tooling entfernt (`/migrate`-Seite, `api/migrate-v1`, `lib/v1Parser.ts`) — verbleibende v1-Seiten werden manuell uebertragen
+- `public/service-worker.js` entfernt (war nie registriert, totes Leichtgewicht)
+
 ---
 
 ## UX-Regeln
@@ -324,9 +330,9 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 
 ## Migration bestehender Inhalte
 
-Tooling ist fertig (`/migrate`-Seite, nur lokal). Zielkategorien auf das neue Set gemappt:
+Alle 7 v1-Seiten wurden ueber das (mittlerweile wieder entfernte) `/migrate`-Tooling in folgende Kategorien uebertragen:
 
-| Aktuelle Seite | Zieltyp | Kategorie (neu) | Oeffentlich |
+| v1-Seite | Zieltyp | Kategorie | Oeffentlich |
 |---|---|---|---|
 | git-commands.html | Artikel | Informatik | Ja |
 | web-hacking.html | Artikel | Informatik | Ja |
@@ -336,7 +342,7 @@ Tooling ist fertig (`/migrate`-Seite, nur lokal). Zielkategorien auf das neue Se
 | buttermilk-chicken.html | Artikel | Rezepte | Ja |
 | croquetas.html | Artikel | Rezepte | Ja |
 
-Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migrations-Route setzt bei oeffentlichen Artikeln direkt den `published`-Snapshot, damit sie sofort unter `/notes/[slug]` sichtbar sind.
+Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Tool — das Tooling (`/migrate`, `api/migrate-v1`, `lib/v1Parser.ts`) wurde deshalb entfernt.
 
 ---
 
@@ -347,7 +353,7 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 - [x] Kategorie-Slugs in `migrate/page.tsx` auf neues Set umstellen (siehe Tabelle oben)
 - [x] Migrations-Route setzt `published`-Snapshot fuer oeffentliche Artikel
 - [x] v1-Inhalte lokal ueber `/migrate` in die DB migriert (alle 7 Seiten oeffentlich)
-- [ ] **Migrations-Bug**: Codebloecke enthalten literale `<span class="hl-...">`-Tags aus dem v1-Syntax-Highlighting — `v1Parser.ts` muss die Spans strippen, danach betroffene Artikel neu migrieren
+- [x] Migrations-Tooling wieder entfernt (2026-07-06) — der Bug mit literalen `<span class="hl-...">`-Tags in Codebloecken ist damit hinfaellig; verbleibende v1-Seiten werden manuell im Editor nachgebaut
 
 ### Setup (einmalig im Supabase SQL Editor)
 
@@ -359,14 +365,13 @@ Kategorie-Slugs in `migrate/page.tsx` sind auf das neue Set umgestellt. Die Migr
 ### Deploy
 
 - [x] `npm run build` laeuft fehlerfrei durch (verifiziert 2026-07-06: Compile + TypeScript + statische Seiten OK)
+- [x] Offene Selbstregistrierung ist Absicht (Multi-User-Wiki), keine Entscheidung noetig
+- [x] `app/robots.ts` + `noindex`-Metadata sperren Suchmaschinen komplett — Wiki ist per Link fuer Freunde gedacht, nicht fuer die Google-Suche
 - [ ] Vercel Projekt anlegen und mit GitHub verknuepfen
 - [ ] Supabase-Credentials als Vercel Environment Variables setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
-- [ ] Custom Domain `wiki-v2.simonwied.com` in Vercel konfigurieren
-- [ ] **Entscheidung noetig**: `/register` ist aktuell offene Selbstregistrierung ohne Einladungscode. Projekt ist als Single-User gedacht (siehe unten) — vor Live-Schaltung entweder in Supabase Auth "Signups" deaktivieren (Account nur manuell/per Einladung anlegen) oder bewusst offenlassen, falls Mehrbenutzer doch erwuenscht ist. RLS filtert zwar sauber nach `user_id`, aber fremde Konten wuerden trotzdem euer Supabase-Kontingent (DB/Storage) mitnutzen
-- [ ] Kein `robots.txt`/`sitemap.ts` vorhanden — fuer eine oeffentlich auffindbare Wiki mit Kategorie-Discovery vor Launch nachtragen, sonst indexiert Google nur zufaellig verlinkte Seiten
-- [ ] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben keine eigenen `<title>`/Open-Graph-Metadaten — Teilen in Slack/Discord/Twitter zeigt ueberall den generischen "Wiki v2"-Titel statt Artikeltitel/-beschreibung. `generateMetadata` in `app/(public)/notes/[id]/page.tsx` ergaenzen
-- [ ] `public/service-worker.js` liegt im Repo, wird aber nirgends registriert (kein `navigator.serviceWorker.register`-Aufruf) — totes Leichtgewicht, entweder anbinden (Offline/PWA) oder loeschen
-- [ ] Public-Regel (`is_public` braucht Slug + Kategorie) nur app-seitig validiert, kein DB-Constraint (siehe Roadmap unten) — fuer einen Single-User-Kontext geringes Risiko, aber vor Launch bewusst abwaegen
+- [ ] Custom Domain `wiki.simonwied.com` in Vercel konfigurieren
+- [ ] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben keine eigenen `<title>`/Open-Graph-Metadaten — Teilen des Links in Slack/Discord/WhatsApp zeigt ueberall den generischen "Wiki"-Titel statt Artikeltitel/-beschreibung. `generateMetadata` in `app/(public)/notes/[id]/page.tsx` ergaenzen (Vorschau-Kacheln bleiben trotzdem sinnvoll, auch ohne Suchmaschinen-Indexierung)
+- [ ] Public-Regel (`is_public` braucht Slug + Kategorie) nur app-seitig validiert, kein DB-Constraint (siehe Roadmap unten) — bei mehreren Nutzern relevanter als vorher, vor Launch abwaegen
 
 ---
 
@@ -412,4 +417,4 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
 - [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten
 
-Bewusst ausgelassen (Single-User): Kollaboration, Kommentare, Rechteverwaltung, Datenbank-Views, Synced Blocks.
+Bewusst ausgelassen: Echtzeit-Kollaboration auf derselben Notiz, Kommentare, granulare Rechteverwaltung, Datenbank-Views, Synced Blocks — jeder Nutzer verwaltet seine eigenen Notizen unabhaengig, es wird nicht gemeinsam an einer Notiz geschrieben.

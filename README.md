@@ -7,10 +7,10 @@ The wiki is built with plain HTML, CSS and JavaScript — no frameworks, no buil
 
 The main goal of this wiki is to spread useful information. That said, not every submission will be accepted — the repository owner reviews all pull requests and decides whether a page fits the wiki. Content must be respectful, constructive and genuinely informative.
 
-> **Note:** This repository contains two generations of the wiki:
+> **Note:** This repository is transitioning to a new version of the wiki:
 >
-> - **Wiki v1** — the live static site (plain HTML/CSS/JS in the repository root), documented below.
-> - **Wiki v2** — a Next.js + Supabase rewrite with a canvas-based block editor, under active development in [`wiki-v2/`](wiki-v2/). See [WIKI-V2.md](WIKI-V2.md) for the roadmap and [wiki-v2/README.md](wiki-v2/README.md) for developer docs.
+> - **Legacy static site** — the currently live plain HTML/CSS/JS pages in the repository root, documented below.
+> - **Wiki** — a Next.js + Supabase rewrite with a canvas-based block editor and accounts (anyone can register and publish), under active development in [`wiki-v2/`](wiki-v2/) and meant to replace the static site. See [WIKI-V2.md](WIKI-V2.md) for the roadmap and [wiki-v2/README.md](wiki-v2/README.md) for developer docs.
 
 ## Wiki v1 — Project Structure
 

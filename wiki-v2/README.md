@@ -1,6 +1,7 @@
-# Wiki v2
+# Wiki
 
-Next.js 16 app for the browser-based personal wiki.
+Next.js 16 app for the browser-based wiki (multi-user: anyone can register and
+create articles/workspaces; visibility per note is private or public).
 
 ## Development
 
@@ -73,7 +74,6 @@ immediately. Closing the tab while a save is pending shows a browser warning.
 app/
   (dashboard)/dashboard/       workspace overview: filter, search, delete
   (dashboard)/notes/[id]/edit/ note editor (articles + canvas)
-  (dashboard)/migrate/         one-off v1 HTML import (local only)
   (public)/notes/[id]/         public note view (published snapshot)
 components/dashboard/
   NewContentButton.tsx         creates a note and jumps into the editor
@@ -107,7 +107,6 @@ components/
 lib/
   createNote.ts                insert new note with per-type default content
   markdownConvert.ts           article Markdown import/export
-  v1Parser.ts                  v1 HTML → TipTap doc
   supabase/client.ts           browser Supabase client
   supabase/server.ts           server Supabase client
   supabase/storage.ts          wiki-media bucket upload + WebP compression
