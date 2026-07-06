@@ -688,43 +688,47 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       </div>
 
       <div style={{ flex: 1 }}>
-        <SidebarSection title="Navigation" items={primaryNav} pathname={pathname}>
-          {!isLoggedIn && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-              <Link
-                href="/login"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '7px 8px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#fff',
-                  background: 'var(--accent)',
-                  textDecoration: 'none',
-                }}
-              >
-                Anmelden
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '7px 8px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: 'var(--muted)',
-                  textDecoration: 'none',
-                }}
-              >
-                Registrieren
-              </Link>
-            </div>
-          )}
-        </SidebarSection>
+        {!isLoggedIn && (
+          <div style={{ padding: '0 20px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <Link
+              href="/login"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#fff',
+                background: 'var(--accent)',
+                border: '1px solid var(--accent)',
+                textDecoration: 'none',
+              }}
+            >
+              Anmelden
+            </Link>
+            <Link
+              href="/register"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--accent)',
+                background: 'transparent',
+                border: '1px solid var(--accent)',
+                textDecoration: 'none',
+              }}
+            >
+              Registrieren
+            </Link>
+          </div>
+        )}
+        <SidebarSection title="Navigation" items={primaryNav} pathname={pathname} />
         {isLoggedIn && (
           <>
             <SidebarSection title="Privat" items={workspaceNav} pathname={pathname}>
