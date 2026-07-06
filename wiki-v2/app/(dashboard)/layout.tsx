@@ -15,6 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: notes } = await supabase
     .from('notes')
     .select('id, title, emoji, content_type, is_public, slug, updated_at')
+    .eq('user_id', user.id)
     .not('last_opened_at', 'is', null)
     .order('last_opened_at', { ascending: false })
     .limit(8)
