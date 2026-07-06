@@ -205,6 +205,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const panModeRef = useRef(false)
   const lastPointerPanAtRef = useRef(0)
   const latePanRef = useRef<{ x: number; y: number } | null>(null)
+  // Touch: ein Finger auf leerem Canvas pannt direkt (kein Spacebar-Aequivalent
+  // auf Touch), zwei Finger zoomen per Pinch. activeTouchPointersRef trackt
+  // alle aktiven Touch-Kontakte, panSessionRef haelt das laufende Ein-Finger-
+  // Pan an, sobald ein zweiter Finger dazukommt (Wechsel zu Pinch).
+  const activeTouchPointersRef = useRef(new Map<number, { x: number; y: number }>())
+  const panSessionRef = useRef<{ cancel: () => void } | null>(null)
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null)
   const minimapDragRef = useRef<MinimapDragState | null>(null)
   const legacyTopLeftMigratedRef = useRef(false)
   const initialContentCenteredRef = useRef(false)
@@ -626,10 +633,33 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       }
 
       addEndListeners(onMove, onUp)
+      return { cancel: onUp }
     }
 
     function onPointerDown(e: PointerEvent) {
-      if (!(spaceDownRef.current || panModeRef.current) || e.button !== 0) return
+      const isTouch = e.pointerType === 'touch'
+
+      if (isTouch) {
+        const target = e.target as Element
+        if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap], [data-section-card], [data-section-drag-handle], [data-section-resize-handle]')) return
+        if (!target.closest('[data-editor-workspace]')) return
+
+        activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+        if (activeTouchPointersRef.current.size === 2) {
+          // Zweiter Finger: laufendes Ein-Finger-Pan abbrechen, auf Pinch wechseln
+          panSessionRef.current?.cancel()
+          panSessionRef.current = null
+          const pts = Array.from(activeTouchPointersRef.current.values())
+          pinchRef.current = {
+            startDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+            startZoom: viewportRef.current.zoom,
+          }
+          return
+        }
+        if (activeTouchPointersRef.current.size > 2) return
+      }
+
+      if (!isTouch && (!(spaceDownRef.current || panModeRef.current) || e.button !== 0)) return
       if (!e.isPrimary) return
       const target = e.target as Element
       if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
@@ -637,7 +667,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       if (!workspace) return
       lastPointerPanAtRef.current = Date.now()
       try { workspace.setPointerCapture?.(e.pointerId) } catch {}
-      startPanDrag(
+      const session = startPanDrag(
         e,
         (onMove, onUp) => {
           document.addEventListener('pointermove', onMove as (ev: PointerEvent) => void)
@@ -651,6 +681,28 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         },
         () => { try { workspace.releasePointerCapture?.(e.pointerId) } catch {} }
       )
+      if (isTouch) panSessionRef.current = session
+    }
+
+    // Zwei-Finger-Pinch: Distanz-Verhaeltnis zur Startdistanz ergibt den neuen
+    // Zoom, zoomAt() haelt dabei den aktuellen Fingermittelpunkt visuell fest
+    // (gleiche Funktion wie beim Strg/Cmd+Wheel-Zoom, inkl. Clamping).
+    function onTouchTrackMove(e: PointerEvent) {
+      if (e.pointerType !== 'touch') return
+      if (!activeTouchPointersRef.current.has(e.pointerId)) return
+      activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (activeTouchPointersRef.current.size !== 2 || !pinchRef.current) return
+      const pts = Array.from(activeTouchPointersRef.current.values())
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      const midX = (pts[0].x + pts[1].x) / 2
+      const midY = (pts[0].y + pts[1].y) / 2
+      zoomAt(midX, midY, pinchRef.current.startZoom * (dist / pinchRef.current.startDist))
+    }
+
+    function onTouchTrackEnd(e: PointerEvent) {
+      if (e.pointerType !== 'touch') return
+      activeTouchPointersRef.current.delete(e.pointerId)
+      if (activeTouchPointersRef.current.size < 2) pinchRef.current = null
     }
 
     function onMouseDown(e: MouseEvent) {
@@ -723,6 +775,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     document.addEventListener('keyup', onKeyUp, true)
     window.addEventListener('blur', onBlur)
     document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('pointermove', onTouchTrackMove, true)
+    document.addEventListener('pointerup', onTouchTrackEnd, true)
+    document.addEventListener('pointercancel', onTouchTrackEnd, true)
     document.addEventListener('mousedown', onMouseDown, true)
     document.addEventListener('mousemove', onLatePanMove, true)
     document.addEventListener('wheel', onWheel, { passive: false, capture: true })
@@ -731,6 +786,9 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       document.removeEventListener('keyup', onKeyUp, true)
       window.removeEventListener('blur', onBlur)
       document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('pointermove', onTouchTrackMove, true)
+      document.removeEventListener('pointerup', onTouchTrackEnd, true)
+      document.removeEventListener('pointercancel', onTouchTrackEnd, true)
       document.removeEventListener('mousedown', onMouseDown, true)
       document.removeEventListener('mousemove', onLatePanMove, true)
       document.removeEventListener('wheel', onWheel, true)

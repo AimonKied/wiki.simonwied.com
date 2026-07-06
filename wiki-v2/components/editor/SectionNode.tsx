@@ -669,10 +669,13 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     setHandle(null)
   }
 
-  function startDrag(e: React.MouseEvent) {
+  function startDrag(e: React.PointerEvent) {
     if (!handle || !cardRef.current || typeof getPos !== 'function') return
     e.preventDefault()
     e.stopPropagation()
+    const targetEl = e.currentTarget as HTMLElement
+    const pointerId = e.pointerId
+    try { targetEl.setPointerCapture?.(pointerId) } catch {}
 
     const cardRect = cardRef.current.getBoundingClientRect()
     const canvas = cardRef.current.closest('[data-editor-canvas]') as HTMLElement | null
@@ -784,7 +787,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'grabbing'
 
-    function onMove(ev: MouseEvent) {
+    function onMove(ev: PointerEvent) {
       const d = dragRef.current
       if (!d) return
 
@@ -962,8 +965,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       dragRef.current = null
       resetDragStyles()
       setDragging(false)
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      try { targetEl.releasePointerCapture?.(pointerId) } catch {}
 
       if (!d) return
 
@@ -978,8 +983,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       }
     }
 
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onUp)
   }
 
   function moveElement(fromIdx: number, _fromPos: number, _fromSize: number, toInsertIdx: number) {
@@ -1151,15 +1157,18 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
-  function handleSectionDragDown(e: React.MouseEvent) {
+  function handleSectionDragDown(e: React.PointerEvent) {
     if (isCanvasBlock) startFreeMove(e)
     else startLinearReorder(e)
   }
 
-  function startLinearReorder(e: React.MouseEvent) {
+  function startLinearReorder(e: React.PointerEvent) {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    const targetEl = e.currentTarget as HTMLElement
+    const pointerId = e.pointerId
+    try { targetEl.setPointerCapture?.(pointerId) } catch {}
     const nativeEvent = e.nativeEvent
     const downX = e.clientX
     const downY = e.clientY
@@ -1216,7 +1225,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       if (ownCard) ownCard.style.opacity = '0.45'
     }
 
-    function beginDrag(ev: MouseEvent) {
+    function beginDrag(ev: PointerEvent) {
       didDrag = true
       setSectionDragging(true)
       document.body.style.userSelect = 'none'
@@ -1224,7 +1233,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       updateTarget(ev.clientY)
     }
 
-    function onMove(ev: MouseEvent) {
+    function onMove(ev: PointerEvent) {
       if (!didDrag) {
         if (Math.hypot(ev.clientX - downX, ev.clientY - downY) < 4) return
         beginDrag(ev)
@@ -1234,8 +1243,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     }
 
     function onUp() {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      try { targetEl.releasePointerCapture?.(pointerId) } catch {}
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
       cardRef.current?.style.removeProperty('opacity')
@@ -1257,33 +1268,41 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       else moveSectionTo(targetIdx)
     }
 
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onUp)
   }
 
-  function startFreeMove(e: React.MouseEvent) {
+  function startFreeMove(e: React.PointerEvent) {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    const targetEl = e.currentTarget as HTMLElement
+    const pointerId = e.pointerId
+    try { targetEl.setPointerCapture?.(pointerId) } catch {}
     const nativeEvent = e.nativeEvent
     let didDrag = false
     const downX = e.clientX, downY = e.clientY
 
-    function onMM(ev: MouseEvent) {
+    function onMM(ev: PointerEvent) {
       if (!didDrag && Math.hypot(ev.clientX - downX, ev.clientY - downY) > 4) {
         didDrag = true
-        document.removeEventListener('mousemove', onMM)
-        document.removeEventListener('mouseup',   onMU)
+        document.removeEventListener('pointermove', onMM)
+        document.removeEventListener('pointerup',   onMU)
+        document.removeEventListener('pointercancel', onMU)
         beginDrag()
       }
     }
     function onMU() {
-      document.removeEventListener('mousemove', onMM)
-      document.removeEventListener('mouseup',   onMU)
+      document.removeEventListener('pointermove', onMM)
+      document.removeEventListener('pointerup',   onMU)
+      document.removeEventListener('pointercancel', onMU)
+      try { targetEl.releasePointerCapture?.(pointerId) } catch {}
       if (!didDrag) sectionSel.toggle(sectionId, nativeEvent.shiftKey)
     }
-    document.addEventListener('mousemove', onMM)
-    document.addEventListener('mouseup',   onMU)
+    document.addEventListener('pointermove', onMM)
+    document.addEventListener('pointerup',   onMU)
+    document.addEventListener('pointercancel', onMU)
 
     function beginDrag() {
       if (typeof getPos !== 'function') return
@@ -1366,7 +1385,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       document.body.style.userSelect = 'none'
       document.body.style.cursor     = 'grabbing'
 
-      function onMove(ev: MouseEvent) {
+      function onMove(ev: PointerEvent) {
         const dx = (ev.clientX - downX) / zoom
         const dy = (ev.clientY - downY) / zoom
         if (isMultiDrag) {
@@ -1414,19 +1433,25 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         wrapEl.style.width  = prevW
         if (isMultiDrag) multiStarts.forEach(s => { s.el.style.zIndex = s.prevZ })
         _fitCanvasToSections(canvasEl)
-        document.removeEventListener('mousemove', onMove)
-        document.removeEventListener('mouseup',   onUp)
+        document.removeEventListener('pointermove', onMove)
+        document.removeEventListener('pointerup',   onUp)
+        document.removeEventListener('pointercancel', onUp)
+        try { targetEl.releasePointerCapture?.(pointerId) } catch {}
       }
 
-      document.addEventListener('mousemove', onMove)
-      document.addEventListener('mouseup',   onUp)
+      document.addEventListener('pointermove', onMove)
+      document.addEventListener('pointerup',   onUp)
+      document.addEventListener('pointercancel', onUp)
     }
   }
 
-  function startResize(dir: string, e: React.MouseEvent) {
+  function startResize(dir: string, e: React.PointerEvent) {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    const targetEl = e.currentTarget as HTMLElement
+    const pointerId = e.pointerId
+    try { targetEl.setPointerCapture?.(pointerId) } catch {}
     const canvas    = document.querySelector('[data-editor-canvas]') as HTMLElement | null
     const maybeWrap = cardRef.current?.parentElement
     if (!canvas || !maybeWrap) return
@@ -1438,7 +1463,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const resizesWidth = dir.includes('e') || dir.includes('w')
     const resizesHeight = dir.includes('n') || dir.includes('s')
     let frame = 0
-    let latest: MouseEvent | null = null
+    let latest: PointerEvent | null = null
 
     // Multi-resize: same delta on every selected block when this block is part of the selection
     const isMulti = sectionSel.has(sectionId) && sectionSel.size() > 1
@@ -1481,7 +1506,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       t.el.style.zIndex = '120'
     })
 
-    function applyResize(ev: MouseEvent) {
+    function applyResize(ev: PointerEvent) {
       const dx = (ev.clientX - startMX) / zoom
       const dy = (ev.clientY - startMY) / zoom
       targets.forEach((t, id) => {
@@ -1507,7 +1532,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       _fitCanvasToSections(canvasEl)
     }
 
-    function onMove(ev: MouseEvent) {
+    function onMove(ev: PointerEvent) {
       latest = ev
       if (frame) return
       frame = window.requestAnimationFrame(() => {
@@ -1548,12 +1573,15 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         editor.view.dispatch(tr)
       }
       _fitCanvasToSections(canvasEl)
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup',   onUp)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup',   onUp)
+      document.removeEventListener('pointercancel', onUp)
+      try { targetEl.releasePointerCapture?.(pointerId) } catch {}
     }
 
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup',   onUp)
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup',   onUp)
+    document.addEventListener('pointercancel', onUp)
   }
 
   useEffect(() => {
@@ -2206,8 +2234,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           }}>
             <div
               title="Verschieben"
-              onMouseDown={startDrag}
-              style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '13px', padding: '3px 2px', borderRadius: '3px', lineHeight: 1, userSelect: 'none' }}
+              onPointerDown={startDrag}
+              style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '13px', padding: '3px 2px', borderRadius: '3px', lineHeight: 1, userSelect: 'none', touchAction: 'none' }}
             >
               ⠿
             </div>
@@ -2267,7 +2295,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 ref={dragHandleRef}
                 data-section-drag-handle="true"
                 title={isArticleMode ? 'Ziehen zum Verschieben · Klick für Menü · Shift-Klick zum Auswählen' : 'Block verschieben / klicken zum Auswählen'}
-                onMouseDown={handleSectionDragDown}
+                onPointerDown={handleSectionDragDown}
                 onClick={e => e.stopPropagation()}
                 style={{
                   cursor: 'grab', color: 'var(--muted)', fontSize: '14px',
@@ -2275,7 +2303,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                   height: isArticleMode ? '24px' : '26px',
                   borderRadius: '5px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  userSelect: 'none', lineHeight: 1,
+                  userSelect: 'none', lineHeight: 1, touchAction: 'none',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
@@ -2602,6 +2630,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 opacity: isCorner && showHandle ? 1 : 0,
                 transition: resizing ? undefined : 'opacity 0.1s',
                 cursor,
+                touchAction: 'none',
                 ...(dir === 'n' ? { left: 12, right: 12, top: -7, height: 14, borderRadius: 7 } : {}),
                 ...(dir === 's' ? { left: 12, right: 12, bottom: -7, height: 14, borderRadius: 7 } : {}),
                 ...(dir === 'e' ? { top: 12, right: -7, bottom: 12, width: 14, borderRadius: 7 } : {}),
@@ -2616,7 +2645,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                   key={dir}
                   data-section-resize-handle="true"
                   title="Größe ändern"
-                  onMouseDown={e => startResize(dir, e)}
+                  onPointerDown={e => startResize(dir, e)}
                   style={style}
                 />
               )
