@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 
 export default function NoteNotFound() {
   return (
@@ -8,7 +9,11 @@ export default function NoteNotFound() {
       padding: '40px',
       textAlign: 'center',
       animation: 'fadeIn 0.2s ease both',
+      position: 'relative',
     }}>
+      <div style={{ position: 'absolute', top: '-32px', right: '0' }}>
+        <ThemeToggle />
+      </div>
       <div style={{ fontSize: '48px', marginBottom: '20px' }}>404</div>
       <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '10px', color: 'var(--accent)' }}>
         Seite nicht gefunden
