@@ -21,14 +21,15 @@ function getText(node: TipTapNode): string {
 }
 
 // Collect headings in document order, including those nested in sections/toggles.
-// Only structural article headings belong in the TOC, so H1 stays out.
+// The page title lives outside this content tree (rendered by NoteHeader), so
+// it never reaches here — only headings the author typed in the body do.
 function extractHeadings(content: object): TocEntry[] {
   const entries: TocEntry[] = []
   function walk(node: TipTapNode) {
     if (node.type === 'heading') {
       const level = Number(node.attrs?.level) || 1
       const text = getText(node).trim()
-      if (text && level >= 2) entries.push({ idx: entries.length, level, text })
+      if (text) entries.push({ idx: entries.length, level, text })
       return
     }
     node.content?.forEach(walk)
@@ -41,7 +42,7 @@ function extractHeadings(content: object): TocEntry[] {
 function headingElements(containerSelector: string): HTMLElement[] {
   const container = document.querySelector(containerSelector)
   if (!container) return []
-  return Array.from(container.querySelectorAll<HTMLElement>('h2, h3'))
+  return Array.from(container.querySelectorAll<HTMLElement>('h1, h2, h3'))
     .filter(el => el.textContent?.trim())
 }
 
