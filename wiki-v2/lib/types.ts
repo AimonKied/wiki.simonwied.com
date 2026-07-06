@@ -24,6 +24,13 @@ export interface Note {
   last_opened_at?: string | null
 }
 
+// Oeffentlich lesbarer Anzeigename (Spiegel aus auth.users, siehe migration.sql)
+export interface Profile {
+  id: string
+  display_name: string
+  updated_at?: string
+}
+
 export interface Category {
   id: string
   slug: string
