@@ -591,10 +591,6 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   useEffect(() => { setMounted(true) }, [])
   const pathname = mounted ? realPathname : ''
 
-  const navItems = isLoggedIn
-    ? primaryNav
-    : [...primaryNav, { label: 'Anmelden', href: '/login' }, { label: 'Registrieren', href: '/register' }]
-
   // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -692,7 +688,43 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
       </div>
 
       <div style={{ flex: 1 }}>
-        <SidebarSection title="Navigation" items={navItems} pathname={pathname} />
+        <SidebarSection title="Navigation" items={primaryNav} pathname={pathname}>
+          {!isLoggedIn && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+              <Link
+                href="/login"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '7px 8px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#fff',
+                  background: 'var(--accent)',
+                  textDecoration: 'none',
+                }}
+              >
+                Anmelden
+              </Link>
+              <Link
+                href="/register"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '7px 8px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: 'var(--muted)',
+                  textDecoration: 'none',
+                }}
+              >
+                Registrieren
+              </Link>
+            </div>
+          )}
+        </SidebarSection>
         {isLoggedIn && (
           <>
             <SidebarSection title="Privat" items={workspaceNav} pathname={pathname}>
