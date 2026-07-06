@@ -648,7 +648,15 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       <div
         data-article-editor="true"
         data-article-editable={editable ? 'true' : 'false'}
-        style={editable ? { width: '100%' } : undefined}
+        style={editable ? { width: '100%', minHeight: '60vh', cursor: 'text' } : undefined}
+        onClick={editable ? e => {
+          // Clicking dead space below/around the (possibly near-empty) content
+          // should still land the cursor on the nearest line, Notion-style —
+          // only when the click hits this wrapper itself, not actual content.
+          if (e.target !== e.currentTarget) return
+          const pos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
+          editor.chain().focus().setTextSelection(pos ? pos.pos : editor.state.doc.content.size).run()
+        } : undefined}
       >
         <EditorContent editor={editor} />
       </div>
