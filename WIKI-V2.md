@@ -181,13 +181,15 @@ published     = Snapshot (title, emoji, description, content, slug)
 Oeffentliche Seiten lesen ausschliesslich `published`.
 ```
 
-Public-Regel (in App validiert):
+Public-Regel (App-Validierung + DB-Constraint, Migration Block 10):
 
 ```text
 Wenn is_public = true:
-  slug muss gesetzt sein
-  mindestens eine Kategorie muss verknuepft sein
+  slug muss gesetzt sein                     -- CHECK-Constraint auf notes
+  mindestens eine Kategorie muss verknuepft sein  -- Trigger auf notes, feuert nur bei UPDATE OF is_public
 ```
+
+Der Trigger feuert bewusst nur, wenn `is_public` selbst im UPDATE steckt (nicht bei jedem Autosave) — die Edit-Seite synct Kategorien sonst per Delete-dann-Insert bei jedem Speichern, das wuerde bei jedem Autosave einer bereits oeffentlichen Notiz kurz auf 0 Kategorien anschlagen. Restluecke: Kategorien komplett von einer bereits oeffentlichen Notiz entfernen, ohne `is_public` anzufassen, wird nicht abgefangen (dafuer bräuchte es eine eigene Transaktion/RPC statt der drei separaten Client-Requests). Die App macht das nirgends, ein direkter API-Call koennte es theoretisch.
 
 Storage: Bucket `wiki-media` (public) fuer Bilder, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner, keine SELECT-Policy — Public-Bucket liefert ueber die URL, Listing bleibt gesperrt). Bilder werden vor dem Upload clientseitig komprimiert (max 1600px, WebP 85%, Limit 2 MB nach Kompression) — so passen tausende Bilder ins 1-GB-Free-Kontingent statt ~100.
 
@@ -316,6 +318,12 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - `public/service-worker.js` entfernt (war nie registriert, totes Leichtgewicht)
 - Sidebar auf Desktop/iPad (≥769px) einklappbar: Hamburger-Button neben dem Logo (gleiches Icon wie die Mobil-Topbar), schwebender Button zum Wiederoeffnen, Zustand in localStorage. Default offen — umgekehrt zum Mobil-Drawer, der standardmaessig zu ist
 
+### Erledigt (Runde 9 — Deploy-Vorbereitung ohne Vercel)
+
+- Vercel als Hosting-Vorgabe raus, Deploy-Checkliste plattformneutral (Hosting/Domain/Env-Vars offen statt Vercel-spezifisch)
+- Eigene Title/Description/Open-Graph/Twitter-Metadaten pro oeffentlicher Notiz-Seite (`generateMetadata`) — Link-Vorschau in Slack/WhatsApp/Discord zeigt jetzt Artikeltitel/-beschreibung statt ueberall nur "Wiki"
+- Public-Regel per DB-Constraint/Trigger abgesichert (Migration Block 10): Slug-Pflicht als CHECK, Kategorie-Pflicht als Trigger, der nur bei `UPDATE OF is_public` feuert (nicht bei jedem Autosave). Edit-Seite synct Kategorien deshalb jetzt vor statt nach dem `notes`-Update, sonst haette der Trigger den allerersten Publish blockiert
+
 ---
 
 ## UX-Regeln
@@ -362,6 +370,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
 - [x] Block 9 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
+- [ ] **Block 10 aus `migration.sql` noch ausfuehren**: Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
 
 ### Deploy
 
@@ -372,7 +381,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [ ] Kein Vercel — Hosting-Plattform/Deploy-Weg noch offen (z. B. eigener Server mit `next build && next start` oder `output: 'standalone'` + Docker/Reverse Proxy)
 - [ ] Supabase-Credentials als Env-Vars beim gewaehlten Hosting setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
 - [ ] Custom Domain `wiki.simonwied.com` beim gewaehlten Hosting/DNS konfigurieren
-- [ ] Public-Regel (`is_public` braucht Slug + Kategorie) nur app-seitig validiert, kein DB-Constraint (siehe Roadmap unten) — bei mehreren Nutzern relevanter als vorher, vor Launch abwaegen
+- [x] Public-Regel per DB-Constraint/Trigger implementiert (Migration Block 10, 2026-07-06) — muss noch im Supabase SQL Editor ausgefuehrt werden (siehe Setup-Checkliste oben), Restluecke siehe Datenbankschema oben
 
 ---
 
@@ -414,7 +423,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 - [ ] Canvas-Editor Touch-Bedienung (Pan/Pinch-Zoom/Block-Drag per Touch) — Ansicht ist mobil nutzbar, Bearbeiten braucht Maus
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
-- [ ] Public-Regel per DB-Trigger/Constraint absichern (aktuell nur App-Validierung)
+- [x] Public-Regel per DB-Trigger/Constraint absichern (Migration Block 10, 2026-07-06)
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
 - [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten
 
