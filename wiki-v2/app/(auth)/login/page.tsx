@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { use, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const urlError = use(searchParams).error
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    urlError === 'confirmation'
+      ? 'Bestätigung fehlgeschlagen oder Link abgelaufen. Bitte melde dich an oder registriere dich erneut.'
+      : ''
+  )
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
