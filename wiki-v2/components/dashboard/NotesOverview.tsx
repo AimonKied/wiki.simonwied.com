@@ -39,7 +39,7 @@ function LockIcon() {
   )
 }
 
-function NoteRow({ note, onDeleteRequest }: { note: Note; onDeleteRequest: (note: Note) => void }) {
+function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteRequest: (note: Note) => void; onUnpublish: (note: Note) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const isArticle = note.content_type === 'article'
@@ -128,6 +128,30 @@ function NoteRow({ note, onDeleteRequest }: { note: Note; onDeleteRequest: (note
           borderRadius: '10px',
           boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
         }}>
+          {note.is_public && (
+            <button
+              type="button"
+              title="Notiz wieder privat schalten"
+              onClick={() => { setMenuOpen(false); onUnpublish(note) }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '6px',
+                background: 'transparent',
+                color: 'var(--muted)',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              Privat schalten
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { setMenuOpen(false); onDeleteRequest(note) }}
@@ -182,11 +206,20 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
     document.dispatchEvent(new Event('wiki-notes-changed'))
   }
 
+  async function unpublishNote(note: Note) {
+    const supabase = createClient()
+    const { error } = await supabase.from('notes').update({ is_public: false }).eq('id', note.id)
+    if (error) return
+    setNotes(current => current.map(n => n.id === note.id ? { ...n, is_public: false } : n))
+    // Sidebar "Zuletzt" refetches on this
+    document.dispatchEvent(new Event('wiki-notes-changed'))
+  }
+
   function renderList(list: Note[]) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {list.map(note => (
-          <NoteRow key={note.id} note={note} onDeleteRequest={setPendingDelete} />
+          <NoteRow key={note.id} note={note} onDeleteRequest={setPendingDelete} onUnpublish={unpublishNote} />
         ))}
       </div>
     )

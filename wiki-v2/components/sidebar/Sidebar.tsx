@@ -377,6 +377,16 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
     }
   }
 
+  async function unpublishNote(noteId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('notes').update({ is_public: false }).eq('id', noteId)
+    if (error) return
+    await reloadNotesRef.current?.()
+    setOpenMenuId(null)
+    setHoveredNoteId(null)
+    document.dispatchEvent(new Event('wiki-notes-changed'))
+  }
+
   // Verlaufsreihenfolge kommt aus recentIds: die aktive Notiz wurde beim
   // Oeffnen bereits nach vorn gebumpt.
   const visibleNotes = recentNotes
@@ -389,9 +399,8 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
       {visibleNotes.map(note => {
         const href = `/notes/${note.id}/edit`
         const isActive = pathname === href
-        const isArticle = note.content_type === 'article'
         const showMenu = openMenuId === note.id
-        const showActions = isArticle && (hoveredNoteId === note.id || showMenu)
+        const showActions = hoveredNoteId === note.id || showMenu
         return (
           <div
             key={note.id}
@@ -431,41 +440,39 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
               )}
             </Link>
 
-            {isArticle && (
-              <button
-                type="button"
-                aria-label="Artikeloptionen"
-                onClick={e => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setOpenMenuId(current => current === note.id ? null : note.id)
-                  setHoveredNoteId(note.id)
-                }}
-                style={{
-                  position: 'absolute',
-                  right: '6px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: '20px',
-                  height: '20px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: showActions ? 'var(--surface2)' : 'transparent',
-                  color: showActions ? 'var(--text)' : 'var(--muted)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: showActions ? 1 : 0,
-                  pointerEvents: showActions ? 'auto' : 'none',
-                  transition: 'opacity 0.12s, background 0.12s, color 0.12s',
-                }}
-              >
-                ⋯
-              </button>
-            )}
+            <button
+              type="button"
+              aria-label="Notizoptionen"
+              onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setOpenMenuId(current => current === note.id ? null : note.id)
+                setHoveredNoteId(note.id)
+              }}
+              style={{
+                position: 'absolute',
+                right: '6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '20px',
+                height: '20px',
+                border: 'none',
+                borderRadius: '6px',
+                background: showActions ? 'var(--surface2)' : 'transparent',
+                color: showActions ? 'var(--text)' : 'var(--muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: showActions ? 1 : 0,
+                pointerEvents: showActions ? 'auto' : 'none',
+                transition: 'opacity 0.12s, background 0.12s, color 0.12s',
+              }}
+            >
+              ⋯
+            </button>
 
-            {showMenu && isArticle && (
+            {showMenu && (
               <div style={{
                 position: 'absolute',
                 right: '6px',
@@ -478,6 +485,30 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
                 borderRadius: '10px',
                 boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
               }}>
+                {note.is_public && (
+                  <button
+                    type="button"
+                    title="Notiz wieder privat schalten"
+                    onClick={() => unpublishNote(note.id)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      background: 'transparent',
+                      color: 'var(--muted)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    Privat schalten
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

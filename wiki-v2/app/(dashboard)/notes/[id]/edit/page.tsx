@@ -66,7 +66,7 @@ export default function EditNotePage() {
   const mdImportRef = useRef<HTMLInputElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
-  // Sekundaere Aktionen (MD-Import/-Export, Zurueckziehen, Loeschen) im ⋯-Menue
+  // Sekundaere Aktionen (MD-Import/-Export, Privat schalten, Loeschen) im ⋯-Menue
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
   const actionsMenuRef = useRef<HTMLDivElement>(null)
 
@@ -415,7 +415,7 @@ export default function EditNotePage() {
                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                       >
-                        Zurückziehen
+                        Privat schalten
                       </button>
                     )}
                     <button
