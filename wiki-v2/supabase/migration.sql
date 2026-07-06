@@ -175,3 +175,57 @@ insert into profiles (id, display_name)
 select id, coalesce(nullif(raw_user_meta_data->>'display_name', ''), split_part(email, '@', 1))
 from auth.users
 on conflict (id) do update set display_name = excluded.display_name;
+
+-- 10. Public-Regel als DB-Constraint absichern (bisher nur App-Validierung):
+--     oeffentliche Notizen brauchen Slug + mindestens eine Kategorie.
+--     Slug ist ein einfacher CHECK (gleiche Zeile). Die Kategorie-Pflicht
+--     braucht einen Trigger (andere Tabelle) und feuert bewusst nur, wenn
+--     die is_public-Spalte selbst im UPDATE steckt -- nicht bei jedem
+--     Autosave. Grund: die Edit-Seite synct Kategorien per Delete-dann-
+--     Insert bei JEDEM Speichern (auch reinen Entwuerfen); wuerde der
+--     Trigger auch bei is_public-unabhaengigen Updates pruefen, wuerde er
+--     bei jedem Autosave einer bereits oeffentlichen Notiz kurz auf 0
+--     Kategorien (zwischen Delete und Insert) anschlagen und den Speicher-
+--     vorgang blockieren. "UPDATE OF is_public" feuert nur, wenn diese
+--     Spalte tatsaechlich im SET der Query steht -- bei Draft-Autosaves
+--     ist sie nicht dabei.
+--
+--     Restluecke: Wer alle Kategorien einer bereits oeffentlichen Notiz
+--     entfernt, OHNE gleichzeitig is_public anzufassen, wird davon nicht
+--     abgefangen (dafuer bräuchte es eine eigene Transaktion/RPC statt der
+--     drei separaten Client-Requests, die die App aktuell macht). Die App
+--     macht das nirgends, aber ein direkter API-Call koennte es theoretisch.
+
+-- Sicherheitsnetz: bestehende Verstoesse vor dem CHECK entschaerfen
+update notes set is_public = false where is_public and slug is null;
+
+alter table notes drop constraint if exists notes_public_requires_slug;
+alter table notes add constraint notes_public_requires_slug
+  check (not is_public or slug is not null);
+
+create or replace function assert_public_note_has_category(p_note_id uuid)
+returns void as $$
+declare
+  cat_count int;
+begin
+  select count(*) into cat_count from note_categories where note_id = p_note_id;
+  if cat_count = 0 then
+    raise exception 'Oeffentliche Notizen brauchen mindestens eine Kategorie (note_id=%)', p_note_id;
+  end if;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function trg_notes_require_category_on_publish()
+returns trigger as $$
+begin
+  if new.is_public then
+    perform assert_public_note_has_category(new.id);
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists notes_require_category_on_publish on notes;
+create trigger notes_require_category_on_publish
+  after insert or update of is_public on notes
+  for each row execute function trg_notes_require_category_on_publish();

@@ -173,16 +173,22 @@ export default function EditNotePage() {
     saveChain.current = saveChain.current
       .then(async () => {
         const supabase = createClient()
-        const { error } = await supabase.from('notes').update(payload).eq('id', id)
-        if (error) { setSaveStatus('error'); return }
 
-        // Sync categories: delete all, re-insert current selection
-        await supabase.from('note_categories').delete().eq('note_id', id)
+        // Kategorien zuerst synchronisieren (delete all, re-insert current
+        // selection) — muss vor dem notes-Update passieren: die DB blockt
+        // is_public=true ohne verknuepfte Kategorie (siehe migration.sql
+        // Block 10), das wuerde sonst jeden ersten Publish verhindern.
+        const { error: catDeleteError } = await supabase.from('note_categories').delete().eq('note_id', id)
+        if (catDeleteError) { setSaveStatus('error'); return }
         if (cats.length > 0) {
-          await supabase.from('note_categories').insert(
+          const { error: catInsertError } = await supabase.from('note_categories').insert(
             cats.map(cat_id => ({ note_id: id, category_id: cat_id }))
           )
+          if (catInsertError) { setSaveStatus('error'); return }
         }
+
+        const { error } = await supabase.from('notes').update(payload).eq('id', id)
+        if (error) { setSaveStatus('error'); return }
         setSaveStatus('saved')
         // Sidebar "Zuletzt" refetches on this — instant even without Supabase realtime
         document.dispatchEvent(new Event('wiki-notes-changed'))
