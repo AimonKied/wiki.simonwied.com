@@ -16,15 +16,15 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.2s ease both' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px' }}>
-        <div>
+      <div className="dashboard-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '32px' }}>
+        <div className="dashboard-heading">
           <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px', fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}>Arbeitsbereich</h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
             Inhalte erstellen, bearbeiten und für die öffentliche Startseite freigeben.
             {user?.email && <span style={{ display: 'block', fontSize: '12px' }}>{user.email}</span>}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="dashboard-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <ThemeToggle />
           <NewContentButton />
         </div>
