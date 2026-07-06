@@ -51,16 +51,25 @@ width, the decorative grid is hidden while editing).
 The note editor uses a large canvas workspace rather than a narrow document column.
 Pan, pinch-zoom, block drag, resize, and element reorder all run on Pointer
 Events (`components/editor/Editor.tsx`, `SectionNode.tsx`), so mouse and touch
-share the same code path — one finger on empty canvas pans, two fingers pinch-
-zoom. Lasso multi-select stays mouse-only (a touch drag on empty canvas is pan,
-not lasso).
+share the same code path. Touch gestures (Canva-style): one finger on empty
+canvas pans; two fingers pan **and** pinch-zoom simultaneously, anywhere — even
+over blocks (touch contacts are tracked before the block-exclusion checks, or
+the gesture would never start when a finger lands on a block); in hand mode
+(palette ✋) one finger pans over blocks too. Lasso multi-select stays
+mouse-only. The read-only public view gets the same navigation (drag-pan on
+empty canvas, one-finger pan anywhere, pinch, `Ctrl`+wheel) — only editing
+tools (lasso, palette, minimap) stay `editable`-gated.
 
-On ≥769px the page chrome gets out of the way: `NoteHeader` renders a compact
-single-line bar (`floating` prop) instead of the full title/description/badges
-block, and `.app-main`'s padding drops to 0 via `.app-main:has(.note-editor-shell
-[data-content-type="workspace"])` in `globals.css`, so the canvas reaches the
-sidebar edge instead of sitting in a bordered, padded box. Article notes are
-unaffected — same `NoteHeader`, `floating` just isn't set.
+The canvas is the page (Canva model): `.canvas-viewport` fills the whole
+viewport (`100dvh`; minus the 56px topbar on mobile) and all chrome floats on
+top of it. `NoteHeader` (`floating` prop) renders as an absolutely positioned
+semi-transparent pill; collapsed it shrinks to a round button top-right (same
+chevron SVG, flipped). The zoom bar sits bottom-right, the element palette
+top-right, the minimap bottom-left (hand mode only). On workspace pages the
+body grid overlay and `min-height` are disabled (`body:has(...)` in
+`globals.css`) — otherwise the page background shows as stripes on mobile when
+`dvh`/`vh` diverge. Article notes are unaffected — same `NoteHeader`,
+`floating` just isn't set.
 
 - Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
 - Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.
@@ -70,7 +79,13 @@ unaffected — same `NoteHeader`, `floating` just isn't set.
 - "Auto" resets a block to content-sized width/height; new blocks are content-sized by default (max 960px).
 - Hold `Space` and drag with the left mouse button to pan; `Ctrl`/`Cmd` + mouse wheel or the zoom buttons zoom.
 - Blocks snap to matching edges of nearby blocks and show alignment guides (single-block move/resize only).
-- Clicking an entry in the right outline sidebar pans the block animated to the workspace center.
+- The block outline (`RightSidebar.tsx`) floats on the left, vertically
+  centered (the right edge belongs to palette and zoom bar); clicking an entry
+  pans the block animated to the workspace center, double-click renames. It
+  collapses to a round button (persisted in localStorage) and follows the app
+  sidebar's collapsed state. Below 1100px it becomes a right-hand drawer opened
+  via a floating button above the zoom bar — same UX as the article TOC, shared
+  CSS (`.toc-*`/`.outline-*`).
 
 Section geometry is stored on TipTap section nodes as `x`, `y`, `w`, `h` and `z` attributes.
 Sections without stored positions render in normal flow once; right after the first
@@ -96,7 +111,8 @@ components/editor/
   ArticleEditor.tsx            linear Notion-style article editor (slash menu)
   NoteHeader.tsx               shared header (emoji/title/description/badges) for
                                edit and public view; `editable` flag toggles
-                               inputs vs. static text
+                               inputs vs. static text; `floating` renders it as
+                               a collapsible overlay pill on the canvas
   ArticleToc.tsx               sticky table of contents (editor + public view),
                                right-side drawer below 1100px
   SectionNode.tsx              section node view: move/resize/snap, selection store,
@@ -106,7 +122,9 @@ components/editor/
   MediaNodes.tsx               resizable image node (Supabase Storage upload)
   elementPalette.ts            shared block palette + slash-menu ranking
   editorTransforms.ts          line/block transformations shared by both editors
-  RightSidebar.tsx             canvas outline, click pans block to workspace center
+  RightSidebar.tsx             block outline: floating left panel (collapsible),
+                               right-hand drawer below 1100px; click pans block
+                               to workspace center
   EmojiPicker.tsx              emoji picker for note icons
 components/sidebar/
   Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note

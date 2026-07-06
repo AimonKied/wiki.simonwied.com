@@ -96,13 +96,13 @@ wiki-v2/
     editor/
       Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
       ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
-      NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text
+      NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text; floating-Modus = schwebende Overlay-Pille auf dem Canvas (einklappbar)
       ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Off-Canvas-Drawer mit schwebendem Button
       SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
       ToggleNode.tsx          Toggle-Element (<details>/<summary>)
       CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
       MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
-      RightSidebar.tsx        Workspace-Outline
+      RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel links (einklappbar), unter 1100px rechter Drawer
       elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
       editorTransforms.ts     Doc-Transformationen
       EmojiPicker.tsx
@@ -337,6 +337,18 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Ab 769px verschwindet `.app-main`s Seiten-Padding komplett, wenn eine Workspace-Notiz drin steckt (`.app-main:has(.note-editor-shell[data-content-type="workspace"])`) — Canvas reicht randlos bis zur Sidebar statt in einer eingebetteten, umrandeten Box zu sitzen
 - Canvas-Box (`Editor.tsx`) verliert Rand/Eckenradius (Hintergrund ist ohnehin `var(--bg)`, identisch zum Seitenhintergrund) und bekommt eine neue `.canvas-viewport`-Klasse statt fester Inline-Hoehe, mit eigenem Media-Query-Wert fuer Mobil (dort bleibt `.app-main`s Padding bestehen, um die Mobil-Topbar freizuhalten)
 - Ein `position:fixed`-Balken war die erste Idee, wurde aber verworfen — haette den Sidebar-Offset (0 wenn eingeklappt, 260px sonst) und die Mobil-Topbar manuell nachbilden muessen; die kompakte Leiste bleibt stattdessen im normalen Dokumentfluss und erbt die Positionierung automatisch
+
+### Erledigt (Runde 12 — Vollbild-Canvas nach Canva-Vorbild, 2026-07-06)
+
+Ersetzt Teile von Runde 10/11: der Canvas ist jetzt die Seite, alles Chrome schwebt drueber.
+
+- **Vollbild-Canvas**: `.canvas-viewport` fuellt den kompletten Viewport (`100dvh`, Mobil minus 56px-Topbar, dort randlos ohne Seiten-Padding). Auf Workspace-Seiten sind Body-Grid-Overlay und `min-height` aus (`body:has(...)`) — sonst blitzt der Seitenhintergrund als Streifen durch, wenn mobile `dvh`/`vh` auseinanderlaufen (URL-Leiste); `overscroll-behavior: none` gegen Gummiband-Effekt
+- **Kopfleiste als Overlay-Pille**: `NoteHeader` (floating) liegt absolut auf dem Canvas (halbtransparent + Blur) statt Platz zu reservieren; eingeklappt nur ein runder Button oben rechts. Chevron als eine SVG-Komponente (einmal gedreht) — Unicode-Pfeile (⌄/︿) rendern je nach Font verschieden. Das alte `data-workspace-header-collapsed`-Body-Attribut samt CSS-Hoehenregeln ist weg (Canvas ist immer voll). Public-Autor steht als `meta` in der Pille statt als eigene Zeile
+- **Chrome-Anordnung**: Zoom-Leiste unten rechts (vorher oben rechts, kollidierte mit der Pille), Element-Palette oben rechts, Minimap unten links
+- **Touch-Gesten ueberall**: Zwei Finger pannen UND zoomen gleichzeitig, auch komplett ueber Bloecken — Touch-Kontakte werden vor den Ausschluss-Checks getrackt (vorher startete die Geste nie, wenn der erste Finger auf einem Block lag, und auf Mobil decken Bloecke fast den ganzen Canvas ab); der Weltpunkt unterm Finger-Mittelpunkt klebt an der Bewegung. Hand-Modus (✋): Ein-Finger-Pan auch ueber Bloecken
+- **Public-Ansicht navigierbar**: der Pan/Zoom-Effekt war komplett `editable`-gated — Viewer hatten nur die +/−-Buttons. Jetzt: Drag-Pan auf leerem Canvas (ohne Space/Hand-Modus), Ein-Finger-Touch-Pan ueberall, Pinch, Ctrl+Wheel; Bearbeiten-Werkzeuge (Lasso, Palette, Minimap) bleiben editable-only
+- **Blockliste**: schwebendes Panel links, vertikal zentriert (rechts liegen Palette + Zoom), rueckt bei eingeklappter App-Sidebar nach; per ✕ auf einen runden Button einklappbar (localStorage). Unter 1100px rechter Drawer mit schwebendem Button ueber der Zoom-Leiste — gleiche UX wie das Artikel-TOC, geteilte CSS-Regeln (`.toc-*`/`.outline-*`). Vorher lag das Panel rechts-mittig direkt auf der Element-Palette
+- Verifiziert per Headless-Chromium mit Touch-Emulation (Ein-/Zwei-Finger-Gesten, Pinch, Hand-Modus, Viewer-Pan, Drawer oeffnen/schliessen)
 
 ---
 
