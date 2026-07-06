@@ -49,6 +49,11 @@ width, the decorative grid is hidden while editing).
 ## Editor Workspace
 
 The note editor uses a large canvas workspace rather than a narrow document column.
+Pan, pinch-zoom, block drag, resize, and element reorder all run on Pointer
+Events (`components/editor/Editor.tsx`, `SectionNode.tsx`), so mouse and touch
+share the same code path — one finger on empty canvas pans, two fingers pinch-
+zoom. Lasso multi-select stays mouse-only (a touch drag on empty canvas is pan,
+not lasso).
 
 - Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
 - Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.

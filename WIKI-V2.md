@@ -324,6 +324,13 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Eigene Title/Description/Open-Graph/Twitter-Metadaten pro oeffentlicher Notiz-Seite (`generateMetadata`) — Link-Vorschau in Slack/WhatsApp/Discord zeigt jetzt Artikeltitel/-beschreibung statt ueberall nur "Wiki"
 - Public-Regel per DB-Constraint/Trigger abgesichert (Migration Block 10): Slug-Pflicht als CHECK, Kategorie-Pflicht als Trigger, der nur bei `UPDATE OF is_public` feuert (nicht bei jedem Autosave). Edit-Seite synct Kategorien deshalb jetzt vor statt nach dem `notes`-Update, sonst haette der Trigger den allerersten Publish blockiert
 
+### Erledigt (Runde 10 — Canvas-Editor Touch-Bedienung)
+
+- Pan, Pinch-Zoom, Block verschieben, Resize-Handles und Element-Reorder (⠿) im Workspace-Canvas laufen jetzt ueber Pointer Events (`onPointerDown`/`pointermove`/`pointerup`/`pointercancel` + `setPointerCapture`) statt ausschliesslich Maus-Events — vorher war Touch dort eine komplette Totzone (der Workspace-Container setzt bereits `touchAction: 'none'`, es gab aber keinerlei Touch-Handling, das stattdessen greift)
+- Ein Finger auf leerem Canvas ziehen = pannen (kein Spacebar-Aequivalent auf Touch); zwei Finger = Pinch-Zoom (nutzt dieselbe `zoomAt`-Funktion wie Strg/Cmd+Wheel, inkl. Clamping 0.25–2.5)
+- Bestehende Maus-Bedienung unveraendert (PointerEvent ist ein Superset von MouseEvent, dieselbe Delta-/Snap-/Clamp-Logik greift weiter)
+- Bewusst nicht gebaut: Lasso-Mehrfachauswahl per Touch (Konflikt mit Ein-Finger-Pan, bräuchte eigenen Toggle-Button)
+
 ---
 
 ## UX-Regeln
@@ -370,7 +377,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
 - [x] Block 9 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
-- [ ] **Block 10 aus `migration.sql` noch ausfuehren**: Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
+- [x] Block 10 aus `migration.sql` ausgefuehrt (2026-07-06): Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
 
 ### Deploy
 
@@ -381,7 +388,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [ ] Kein Vercel — Hosting-Plattform/Deploy-Weg noch offen (z. B. eigener Server mit `next build && next start` oder `output: 'standalone'` + Docker/Reverse Proxy)
 - [ ] Supabase-Credentials als Env-Vars beim gewaehlten Hosting setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
 - [ ] Custom Domain `wiki.simonwied.com` beim gewaehlten Hosting/DNS konfigurieren
-- [x] Public-Regel per DB-Constraint/Trigger implementiert (Migration Block 10, 2026-07-06) — muss noch im Supabase SQL Editor ausgefuehrt werden (siehe Setup-Checkliste oben), Restluecke siehe Datenbankschema oben
+- [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 10, 2026-07-06) — Restluecke siehe Datenbankschema oben
 
 ---
 
@@ -421,7 +428,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 ### Unabhaengig davon (App-Ebene)
 
-- [ ] Canvas-Editor Touch-Bedienung (Pan/Pinch-Zoom/Block-Drag per Touch) — Ansicht ist mobil nutzbar, Bearbeiten braucht Maus
+- [x] Canvas-Editor Touch-Bedienung (2026-07-06): Pan (1 Finger auf leerem Canvas), Pinch-Zoom (2 Finger), Block verschieben, Resize-Handles und Element-Reorder (⠿) laufen jetzt über Pointer Events statt reiner Maus-Events. Lasso-Mehrfachauswahl per Touch bewusst nicht gebaut (Ein-Finger-Ziehen auf leerem Canvas ist jetzt Pan; Lasso bräuchte einen eigenen Touch-Toggle-Button)
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
 - [x] Public-Regel per DB-Trigger/Constraint absichern (Migration Block 10, 2026-07-06)
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
