@@ -1,259 +1,117 @@
-import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/sidebar/Sidebar'
 import Link from 'next/link'
-import type { Category, Note } from '@/lib/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
-const contentTypes = [
-  {
-    key: 'article',
-    title: 'Artikel',
-  },
-  {
-    key: 'workspace',
-    title: 'Workspace Canvas',
-  },
-]
-
-type PublicNote = {
-  id: string
-  title: string
-  emoji: string | null
-  description: string | null
-  slug: string | null
-  content_type: string
-  updated_at: string
-  categories: Category[]
-  author: string | null
-}
-
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ category?: string; type?: string }>
-}) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const params = await searchParams
-  const activeCategory = params?.category
-  const activeType = params?.type
-
-  // Load categories, public notes and the user's recent notes in parallel.
-  const recentNotesPromise = user
-    ? supabase
-      .from('notes')
-      .select('id, title, emoji, content_type, is_public, slug, updated_at')
-      .eq('user_id', user.id)
-      .not('last_opened_at', 'is', null)
-      .order('last_opened_at', { ascending: false })
-      .limit(8)
-    : Promise.resolve({ data: [] })
-
-  const [catsRes, notesRes, recentNotesRes] = await Promise.all([
-    supabase.from('categories').select('*').order('position').order('title'),
-    supabase
-      .from('notes')
-      .select(`
-        id, user_id, title, emoji, description, slug, content_type, updated_at, published,
-        note_categories(category_id, categories(id, slug, title, color))
-      `)
-      .eq('is_public', true)
-      .order('updated_at', { ascending: false }),
-    recentNotesPromise,
-  ])
-
-  const categories: Category[] = (catsRes.data ?? []) as Category[]
-
-  // Autoren-Namen: ein Batch-Lookup in profiles statt Join (kein FK notes→profiles)
-  const authorIds = [...new Set((notesRes.data ?? []).map((n: Record<string, unknown>) => n.user_id as string))]
-  const { data: profiles } = authorIds.length > 0
-    ? await supabase.from('profiles').select('id, display_name').in('id', authorIds)
-    : { data: [] }
-  const authorById = new Map((profiles ?? []).map(p => [p.id as string, p.display_name as string]))
-
-  // Flatten the nested Supabase join result into a clean shape
-  const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => {
-    // Public listing reflects the frozen snapshot, not the owner's live draft.
-    const pub = (n.published ?? null) as {
-      title?: string; emoji?: string | null; description?: string | null; slug?: string | null
-    } | null
-    return {
-    id: n.id as string,
-    title: pub?.title ?? (n.title as string),
-    emoji: pub?.emoji ?? (n.emoji as string | null),
-    description: pub?.description ?? (n.description as string | null),
-    slug: pub?.slug ?? (n.slug as string | null),
-    content_type: n.content_type as string,
-    updated_at: n.updated_at as string,
-    categories: ((n.note_categories as Array<{ categories: Category | null }>) ?? [])
-      .map(nc => nc.categories)
-      .filter((c): c is Category => c !== null),
-    author: authorById.get(n.user_id as string) ?? null,
-    }
-  })
-
-  const filteredNotes = allPublicNotes.filter(note =>
-    (!activeCategory || note.categories.some(c => c.slug === activeCategory)) &&
-    (!activeType || note.content_type === activeType)
-  )
-  const activeCategoryTitle = activeCategory
-    ? categories.find(category => category.slug === activeCategory)?.title
-    : null
-  const activeTypeTitle = activeType
-    ? contentTypes.find(type => type.key === activeType)?.title
-    : null
-
+// Beta-Landing-Page auf / — die Bibliothek (frueher hier) lebt unter
+// /bibliothek. Ersetzt die statische Teaser-Seite aus dem Repo-Root:
+// ein Deploy serviert Landing UND Wiki auf wiki.simonwied.com.
+export default function LandingPage() {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={!!user} notes={(recentNotesRes.data ?? []) as Note[]} />
-      <main className="app-main" style={{ overflowY: 'visible', animation: 'fadeIn 0.2s ease both' }}>
-        <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
-            <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>
-              <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}>
-                Bibliothek
-              </h1>
-              <p style={{ fontSize: '14px', color: 'var(--muted)', maxWidth: '760px', lineHeight: 1.7 }}>
-                Öffentliche Notizen, Artikel und Workspaces.
-              </p>
-            </div>
-            <ThemeToggle />
-          </div>
+    <main style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      zIndex: 1,
+      padding: '60px 20px',
+    }}>
+      <div style={{ position: 'fixed', top: '16px', right: '16px' }}>
+        <ThemeToggle />
+      </div>
 
-          <div id="kategorien" style={{ marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 700 }}>
-              Kategorien
-            </h2>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Link
-                href="/"
-                style={{
-                  padding: '7px 11px',
-                  borderRadius: '999px',
-                  border: `1px solid ${!activeCategory ? 'var(--accent)' : 'var(--border)'}`,
-                  background: !activeCategory ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
-                  color: !activeCategory ? 'var(--accent)' : 'var(--text)',
-                  fontSize: '12px',
-                  fontWeight: !activeCategory ? 700 : 500,
-                  textDecoration: 'none',
-                }}
-              >
-                Alle
-              </Link>
-              {categories.map(category => (
-                <Link
-                  key={category.slug}
-                  href={`/?category=${category.slug}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    padding: '7px 11px',
-                    borderRadius: '999px',
-                    border: `1px solid ${activeCategory === category.slug ? 'var(--accent)' : 'var(--border)'}`,
-                    background: activeCategory === category.slug ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
-                    color: activeCategory === category.slug ? 'var(--accent)' : 'var(--text)',
-                    fontSize: '12px',
-                    fontWeight: activeCategory === category.slug ? 700 : 500,
-                    textDecoration: 'none',
-                  }}
-                >
-                  {category.title}
-                </Link>
-              ))}
-            </div>
-          </div>
+      <div style={{ width: 'min(540px, 100%)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-            {contentTypes.map(type => {
-              const isActive = activeType === type.key
-              // Re-clicking the active type clears the filter (show all)
-              const params = new URLSearchParams()
-              if (!isActive) params.set('type', type.key)
-              if (activeCategory) params.set('category', activeCategory)
-              const query = params.toString()
-              return (
-              <Link
-                key={type.key}
-                href={query ? `/?${query}` : '/'}
-                style={{
-                  padding: '7px 11px',
-                  borderRadius: '999px',
-                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-                  background: isActive ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--surface)',
-                  color: isActive ? 'var(--accent)' : 'var(--text)',
-                  fontSize: '12px',
-                  fontWeight: isActive ? 700 : 500,
-                  textDecoration: 'none',
-                }}
-              >
-                {type.title}
-              </Link>
-              )
-            })}
-          </div>
-        </section>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '10px',
+          fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: 'var(--accent)', marginBottom: '20px', fontWeight: 700,
+        }}>
+          <span style={{
+            width: '7px', height: '7px', borderRadius: '50%',
+            background: 'var(--accent)', animation: 'pulse 2s ease-in-out infinite',
+          }} />
+          Beta im Aufbau
+        </div>
 
-        <section id="oeffentlich" style={{ width: '100%', maxWidth: 'min(100%, 1480px)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              {activeCategoryTitle || activeTypeTitle ? 'Gefiltert' : 'Inhalte'}
-            </h2>
-            {(activeCategoryTitle || activeTypeTitle) && (
-              <Link href="/" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-                Filter zurücksetzen
-              </Link>
-            )}
-          </div>
+        <h1 style={{
+          fontSize: 'clamp(32px, 7vw, 52px)', fontWeight: 800, lineHeight: 1.05,
+          letterSpacing: '-0.02em', marginBottom: '20px', fontFamily: 'var(--font-display)',
+        }}>
+          Wird gerade neu gebaut.
+        </h1>
 
-          {filteredNotes.length === 0 ? (
-            <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Keine Inhalte gefunden.</p>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '12px' }}>
-              {filteredNotes.map(note => {
-                const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
-                const type = contentTypes.find(t => t.key === note.content_type)
-                const meta = [...note.categories.map(cat => cat.title), type?.title ?? note.content_type].join(' / ')
-                const byline = note.author ? `Von ${note.author}` : null
-                return (
-                  <Link
-                    key={note.id}
-                    href={href}
-                    style={{
-                      display: 'block',
-                      minHeight: '118px',
-                      padding: '16px 18px',
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      color: 'var(--text)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '15px', fontWeight: 750, marginBottom: note.description ? '5px' : 0 }}>
-                          {note.emoji && <span style={{ marginRight: '6px' }}>{note.emoji}</span>}
-                          {note.title}
-                        </div>
-                        {note.description && (
-                          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
-                            {note.description}
-                          </p>
-                        )}
-                      </div>
-                      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.5 }}>
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</span>
-                        {byline && <span style={{ flexShrink: 0 }}>{byline}</span>}
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      </main>
-    </div>
+        <p style={{ fontSize: '14px', lineHeight: 1.8, color: 'var(--muted)', marginBottom: '40px' }}>
+          Die Wiki bekommt ein neues Fundament. Früher kamen neue Seiten per Pull Request,
+          jetzt kann man Inhalte direkt auf der Webseite erstellen und verwalten.
+        </p>
+
+        <ul style={{
+          listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px',
+          marginBottom: '16px', padding: '24px', border: '1px solid var(--border)',
+          borderRadius: '12px', background: 'var(--surface)', width: '100%',
+        }}>
+          {[
+            'Inhalte direkt im Browser anlegen, statt über Pull Requests',
+            'Artikel schreiben, speichern und veröffentlichen ohne Git-Workflow',
+            'Inhalte privat halten oder als öffentliche Wiki-Seite freigeben',
+          ].map(line => (
+            <li key={line} style={{ fontSize: '13px', color: 'var(--muted)', display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <span style={{ color: 'var(--accent)', flexShrink: 0 }}>→</span>
+              {line}
+            </li>
+          ))}
+        </ul>
+
+        <div style={{
+          width: '100%', border: '1px solid var(--border)', borderRadius: '12px',
+          background: 'var(--surface)', padding: '20px 24px 0', marginBottom: '48px', overflow: 'hidden',
+        }}>
+          <p style={{
+            fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--accent)', marginBottom: '10px', fontWeight: 700,
+          }}>
+            Neu: Canvas-Modus
+          </p>
+          <p style={{ fontSize: '13px', lineHeight: 1.8, color: 'var(--muted)', marginBottom: '20px' }}>
+            Kein lineares Scrollen — Inhalte frei auf einer Fläche anordnen.
+            Blöcke verschieben, zoomen, verknüpfen. Gut für Mindmaps,
+            Projektübersichten oder alles, was nicht in einen Artikel passt.
+          </p>
+          <div aria-hidden="true" style={{
+            position: 'relative', height: '120px', borderTop: '1px solid var(--border)',
+            backgroundImage: [
+              'linear-gradient(var(--grid-line) 1px, transparent 1px)',
+              'linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
+            ].join(', '),
+            backgroundSize: '24px 24px', margin: '0 -24px',
+          }}>
+            <span style={{ position: 'absolute', top: '16px', left: '18px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface2)', fontSize: '11px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Notiz A</span>
+            <span style={{ position: 'absolute', top: '48px', right: '22px', padding: '8px 12px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', fontSize: '11px', color: 'var(--accent)', whiteSpace: 'nowrap' }}>Idee B</span>
+            <span style={{ position: 'absolute', bottom: '14px', left: '38%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface2)', fontSize: '11px', color: 'var(--muted)', whiteSpace: 'nowrap', opacity: 0.5 }}>Referenz C</span>
+          </div>
+        </div>
+
+        <Link href="/bibliothek" style={{
+          display: 'inline-flex', alignItems: 'center', gap: '10px',
+          marginBottom: '18px', padding: '13px 24px',
+          background: 'var(--accent)', borderRadius: '10px',
+          color: '#fff', fontSize: '13px', fontWeight: 700, textDecoration: 'none',
+        }}>
+          <span style={{
+            fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+            padding: '3px 7px', borderRadius: '4px', background: 'rgba(255,255,255,0.22)',
+          }}>
+            Beta
+          </span>
+          Die neue Wiki ausprobieren
+          <span aria-hidden="true">→</span>
+        </Link>
+
+        <Link href="/login" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
+          Schon dabei? Anmelden →
+        </Link>
+
+      </div>
+    </main>
   )
 }
