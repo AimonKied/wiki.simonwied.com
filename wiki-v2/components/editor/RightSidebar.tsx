@@ -43,10 +43,9 @@ export default function RightSidebar({ content }: { content: object }) {
     setSections(extractSections(content))
   }, [content])
 
-  // Scroll tracking — listen on the main scroll container
+  // Scroll tracking — page scrolls on body, older views may still scroll main.
   useEffect(() => {
     const mainEl = document.querySelector('main')
-    if (!mainEl) return
 
     function onScroll() {
       const cards = Array.from(document.querySelectorAll('[data-section-card]'))
@@ -59,8 +58,15 @@ export default function RightSidebar({ content }: { content: object }) {
       setActiveIdx(active)
     }
 
-    mainEl.addEventListener('scroll', onScroll, { passive: true })
-    return () => mainEl.removeEventListener('scroll', onScroll)
+    onScroll()
+    mainEl?.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    return () => {
+      mainEl?.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [])
 
   function scrollTo(idx: number) {
