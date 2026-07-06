@@ -317,8 +317,9 @@ export default function EditNotePage() {
       style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}
     >
 
-      {/* Main editor column */}
-      <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
+      {/* Main editor column — relative als Anker fuer die schwebende
+          Workspace-Kopfleiste (NoteHeader floating) */}
+      <div className="note-editor-main" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
 
         <NoteHeader
           emoji={emoji}

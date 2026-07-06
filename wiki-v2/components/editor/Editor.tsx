@@ -1515,10 +1515,11 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         </BubbleMenu>
       )}
 
-      {/* Editor canvas — owns the background, anchor for future block resizing/positioning */}
+      {/* Zoom-Steuerung unten rechts (Canva-Muster) — oben liegt die
+          schwebende Kopfleisten-Pille, unten links die Minimap */}
       <div style={{
         position: 'absolute',
-        top: 10,
+        bottom: 12,
         right: 10,
         zIndex: 50,
         display: 'flex',

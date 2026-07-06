@@ -85,7 +85,7 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
       data-content-type={isArticle ? 'article' : 'workspace'}
       style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap', width: '100%' }}
     >
-      <div className="note-editor-main" style={{ flex: 1, minWidth: 0 }}>
+      <div className="note-editor-main" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
 
         <NoteHeader
           emoji={pub.emoji ?? ''}
@@ -98,6 +98,11 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           floating={!isArticle}
           editable={false}
           actions={<ThemeToggle />}
+          meta={!isArticle && authorName ? (
+            <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              Von {authorName}
+            </span>
+          ) : undefined}
           linkRight={isOwner && (
             <Link
               href={`/notes/${note.id}/edit`}
@@ -108,7 +113,9 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
           )}
         />
 
-        {authorName && (
+        {/* Autor-Zeile nur bei Artikeln im Flow — beim Workspace-Canvas
+            fuellt der Canvas den Viewport, Autor steht in der Pille (meta) */}
+        {authorName && isArticle && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '-8px 0 22px', fontSize: '12px', color: 'var(--muted)' }}>
             <span
               aria-hidden="true"

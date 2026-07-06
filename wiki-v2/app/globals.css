@@ -464,29 +464,36 @@ body[data-calm-bg="true"]::before {
 /* Kleine UI-Inputs: 16px auf Mobil verhindert den iOS-Auto-Zoom beim Fokus */
 .ui-input { font-size: 13px; }
 
-/* Canvas-Viewport-Hoehe: haengt davon ab, wie viel Platz das umgebende Chrome
-   reserviert -- auf Mobil bleibt .app-mains Padding bestehen (Mobil-Topbar),
-   auf Desktop ist es dank .canvas-viewport-Regel oben schon 0. */
+/* Workspace-Seiten: die Seite selbst zeigt keinen Hintergrund mehr — der
+   Canvas IST die Seite (Canva-Muster). Ohne das blitzt das body-Grid als
+   Streifen durch, sobald mobile dvh/vh auseinanderlaufen (URL-Leiste). */
+body:has(.note-editor-shell[data-content-type="workspace"]) {
+  min-height: 0;
+  overscroll-behavior: none;
+}
+
+body:has(.note-editor-shell[data-content-type="workspace"])::before {
+  display: none;
+}
+
+/* Canvas-Viewport: fuellt den kompletten Viewport (Canva-Muster) — die
+   Kopfleisten-Pille (NoteHeader) liegt als Overlay drauf statt Platz zu
+   reservieren. Auf Mobil bleibt nur die fixe 56px-Topbar abgezogen. */
 .canvas-viewport {
-  height: calc(100vh - 80px);
+  height: 100vh;
+  height: 100dvh;
   min-height: 520px;
 }
 
 @media (max-width: 768px) {
-  .canvas-viewport {
-    height: calc(100vh - 190px);
+  .app-main:has(.note-editor-shell[data-content-type="workspace"]) {
+    padding: 56px 0 0;
   }
-}
 
-/* Workspace-Kopfleiste eingeklappt (NoteHeader.tsx): Canvas holt sich den
-   frei gewordenen Platz zurueck statt ihn ungenutzt zu lassen. */
-body[data-workspace-header-collapsed="true"] .canvas-viewport {
-  height: calc(100vh - 32px);
-}
-
-@media (max-width: 768px) {
-  body[data-workspace-header-collapsed="true"] .canvas-viewport {
-    height: calc(100vh - 150px);
+  .canvas-viewport {
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
+    min-height: 0;
   }
 }
 

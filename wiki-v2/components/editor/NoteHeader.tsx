@@ -5,6 +5,19 @@ import EmojiPicker from './EmojiPicker'
 
 const WORKSPACE_HEADER_COLLAPSED_KEY = 'wiki-workspace-header-collapsed'
 
+// Ein Chevron fuer beide Zustaende der Workspace-Kopfleiste — Unicode-Pfeile
+// (︿/⌄) rendern je nach Font verschieden, SVG bleibt identisch.
+function ChevronUp({ flipped }: { flipped?: boolean }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
+      style={{ display: 'block', transform: flipped ? 'rotate(180deg)' : undefined }}
+    >
+      <path d="M2.5 7.5 L6 4 L9.5 7.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 // Eine Chrome fuer Edit- und Public-Ansicht einer Notiz, damit beide exakt
 // gleich aussehen (Notion-Style: Viewer sieht dieselbe Seite, nur ohne
 // Eingabefelder/Aktionen). `editable=false` macht aus Inputs statischen Text.
@@ -23,6 +36,7 @@ export default function NoteHeader({
   titleInputRef,
   actions,
   linkRight,
+  meta,
   floating,
 }: {
   emoji: string
@@ -39,33 +53,30 @@ export default function NoteHeader({
   titleInputRef?: React.Ref<HTMLInputElement>
   actions?: React.ReactNode
   linkRight?: React.ReactNode
-  // Kompakte einzeilige Kopfleiste statt Titel+Beschreibung+Badges — fuer
-  // Workspace-Notizen, deren Canvas selbst im Vordergrund stehen soll.
+  // Kleine Zusatzinfo in der schwebenden Pille (z.B. Autor auf Public-Seite)
+  meta?: React.ReactNode
+  // Schwebende Pille ueber dem Canvas statt Titel+Beschreibung+Badges im
+  // Flow — fuer Workspace-Notizen, deren Canvas den ganzen Viewport fuellt
+  // (Canva-Muster: alles Chrome liegt auf der Arbeitsflaeche).
   floating?: boolean
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
   // Workspace-Kopfleiste einklappbar, damit sie dem Canvas nicht dauerhaft
-  // im Weg ist. Zustand in localStorage; body-Attribut lässt Editor.tsx den
-  // Canvas per CSS entsprechend hoeher machen (siehe globals.css).
+  // im Weg ist. Die Pille liegt als Overlay auf dem Canvas — der Canvas
+  // selbst bleibt immer volle Viewport-Hoehe. Zustand in localStorage.
   const [collapsed, setCollapsed] = useState(false)
   useEffect(() => {
     if (!floating) return
-    let stored = false
-    try { stored = localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1' } catch {}
-    if (stored) {
-      setCollapsed(true)
-      document.body.setAttribute('data-workspace-header-collapsed', 'true')
-    }
-    return () => { document.body.removeAttribute('data-workspace-header-collapsed') }
+    try {
+      if (localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1') setCollapsed(true)
+    } catch {}
   }, [floating])
 
   function toggleCollapsed() {
     setCollapsed(c => {
       const next = !c
       try { localStorage.setItem(WORKSPACE_HEADER_COLLAPSED_KEY, next ? '1' : '0') } catch {}
-      if (next) document.body.setAttribute('data-workspace-header-collapsed', 'true')
-      else document.body.removeAttribute('data-workspace-header-collapsed')
       return next
     })
   }
@@ -79,18 +90,30 @@ export default function NoteHeader({
           title="Kopfleiste einblenden"
           aria-label="Kopfleiste einblenden"
           style={{
+            position: 'absolute', top: '10px', right: '10px', zIndex: 60,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '28px', height: '18px', marginBottom: '8px',
-            border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px',
-            background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer', fontSize: '10px', lineHeight: 1,
+            width: '28px', height: '28px',
+            border: '1px solid var(--border)', borderRadius: '8px',
+            background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer', lineHeight: 1,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
           }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)' }}
         >
-          ⌄
+          <ChevronUp flipped />
         </button>
       )
     }
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+      <div style={{
+        position: 'absolute', top: '10px', left: '10px', right: '10px', zIndex: 60,
+        display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+        padding: '7px 10px',
+        background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid var(--border)', borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+      }}>
         <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{emoji || '🗂️'}</span>
         {editable ? (
           <input
@@ -116,6 +139,7 @@ export default function NoteHeader({
           title={isPublic ? 'Öffentlich' : 'Privater Entwurf'}
           style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: isPublic ? 'var(--accent)' : 'var(--muted)' }}
         />
+        {meta}
         {linkRight}
         {actions && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
@@ -136,7 +160,7 @@ export default function NoteHeader({
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
         >
-          ︿
+          <ChevronUp />
         </button>
       </div>
     )
