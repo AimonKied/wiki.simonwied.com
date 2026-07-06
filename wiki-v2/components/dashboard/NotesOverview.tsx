@@ -160,6 +160,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   const [notes, setNotes] = useState(initialNotes)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Note | null>(null)
 
   const filtered = notes.filter(note => {
@@ -193,7 +194,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
 
   return (
     <section>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div className="notes-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
         {TYPE_FILTERS.map(f => {
           const isActive = typeFilter === f.key
           return (
@@ -218,16 +219,27 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
             </button>
           )
         })}
+        <button
+          type="button"
+          className="notes-search-toggle"
+          onClick={() => setSearchOpen(o => !o)}
+          aria-label={searchOpen ? 'Suche schließen' : 'Suche öffnen'}
+          aria-expanded={searchOpen}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="16.65" y1="16.65" x2="21" y2="21" />
+          </svg>
+        </button>
         <input
           value={query}
-          autoFocus
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => {
-            // Enter opens the first match — type, hit Enter, you're there
             if (e.key === 'Enter' && filtered[0]) router.push(`/notes/${filtered[0].id}/edit`)
           }}
-          placeholder="Suchen… (Enter öffnet ersten Treffer)"
-          className="ui-input"
+          placeholder="Suchen…"
+          className="ui-input notes-search-input"
+          data-open={searchOpen || query ? 'true' : undefined}
           style={{
             marginLeft: 'auto',
             padding: '7px 12px',
