@@ -406,7 +406,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Oeffentliche Notiz-Seiten (`/notes/[slug]`) haben eigene `<title>`/Description/Open-Graph/Twitter-Metadaten via `generateMetadata` (2026-07-06) — Teilen des Links in Slack/Discord/WhatsApp zeigt jetzt Artikeltitel/-beschreibung statt des generischen "Wiki"-Titels
 - [ ] Kein Vercel — Hosting-Plattform/Deploy-Weg noch offen (z. B. eigener Server mit `next build && next start` oder `output: 'standalone'` + Docker/Reverse Proxy)
 - [ ] Supabase-Credentials als Env-Vars beim gewaehlten Hosting setzen (nur die beiden `NEXT_PUBLIC_*`-Werte aus `.env.local` — kein Service-Role-Key im Repo, `.env*` ist gitignored)
-- [ ] Custom Domain `wiki.simonwied.com` beim gewaehlten Hosting/DNS konfigurieren
+- [ ] Zieldomain ist `wiki.simonwied.com` (entschieden 2026-07-06) — dort laeuft aktuell die statische Landing-Page ("Beta im Aufbau" mit Beta-Button); sobald die Beta deployt ist, `href="#"` des Beta-Buttons in `index.html` auf die Beta-URL zeigen lassen
 - [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 10, 2026-07-06) — Restluecke siehe Datenbankschema oben
 
 ---
@@ -451,6 +451,6 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 - [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
 - [x] Public-Regel per DB-Trigger/Constraint absichern (Migration Block 10, 2026-07-06)
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
-- [ ] v1-Wiki abloesen: Redirects/Aufraeumen der alten HTML-Seiten
+- [x] v1-Wiki abgeloest (2026-07-06): Homepage ist jetzt die "Beta im Aufbau"-Landing-Page mit Beta-Button (vorher Redirect-Hack `index.html` → `v2-in-arbeit.html`); alte Homepage (Karten-Grid), Templates und Contribution-Flow entfernt. Die v1-Inhaltsseiten bleiben als Archiv unter `pages/` (samt `style.css`/`nav.js`/`version.js`/`assets/`), falls sie spaeter in die neue Wiki eingebunden werden — verlinkt sind sie nirgends mehr
 
 Bewusst ausgelassen: Echtzeit-Kollaboration auf derselben Notiz, Kommentare, granulare Rechteverwaltung, Datenbank-Views, Synced Blocks — jeder Nutzer verwaltet seine eigenen Notizen unabhaengig, es wird nicht gemeinsam an einer Notiz geschrieben.
