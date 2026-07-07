@@ -411,6 +411,10 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 
 ## Offene Punkte
 
+### Feature-Plaene
+
+- [ ] [SHARING.md](SHARING.md) — Notizen mit einzelnen Personen teilen (Lesen/Schreiben), Notion-artig. Noch nicht umgesetzt.
+
 ### Migration
 
 - [x] Kategorie-Slugs in `migrate/page.tsx` auf neues Set umstellen (siehe Tabelle oben)
