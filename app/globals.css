@@ -173,10 +173,6 @@ body[data-calm-bg="true"]::before {
   margin-block: 10px;
 }
 
-[data-article-editor="true"][data-article-editable="true"] .ProseMirror [data-section-card="true"] {
-  background: transparent !important;
-}
-
 [data-article-editor="true"] .ProseMirror h1,
 [data-article-editor="true"] .ProseMirror h2,
 [data-article-editor="true"] .ProseMirror h3 {
