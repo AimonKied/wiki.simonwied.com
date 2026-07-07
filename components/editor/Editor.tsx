@@ -1622,7 +1622,13 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
             ref={paletteRef as React.Ref<HTMLDivElement>}
             data-element-palette="true"
             style={{
-              position: 'absolute',
+              // fixed statt absolute: der Drag-Hook rechnet in Viewport-
+              // Koordinaten (clientX/getBoundingClientRect); waere das
+              // Element absolut positioniert, wuerde es sich am naechsten
+              // positionierten Vorfahren verankern (z.B. .note-editor-main,
+              // das selbst vom Seiten-Layout versetzt ist) und beim Ziehen
+              // an eine falsche Stelle springen.
+              position: 'fixed',
               top: 64,
               right: 10,
               zIndex: 55,
