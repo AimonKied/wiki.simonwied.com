@@ -1,13 +1,25 @@
 # Wiki fuer Freunde
 
+> **Aktuelles Zugriffsmodell:** Das Wiki ist seit Migration Block 11 ein
+> Single-Author-System. Nur der Eintrag in `wiki_owners` darf schreiben.
+> Inhalte sind Entwurf, oeffentlich oder ueber einen widerrufbaren Geheimlink
+> lesbar. Fruehere Mehrnutzer- und Kollaborationsideen weiter unten sind
+> historische Planung, nicht das aktuelle Produktverhalten.
+
 ## Vision
 
-Multi-User-Wiki fuer private und oeffentliche Inhalte — jeder kann sich registrieren und eigene Artikel/Workspaces anlegen. Oeffentliche Inhalte sind per Link teilbar (fuer Freunde gedacht), aber bewusst nicht fuer Suchmaschinen gedacht: `robots.ts` sperrt Crawler komplett, Seiten tragen `noindex`. Nutzer koennen zwei Arten von Inhalten erstellen:
+Persoenliches Wiki mit genau einem Autor. Besucher lesen oeffentliche Inhalte
+oder erhalten Zugriff auf einen eingefrorenen Stand ueber einen geheimen,
+widerrufbaren Link. Nur der konfigurierte Owner kann zwei Arten von Inhalten
+erstellen:
 
 - **Artikel**: sollen sich so nah wie moeglich an Notion anfuehlen — Block-Editor mit Slash-Menue, Drag-Handle, allen gaengigen Block-Typen und interner Verlinkung. Leitfrage bei jedem Artikel-Feature: "Wie macht Notion das?"
 - **Workspace Canvas**: das Alleinstellungsmerkmal gegenueber Notion — freie Arbeitsflaechen mit verschiebbaren Bloecken, Pan und Zoom. Bleibt bewusst eigenstaendig.
 
-Beide Inhaltstypen koennen privat bleiben oder oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien haben, damit sie auf der Homepage gefiltert und unter Kategorien gefunden werden koennen, zum Beispiel `Rezepte`, `Technik` oder `Informatik`.
+Beide Inhaltstypen koennen Entwurf bleiben, nur per Geheimlink geteilt oder
+oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien
+haben, damit sie in der Bibliothek gefiltert werden koennen, zum Beispiel
+`Rezepte`, `Technik` oder `Informatik`.
 
 ---
 

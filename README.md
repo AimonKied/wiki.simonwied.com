@@ -1,13 +1,11 @@
 # [wiki.simonwied.com](https://wiki.simonwied.com)
 
-A personal, open wiki for any topic — no restrictions on what you can write about.
-Whether it's cooking, programming, science, music or anything else, every subject
-has a place here.
+A personal, single-author wiki for any topic. Only the configured owner can
+create or edit content. Readers can access a frozen published snapshot either
+publicly through the library or privately through a revocable secret link.
 
-Next.js 16 + Supabase app (multi-user: anyone can register and create
-articles/canvas workspaces; visibility per note is private or public). Content
-is created directly in the browser — no Git workflow. See [WIKI.md](WIKI.md)
-for the feature roadmap.
+The app uses Next.js 16 and Supabase. Content is created directly in the
+browser without a Git workflow. See [WIKI.md](WIKI.md) for the feature roadmap.
 
 ## Repository layout
 
@@ -44,6 +42,38 @@ npx tsc --noEmit
 known pre-existing `react-hooks` findings (sync setState in effects) that are
 tolerated noise.
 
+## Single-author access and publishing
+
+Run block 11 of `supabase/migration.sql` after the earlier schema blocks. It:
+
+- creates the `wiki_owners` allowlist and assigns the oldest existing Supabase
+  account as the initial owner;
+- replaces legacy multi-user RLS policies with owner-only create/edit/delete
+  access;
+- adds `private`, `link`, and `public` visibility modes;
+- creates one revocable secret link per link-published note;
+- exposes frozen snapshots through narrow public RPCs, so live draft columns
+  are never readable by visitors.
+
+Verify the selected owner after migrating:
+
+```sql
+select u.id, u.email
+from wiki_owners o
+join auth.users u on u.id = o.user_id;
+```
+
+If the oldest account is not the intended owner, replace that row with the
+correct user id. Also disable **Allow new users to sign up** in Supabase under
+Authentication → Settings. The app itself has no registration UI and rejects
+all authenticated non-owner accounts, while the Supabase setting prevents
+unused accounts from being created at the authentication endpoint.
+
+Publishing always freezes the current draft. Switching to `private` or
+`public` deletes an existing secret link immediately; regenerating a link also
+invalidates the previous URL immediately. Link-only content is served from
+`/share/[token]` and is never included in the public library.
+
 ## Article Editor
 
 Articles aim for Notion parity: the writing surface is the page (no panel, full
@@ -62,7 +92,7 @@ width, the decorative grid is hidden while editing).
 - A sticky table of contents (H1/H2/H3) sits on the right in the editor and
   the public article view; it tracks the scroll position. Below 1100px it
   becomes a right-hand off-canvas drawer opened via a floating button.
-- The public note view (`/notes/[slug]`) renders through the same
+- Public (`/notes/[slug]`) and secret-link (`/share/[token]`) views render through the same
   `NoteHeader` component as the editor (`editable={false}`) — Notion share-link
   parity: viewers see the identical page, just without edit controls.
 - "Neuer Inhalt" creates the note directly and opens `/notes/[id]/edit` with
@@ -125,9 +155,10 @@ app/
   (dashboard)/dashboard/       workspace overview: filter, search, delete
   (dashboard)/notes/[id]/edit/ note editor (articles + canvas)
   (public)/notes/[id]/         public note view (published snapshot)
+  (public)/share/[token]/      secret-link view (published snapshot)
 components/dashboard/
   NewContentButton.tsx         creates a note and jumps into the editor
-  NotesOverview.tsx            dashboard list with filter/search/delete/unpublish
+  NotesOverview.tsx            dashboard list with visibility/filter/search/delete
 components/editor/
   Editor.tsx                   TipTap setup, workspace viewport, pan/zoom/lasso,
                                element palette, layout migration pass
