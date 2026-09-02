@@ -628,3 +628,62 @@ grant execute on function rotate_note_share_link(uuid) to authenticated;
 grant execute on function get_public_note(text) to anon, authenticated;
 grant execute on function get_shared_note(uuid) to anon, authenticated;
 grant execute on function list_public_notes() to anon, authenticated;
+
+-- 12. Security and URL hardening (safe to run after an existing block 11).
+-- Do not let callers probe arbitrary user ids through the owner helper.
+create or replace function is_wiki_owner(p_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_user_id is not null
+    and p_user_id = auth.uid()
+    and exists (select 1 from wiki_owners where user_id = p_user_id);
+$$;
+
+revoke all on function is_wiki_owner(uuid) from public, anon;
+grant execute on function is_wiki_owner(uuid) to authenticated;
+
+-- Public URLs are normalized at the publication boundary. Draft autosaves do
+-- not touch the frozen snapshot, even when the draft slug is edited later.
+create or replace function normalize_public_snapshot_slug()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  normalized_slug text;
+begin
+  if new.visibility = 'public' or new.is_public then
+    normalized_slug := lower(trim(coalesce(new.published->>'slug', new.slug)));
+    if normalized_slug is null
+       or normalized_slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' then
+      raise exception 'Oeffentliche Inhalte brauchen eine gueltige URL';
+    end if;
+
+    new.slug := normalized_slug;
+    new.published := jsonb_set(
+      coalesce(new.published, '{}'::jsonb),
+      '{slug}',
+      to_jsonb(normalized_slug),
+      true
+    );
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists notes_normalize_public_slug on notes;
+create trigger notes_normalize_public_slug
+  before insert or update of visibility, is_public, published on notes
+  for each row execute function normalize_public_snapshot_slug();
+
+-- `get_public_note` must always resolve to exactly one note. The index also
+-- closes the race between two simultaneous publish requests using one slug.
+create unique index if not exists notes_public_snapshot_slug_unique
+  on notes ((lower(published->>'slug')))
+  where visibility = 'public'
+    and is_public = true
+    and published is not null;
