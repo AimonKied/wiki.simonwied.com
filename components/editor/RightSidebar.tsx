@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useDraggablePanel } from './useDraggablePanel'
 
 type TipTapNode = {
@@ -35,7 +35,7 @@ function extractSections(content: object): Section[] {
 }
 
 export default function RightSidebar({ content }: { content: object }) {
-  const [sections, setSections] = useState<Section[]>([])
+  const sections = useMemo(() => extractSections(content), [content])
   const [customNames, setCustomNames] = useState<Record<number, string>>({})
   const [activeIdx, setActiveIdx] = useState(0)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
@@ -46,9 +46,12 @@ export default function RightSidebar({ content }: { content: object }) {
   // nicht dauerhaft im Weg liegt — eingeklappt bleibt nur ein runder Button.
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   useEffect(() => {
-    try {
-      if (localStorage.getItem('wiki-canvas-outline-collapsed') === '1') setDesktopCollapsed(true)
-    } catch {}
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        setDesktopCollapsed(localStorage.getItem('wiki-canvas-outline-collapsed') === '1')
+      } catch {}
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [])
   function toggleDesktopCollapsed() {
     setDesktopCollapsed(c => {
@@ -64,10 +67,6 @@ export default function RightSidebar({ content }: { content: object }) {
   const positionStyle = position
     ? { left: position.left, top: position.top, right: 'auto' as const }
     : undefined
-
-  useEffect(() => {
-    setSections(extractSections(content))
-  }, [content])
 
   // Aktiv-Tracking wie beim Artikel-TOC, nur ist die "Leseposition" hier der
   // Canvas-Viewport statt des Seiten-Scrolls: aktiv ist der Block, dessen

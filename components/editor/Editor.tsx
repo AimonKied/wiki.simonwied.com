@@ -1,13 +1,13 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
-import { createLineElement, transformVisualLine } from './editorTransforms'
+import { transformVisualLine } from './editorTransforms'
 import { ResizableImage } from './MediaNodes'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
@@ -173,6 +173,27 @@ function addSection(editor: TiptapEditor, attrs: Record<string, number | null> =
     .run()
 }
 
+function clampViewportPosition(x: number, y: number, zoom: number) {
+  const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
+  if (!workspace) return { x, y }
+  const rect = workspace.getBoundingClientRect()
+  const scaledW = CANVAS_W * zoom
+  const scaledH = CANVAS_H * zoom
+  const clampedX = scaledW <= rect.width
+    ? (rect.width - scaledW) / 2
+    : Math.min(0, Math.max(rect.width - scaledW, x))
+  const clampedY = scaledH <= rect.height
+    ? (rect.height - scaledH) / 2
+    : Math.min(0, Math.max(rect.height - scaledH, y))
+  return { x: clampedX, y: clampedY }
+}
+
+function eventTargetElement(event: Event): Element | null {
+  const target = event.target
+  if (target instanceof Element) return target
+  return target instanceof globalThis.Node ? target.parentElement : null
+}
+
 
 interface EditorProps {
   content?: object | null
@@ -187,7 +208,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [, refreshTextToolbar] = useState(0)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
-  const [spacePanVisible, setSpacePanVisible] = useState(false)
   const [panMode, setPanMode] = useState(false)
   // Werkzeugleiste ist per Griff frei verschiebbar, Default-Ort (top:64/right:10)
   // kommt aus dem Inline-Style unten.
@@ -242,21 +262,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     window.addEventListener('wiki-theme-change', readTheme)
     return () => window.removeEventListener('wiki-theme-change', readTheme)
   }, [])
-
-  function clampViewportPosition(x: number, y: number, zoom: number) {
-    const workspace = document.querySelector('[data-editor-workspace]') as HTMLElement | null
-    if (!workspace) return { x, y }
-    const rect = workspace.getBoundingClientRect()
-    const scaledW = CANVAS_W * zoom
-    const scaledH = CANVAS_H * zoom
-    const clampedX = scaledW <= rect.width
-      ? (rect.width - scaledW) / 2
-      : Math.min(0, Math.max(rect.width - scaledW, x))
-    const clampedY = scaledH <= rect.height
-      ? (rect.height - scaledH) / 2
-      : Math.min(0, Math.max(rect.height - scaledH, y))
-    return { x: clampedX, y: clampedY }
-  }
 
   function refreshMinimapBlocks() {
     const canvas = document.querySelector('[data-editor-canvas]') as HTMLElement | null
@@ -473,7 +478,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     return true
   }
 
-  function zoomAt(clientX: number, clientY: number, nextZoom: number) {
+  const zoomAt = useCallback((clientX: number, clientY: number, nextZoom: number) => {
     window.cancelAnimationFrame(panFrameRef.current)
     const viewportEl = document.querySelector('[data-editor-workspace]') as HTMLElement | null
     if (!viewportEl) {
@@ -499,7 +504,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         zoom,
       }
     })
-  }
+  }, [])
 
   useEffect(() => {
     if (!editable) return
@@ -513,7 +518,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     document.body.appendChild(lasso)
 
     function onDocMouseDown(e: MouseEvent) {
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (!target.closest('[data-editor-workspace]')) return
       if (target.closest('[data-section-card]')) return
       if (spaceDownRef.current) return
@@ -582,7 +588,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       const isTextInput = target?.closest('input, textarea, select, [contenteditable="true"]')
       if (isTextInput) return
       spaceDownRef.current = true
-      setSpacePanVisible(true)
       document.documentElement.style.cursor = 'grab'
       document.body.style.cursor = 'grab'
       e.preventDefault()
@@ -591,7 +596,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     function onKeyUp(e: KeyboardEvent) {
       if (e.code !== 'Space') return
       spaceDownRef.current = false
-      setSpacePanVisible(false)
       latePanRef.current = null
       document.documentElement.style.cursor = panModeRef.current ? 'grab' : ''
       document.body.style.cursor = panModeRef.current ? 'grab' : ''
@@ -599,7 +603,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
 
     function onBlur() {
       spaceDownRef.current = false
-      setSpacePanVisible(false)
       latePanRef.current = null
       document.documentElement.style.cursor = panModeRef.current ? 'grab' : ''
       document.body.style.cursor = panModeRef.current ? 'grab' : ''
@@ -645,7 +648,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       const isTouch = e.pointerType === 'touch'
 
       if (isTouch) {
-        const target = e.target as Element
+        const target = eventTargetElement(e)
+        if (!target) return
         if (!target.closest('[data-editor-workspace]')) return
 
         // Alle Touch-Kontakte im Workspace tracken, BEVOR Ausschluesse greifen —
@@ -686,11 +690,12 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       // einfaches Ziehen auf leerem Canvas (Text in Bloecken bleibt markierbar).
       if (!isTouch) {
         if (e.button !== 0) return
-        const viewerPan = !editable && !(e.target as Element).closest('[data-section-card]')
+        const viewerPan = !editable && !eventTargetElement(e)?.closest('[data-section-card]')
         if (!(spaceDownRef.current || panModeRef.current || viewerPan)) return
       }
       if (!e.isPrimary) return
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
       const workspace = target.closest('[data-editor-workspace]') as HTMLElement | null
       if (!workspace) return
@@ -751,7 +756,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     function onMouseDown(e: MouseEvent) {
       if (!(spaceDownRef.current || panModeRef.current) || e.button !== 0) return
       if (Date.now() - lastPointerPanAtRef.current < 500) return
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) return
       const workspace = target.closest('[data-editor-workspace]') as HTMLElement | null
       if (!workspace) return
@@ -780,7 +786,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
         return
       }
 
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (target.closest('button, input, textarea, select, [data-element-palette], [data-editor-minimap]')) {
         latePanRef.current = null
         return
@@ -805,7 +812,8 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     }
 
     function onWheel(e: WheelEvent) {
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (!target.closest('[data-editor-workspace]')) return
       if (!(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
@@ -839,7 +847,7 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [editable])
+  }, [editable, zoomAt])
 
   const editor = useEditor({
     extensions: [
@@ -905,14 +913,14 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
       editor.off('update', tryCenter)
       if (frame) window.cancelAnimationFrame(frame)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
 
   useEffect(() => {
     if (!editor || !editable) return
 
     function leaveTextMode(e: MouseEvent) {
-      const target = e.target as Element
+      const target = eventTargetElement(e)
+      if (!target) return
       if (!target.closest('[data-editor-workspace]')) return
       if (target.closest('[data-section-card], [data-element-palette], button, input, select, textarea')) return
       editor.commands.blur()
@@ -1184,7 +1192,6 @@ export default function Editor({ content, onChange, editable = true }: EditorPro
     }
     document.addEventListener('wiki-editor-focus-section', onFocusSection)
     return () => document.removeEventListener('wiki-editor-focus-section', onFocusSection)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Blockliste (RightSidebar) trackt den aktiven Block anhand des Viewports —

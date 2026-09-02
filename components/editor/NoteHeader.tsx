@@ -70,9 +70,12 @@ export default function NoteHeader({
   const [collapsed, setCollapsed] = useState(false)
   useEffect(() => {
     if (!floating) return
-    try {
-      if (localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1') setCollapsed(true)
-    } catch {}
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        setCollapsed(localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1')
+      } catch {}
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [floating])
 
   function toggleCollapsed() {

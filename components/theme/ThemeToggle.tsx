@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -18,16 +18,14 @@ function applyTheme(theme: Theme) {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('light')
-
-  useEffect(() => {
-    const activeTheme = readTheme()
-    setTheme(activeTheme)
-  }, [])
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    readTheme,
+    () => 'light',
+  )
 
   function toggleTheme() {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(nextTheme)
     applyTheme(nextTheme)
   }
 
@@ -42,4 +40,9 @@ export default function ThemeToggle() {
       <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
     </button>
   )
+}
+
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener('wiki-theme-change', onChange)
+  return () => window.removeEventListener('wiki-theme-change', onChange)
 }

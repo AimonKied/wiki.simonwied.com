@@ -81,8 +81,10 @@ function openCalloutPopover(btn: HTMLButtonElement, view: EditorView, pos: numbe
     if (!el.contains(e.target as globalThis.Node)) closeCalloutPopover()
   }
   function onScroll() { closeCalloutPopover() }
+  let listenerTimer = 0
 
   function close() {
+    window.clearTimeout(listenerTimer)
     el.remove()
     document.removeEventListener('mousedown', onOutside)
     window.removeEventListener('scroll', onScroll, true)
@@ -91,7 +93,7 @@ function openCalloutPopover(btn: HTMLButtonElement, view: EditorView, pos: numbe
 
   // Defer: the mousedown that opened the popover is still propagating and would
   // hit the outside-click listener immediately, closing it again.
-  window.setTimeout(() => {
+  listenerTimer = window.setTimeout(() => {
     document.addEventListener('mousedown', onOutside)
     window.addEventListener('scroll', onScroll, true)
   }, 0)

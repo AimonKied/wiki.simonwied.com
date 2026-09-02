@@ -3,7 +3,7 @@
 import Image, { type ImageOptions } from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useRef, useState, useCallback } from 'react'
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 
@@ -100,15 +100,14 @@ function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPo
     src: string; alt?: string; width?: string; align?: Align; rotate?: number
   }
 
-  const [liveWidth, setLiveWidth] = useState<string | null>(width ?? null)
   const [hovered, setHovered] = useState(false)
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
 
   const isSideways = Math.abs(rotate % 180) === 90
   const widthScale = isSideways && naturalSize?.h ? Math.min(1, naturalSize.w / naturalSize.h) : 1
-  const imageWidth = liveWidth
-    ? `min(${liveWidth}, ${widthScale * 100}%)`
+  const imageWidth = width
+    ? `min(${width}, ${widthScale * 100}%)`
     : widthScale === 1 ? 'auto' : `${widthScale * 100}%`
 
   const getMaxImageWidth = useCallback(() => {
@@ -123,32 +122,18 @@ function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPo
 
   const { containerRef, onMouseDown } = useResize((w) => {
     const val = `${clampImageWidth(w)}px`
-    setLiveWidth(val)
     updateAttributes({ width: val })
   }, getMaxImageWidth)
 
   const isEditable = editor.isEditable
   const controlsVisible = isEditable && (selected || hovered)
-  const currentWidth = liveWidth ? Math.round(parseInt(liveWidth)) : ''
-  const maxImageWidth = getMaxImageWidth()
-
-  useEffect(() => {
-    if (!liveWidth) return
-    const parsedWidth = parseInt(liveWidth)
-    if (!Number.isFinite(parsedWidth)) return
-    const next = clampImageWidth(parsedWidth)
-    if (next === parsedWidth) return
-    const nextWidth = `${next}px`
-    setLiveWidth(nextWidth)
-    queueMicrotask(() => updateAttributes({ width: nextWidth }))
-  }, [clampImageWidth, liveWidth, updateAttributes])
+  const currentWidth = width ? Math.round(parseInt(width)) : ''
 
   function setWidthFromInput(value: string) {
     const width = Number(value)
     if (!Number.isFinite(width)) return
     const next = clampImageWidth(width)
     const nextWidth = `${next}px`
-    setLiveWidth(nextWidth)
     updateAttributes({ width: nextWidth })
   }
 
@@ -176,11 +161,13 @@ function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPo
             display: 'inline-flex',
             justifyContent: 'center',
             alignItems: 'center',
-            width: liveWidth ?? 'fit-content',
+            width: width ?? 'fit-content',
             maxWidth: '100%',
             lineHeight: 0,
           }}
         >
+          {/* TipTap stores arbitrary uploaded/public URLs; next/image cannot know their hosts or dimensions. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt ?? ''}
@@ -212,7 +199,7 @@ function ImageView({ node, updateAttributes, selected, deleteNode, editor, getPo
                   <input
                     type="number"
                     min={80}
-                    max={maxImageWidth}
+                    max={2000}
                     step={10}
                     value={currentWidth}
                     placeholder="auto"

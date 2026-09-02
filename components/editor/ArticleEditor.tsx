@@ -25,7 +25,7 @@ import json from 'highlight.js/lib/languages/json'
 import sql from 'highlight.js/lib/languages/sql'
 import markdown from 'highlight.js/lib/languages/markdown'
 import { useEffect, useRef, useState } from 'react'
-import { SectionExtension, sectionSel } from './SectionNode'
+import { SectionExtension } from './SectionNode'
 import { transformVisualLine } from './editorTransforms'
 import { ToggleExtension } from './ToggleNode'
 import { CalloutExtension } from './CalloutNode'
@@ -80,6 +80,7 @@ const bBtn = (active: boolean, extra?: React.CSSProperties): React.CSSProperties
 
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, markdown })
+const slashItems = filterPalette
 
 const ArticleDocument = Document.extend({
   content: 'section+',
@@ -242,11 +243,12 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     return () => window.removeEventListener('wiki-theme-change', readTheme)
   }, [])
 
+  const selectedSlashIndex = slashMenu?.selected
   useEffect(() => {
-    if (!slashMenuListRef.current || slashMenu === null) return
-    const el = slashMenuListRef.current.children[slashMenu.selected] as HTMLElement | undefined
+    if (!slashMenuListRef.current || selectedSlashIndex === undefined) return
+    const el = slashMenuListRef.current.children[selectedSlashIndex] as HTMLElement | undefined
     el?.scrollIntoView({ block: 'nearest' })
-  }, [slashMenu?.selected])
+  }, [selectedSlashIndex])
 
   useEffect(() => {
     if (!editor || !editable) return
@@ -279,8 +281,11 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     if (!tableMenuOpen) return
     function close() { setTableMenuOpen(false) }
-    setTimeout(() => document.addEventListener('click', close), 0)
-    return () => document.removeEventListener('click', close)
+    const id = window.setTimeout(() => document.addEventListener('click', close), 0)
+    return () => {
+      window.clearTimeout(id)
+      document.removeEventListener('click', close)
+    }
   }, [tableMenuOpen])
 
   if (!editor) return null
@@ -318,8 +323,6 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       setSlashMenu(null)
     }
   }
-
-  const slashItems = filterPalette
 
   function executeSlashCommand(ed: TiptapEditor, key: string, menu: SlashMenuState) {
     setSlashMenu(null)

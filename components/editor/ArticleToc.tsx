@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 type TipTapNode = {
   type: string
@@ -53,15 +53,11 @@ export default function ArticleToc({
   content: object
   containerSelector?: string
 }) {
-  const [entries, setEntries] = useState<TocEntry[]>([])
+  const entries = useMemo(() => extractHeadings(content), [content])
   const [activeIdx, setActiveIdx] = useState(0)
   // Below 1100px the aside is hidden (CSS); this drives the right-side
   // drawer that stands in for it on mobile/tablet.
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  useEffect(() => {
-    setEntries(extractHeadings(content))
-  }, [content])
 
   useEffect(() => {
     if (!entries.length) return

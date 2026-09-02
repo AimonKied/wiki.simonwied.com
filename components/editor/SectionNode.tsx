@@ -8,7 +8,7 @@ import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode, Slice } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
-import { useId, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useId, useState, useRef, useEffect, useEffectEvent, useLayoutEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { toggleJSON } from './ToggleNode'
 import { ELEMENT_PALETTE } from './elementPalette'
@@ -217,9 +217,10 @@ function _ensureGlobalHandlers() {
   // Deselect blocks on click outside any drag handle
   document.addEventListener('mousedown', (e) => {
     if (_selSet.size === 0) return
-    if ((e.target as Element).closest('[data-section-drag-handle]')) return
-    if ((e.target as Element).closest('[data-article-block-controls]')) return
-    if ((e.target as Element).closest('[data-element-palette]')) return
+    const target = e.target
+    if (target instanceof Element && target.closest('[data-section-drag-handle]')) return
+    if (target instanceof Element && target.closest('[data-article-block-controls]')) return
+    if (target instanceof Element && target.closest('[data-element-palette]')) return
     sectionSel.clear()
   })
 
@@ -453,8 +454,6 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   useEffect(() => () => { resetDragStyles() }, [])
 
   useEffect(() => {
-    _ensureGlobalHandlers()
-    _activeEditor = editor as unknown as Editor
     const unsub = sectionSel.sub(() => {
       setIsSelected(sectionSel.has(sectionId))
       if (!sectionSel.has(sectionId) || !sectionSel.dragging()) setSectionDragging(false)
@@ -1257,7 +1256,15 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       if (!didDrag) {
         // Article mode: plain click opens the block popover, shift-click selects.
         // Other modes keep the original select-on-click behaviour.
-        if (isArticleMode && !nativeEvent.shiftKey) setBlockMenuOpen(o => !o)
+        if (isArticleMode && !nativeEvent.shiftKey) {
+          if (blockMenuOpen) {
+            setBlockMenuOpen(false)
+          } else {
+            setBlockMenuView('main')
+            setBlockMenuPos(null)
+            setBlockMenuOpen(true)
+          }
+        }
         else sectionSel.toggle(sectionId, nativeEvent.shiftKey)
         return
       }
@@ -1598,14 +1605,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
   }, [blockMenuOpen])
 
-  useEffect(() => { if (!blockMenuOpen) setBlockMenuView('main') }, [blockMenuOpen])
-
   // Position the block popover like Notion: to the LEFT of the block, its right edge just
   // left of the ⠿ handle so it never overlaps. Anchoring by `right` keeps that true at any
   // width; falls back to the right side only when the left has no room. Height and width
   // are capped to the viewport so it always fits and scrolls internally.
   useLayoutEffect(() => {
-    if (!blockMenuOpen) { setBlockMenuPos(null); return }
+    if (!blockMenuOpen) return
     function place() {
       const el = dragHandleRef.current
       if (!el) return
@@ -2008,19 +2013,20 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (n) editor.chain().focus().insertContentAt(elementInsertPos, n).run()
   }
 
+  const onAddElement = useEffectEvent((e: Event) => {
+    const detail = (e as CustomEvent<{ key?: string; targetPos?: number }>).detail
+    if (!detail?.key) return
+    const sectionPos = typeof getPos === 'function' ? getPos() : undefined
+    const targetsThisSection = typeof detail.targetPos === 'number' && sectionPos !== undefined
+      && detail.targetPos > sectionPos && detail.targetPos < sectionPos + node.nodeSize
+    if (!sectionSel.has(sectionId) && !targetsThisSection) return
+    addElement(detail.key, targetsThisSection ? detail.targetPos : undefined)
+  })
+
   useEffect(() => {
-    function onAddElement(e: Event) {
-      const detail = (e as CustomEvent<{ key?: string; targetPos?: number }>).detail
-      if (!detail?.key) return
-      const sectionPos = typeof getPos === 'function' ? getPos() : undefined
-      const targetsThisSection = typeof detail.targetPos === 'number' && sectionPos !== undefined
-        && detail.targetPos > sectionPos && detail.targetPos < sectionPos + node.nodeSize
-      if (!sectionSel.has(sectionId) && !targetsThisSection) return
-      addElement(detail.key, targetsThisSection ? detail.targetPos : undefined)
-    }
     document.addEventListener('wiki-editor-add-element', onAddElement)
     return () => document.removeEventListener('wiki-editor-add-element', onAddElement)
-  }, [sectionId, getPos, node.nodeSize])
+  }, [])
 
   function isElementDrag(e: React.DragEvent) {
     return Array.from(e.dataTransfer.types).includes('application/x-wiki-element')
@@ -2723,6 +2729,21 @@ export { sectionSel }
 
 export const SectionExtension = Node.create({
   name: 'section',
+
+  onCreate() {
+    if (typeof document === 'undefined') return
+    _ensureGlobalHandlers()
+    _activeEditor = this.editor as unknown as Editor
+  },
+
+  onFocus() {
+    _activeEditor = this.editor as unknown as Editor
+  },
+
+  onDestroy() {
+    if (_activeEditor === (this.editor as unknown as Editor)) _activeEditor = null
+    sectionSel.clear()
+  },
   priority: 1000,
   group: 'block',
   content: 'block+',
