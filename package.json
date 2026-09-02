@@ -19,7 +19,7 @@
     "@tiptap/extension-image": "^3.26.0",
     "@tiptap/extension-italic": "^3.26.0",
     "@tiptap/extension-link": "^3.26.0",
-    "@tiptap/extension-list": "3.26.0",
+    "@tiptap/extension-list": "^3.26.0",
     "@tiptap/extension-placeholder": "^3.26.0",
     "@tiptap/extension-table": "^3.26.0",
     "@tiptap/extension-table-cell": "^3.26.0",
@@ -30,7 +30,7 @@
     "@tiptap/react": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "lowlight": "^3.3.0",
-    "next": "16.2.9",
+    "next": "16.3.4",
     "node-html-parser": "^7.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -42,7 +42,7 @@
     "@types/react-dom": "^19",
     "cross-env": "^10.1.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
