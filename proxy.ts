@@ -22,14 +22,19 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const { data: ownerResult } = user
+    ? await supabase.rpc('is_wiki_owner')
+    : { data: false }
+  const isOwner = ownerResult === true
 
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  const isProtected = request.nextUrl.pathname.startsWith('/dashboard')
+    || (request.nextUrl.pathname.startsWith('/notes/') && request.nextUrl.pathname.includes('/edit'))
+  if (isProtected && !isOwner) {
+    const loginUrl = new URL('/login', request.url)
+    if (user) loginUrl.searchParams.set('error', 'forbidden')
+    return NextResponse.redirect(loginUrl)
   }
-  if (!user && request.nextUrl.pathname.startsWith('/notes/') && request.nextUrl.pathname.includes('/edit')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  if (isOwner && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

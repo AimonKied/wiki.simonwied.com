@@ -46,6 +46,8 @@ export async function createNote(type: 'article' | 'workspace'): Promise<string 
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+  const { data: isOwner } = await supabase.rpc('is_wiki_owner')
+  if (isOwner !== true) return null
 
   const { data, error } = await supabase
     .from('notes')
@@ -57,6 +59,7 @@ export async function createNote(type: 'article' | 'workspace'): Promise<string 
       content_type: type,
       user_id: user.id,
       is_public: false,
+      visibility: 'private',
     })
     .select('id')
     .single()

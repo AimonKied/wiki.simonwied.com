@@ -10,11 +10,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
+  const { data: isOwner } = await supabase.rpc('is_wiki_owner')
+  if (isOwner !== true) redirect('/login?error=forbidden')
 
   // "Zuletzt"-Startwert fuer die Sidebar: nur wirklich geoeffnete Notizen
   const { data: notes } = await supabase
     .from('notes')
-    .select('id, title, emoji, content_type, is_public, slug, updated_at')
+    .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
     .eq('user_id', user.id)
     .not('last_opened_at', 'is', null)
     .order('last_opened_at', { ascending: false })

@@ -16,6 +16,10 @@ export default function LoginPage({
   const [error, setError] = useState(
     urlError === 'confirmation'
       ? 'Bestätigung fehlgeschlagen oder Link abgelaufen. Bitte melde dich an oder registriere dich erneut.'
+      : urlError === 'forbidden'
+        ? 'Dieses Wiki hat nur ein Autorenkonto.'
+        : urlError === 'registration-closed'
+          ? 'Die Registrierung ist geschlossen. Nur der Eigentümer kann sich anmelden.'
       : ''
   )
   const [loading, setLoading] = useState(false)
@@ -33,6 +37,13 @@ export default function LoginPage({
       setError(error.message)
       setLoading(false)
     } else {
+      const { data: isOwner, error: ownerError } = await supabase.rpc('is_wiki_owner')
+      if (ownerError || isOwner !== true) {
+        await supabase.auth.signOut()
+        setError('Dieses Konto darf das Wiki nicht bearbeiten.')
+        setLoading(false)
+        return
+      }
       router.push('/dashboard')
       router.refresh()
     }
@@ -143,9 +154,9 @@ export default function LoginPage({
         </form>
 
         <div style={{ marginTop: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <Link href="/register" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-            Noch kein Konto? Registrieren
-          </Link>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
+            Die Anmeldung ist ausschließlich für den Eigentümer des Wikis.
+          </p>
           <Link href="/" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
             ← Zurück zur Startseite
           </Link>
