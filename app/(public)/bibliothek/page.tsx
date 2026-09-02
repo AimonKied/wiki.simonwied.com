@@ -1,8 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/sidebar/Sidebar'
 import Link from 'next/link'
-import type { Category, Note } from '@/lib/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import { listCategories, listPublicNotes } from '@/lib/notes/published'
 
 const contentTypes = [
   {
@@ -15,74 +13,23 @@ const contentTypes = [
   },
 ]
 
-type PublicNote = {
-  id: string
-  title: string
-  emoji: string | null
-  description: string | null
-  slug: string | null
-  content_type: string
-  updated_at: string
-  categories: Category[]
-  author: string | null
-}
-
 export default async function HomePage({
   searchParams,
 }: {
   searchParams?: Promise<{ category?: string; type?: string }>
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: ownerResult } = user
-    ? await supabase.rpc('is_wiki_owner')
-    : { data: false }
-  const isOwner = ownerResult === true
   const params = await searchParams
   const activeCategory = params?.category
   const activeType = params?.type
 
-  // Load categories, public notes and the user's recent notes in parallel.
-  const recentNotesPromise = isOwner
-    ? supabase
-      .from('notes')
-      .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
-      .eq('user_id', user!.id)
-      .not('last_opened_at', 'is', null)
-      .order('last_opened_at', { ascending: false })
-      .limit(8)
-    : Promise.resolve({ data: [] })
-
-  const [catsRes, notesRes, recentNotesRes] = await Promise.all([
-    supabase.from('categories').select('*').order('position').order('title'),
-    supabase.rpc('list_public_notes'),
-    recentNotesPromise,
+  const [categories, allPublicNotes] = await Promise.all([
+    listCategories(),
+    listPublicNotes(),
   ])
-
-  const categories: Category[] = (catsRes.data ?? []) as Category[]
-
-  // The RPC exposes frozen snapshots only; live draft columns never reach readers.
-  const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => {
-    // Public listing reflects the frozen snapshot, not the owner's live draft.
-    const pub = (n.published ?? null) as {
-      title?: string; emoji?: string | null; description?: string | null; slug?: string | null
-    } | null
-    return {
-    id: n.note_id as string,
-    title: pub?.title ?? (n.title as string),
-    emoji: pub?.emoji ?? (n.emoji as string | null),
-    description: pub?.description ?? (n.description as string | null),
-    slug: pub?.slug ?? (n.slug as string | null),
-    content_type: n.content_type as string,
-    updated_at: n.updated_at as string,
-    categories: (n.categories as Category[] | null) ?? [],
-    author: (n.author_name as string | null) ?? null,
-    }
-  })
 
   const filteredNotes = allPublicNotes.filter(note =>
     (!activeCategory || note.categories.some(c => c.slug === activeCategory)) &&
-    (!activeType || note.content_type === activeType)
+    (!activeType || note.contentType === activeType)
   )
   const activeCategoryTitle = activeCategory
     ? categories.find(category => category.slug === activeCategory)?.title
@@ -92,9 +39,7 @@ export default async function HomePage({
     : null
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={isOwner} notes={(recentNotesRes.data ?? []) as Note[]} />
-      <main className="app-main" style={{ overflowY: 'visible', animation: 'fadeIn 0.2s ease both' }}>
+    <div style={{ animation: 'fadeIn 0.2s ease both' }}>
         <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
             <div style={{ minWidth: 'min(100%, 420px)', flex: '1 1 620px' }}>
@@ -200,8 +145,8 @@ export default async function HomePage({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '12px' }}>
               {filteredNotes.map(note => {
                 const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
-                const type = contentTypes.find(t => t.key === note.content_type)
-                const meta = [...note.categories.map(cat => cat.title), type?.title ?? note.content_type].join(' / ')
+                const type = contentTypes.find(t => t.key === note.contentType)
+                const meta = [...note.categories.map(cat => cat.title), type?.title ?? note.contentType].join(' / ')
                 const byline = note.author ? `Von ${note.author}` : null
                 return (
                   <Link
@@ -241,7 +186,6 @@ export default async function HomePage({
             </div>
           )}
         </section>
-      </main>
     </div>
   )
 }

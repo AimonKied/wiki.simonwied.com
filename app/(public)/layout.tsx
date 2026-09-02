@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/sidebar/Sidebar'
-import type { Note } from '@/lib/types'
+import type { Note } from '@/lib/notes/types'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

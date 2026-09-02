@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createNote } from '@/lib/createNote'
-import type { Note } from '@/lib/types'
+import { createNote } from '@/lib/notes/create'
+import type { Note } from '@/lib/notes/types'
 import Logo from '@/components/Logo'
 
 const primaryNav = [

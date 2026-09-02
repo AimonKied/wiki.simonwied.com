@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createNote } from '@/lib/createNote'
+import { createNote } from '@/lib/notes/create'
 
 const OPTIONS: Array<{ type: 'article' | 'workspace'; title: string; description: string }> = [
   {

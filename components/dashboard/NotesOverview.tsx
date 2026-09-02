@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Note } from '@/lib/types'
+import type { Note } from '@/lib/notes/types'
 
 type TypeFilter = 'all' | 'article' | 'workspace'
 

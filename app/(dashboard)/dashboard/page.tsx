@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Note } from '@/lib/types'
+import type { Note } from '@/lib/notes/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import NewContentButton from '@/components/dashboard/NewContentButton'
 import NotesOverview from '@/components/dashboard/NotesOverview'

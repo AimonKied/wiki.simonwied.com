@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import type { PublishedNoteResult } from '@/lib/types'
-import EditorViewer from './EditorViewer'
-import ArticleToc from './ArticleToc'
-import RightSidebar from './RightSidebar'
-import NoteHeader from './NoteHeader'
+import type { PublishedNoteResult } from '@/lib/notes/types'
+import EditorViewer from '@/components/editor/EditorViewer'
+import ArticleToc from '@/components/editor/ArticleToc'
+import RightSidebar from '@/components/editor/RightSidebar'
+import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
 export default function PublishedNoteView({

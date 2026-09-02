@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/sidebar/Sidebar'
-import type { Note } from '@/lib/types'
+import type { Note } from '@/lib/notes/types'
 
 export const dynamic = 'force-dynamic'
 
