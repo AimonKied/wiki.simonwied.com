@@ -34,16 +34,20 @@ export default async function HomePage({
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const { data: ownerResult } = user
+    ? await supabase.rpc('is_wiki_owner')
+    : { data: false }
+  const isOwner = ownerResult === true
   const params = await searchParams
   const activeCategory = params?.category
   const activeType = params?.type
 
   // Load categories, public notes and the user's recent notes in parallel.
-  const recentNotesPromise = user
+  const recentNotesPromise = isOwner
     ? supabase
       .from('notes')
-      .select('id, title, emoji, content_type, is_public, slug, updated_at')
-      .eq('user_id', user.id)
+      .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
+      .eq('user_id', user!.id)
       .not('last_opened_at', 'is', null)
       .order('last_opened_at', { ascending: false })
       .limit(8)
@@ -51,44 +55,28 @@ export default async function HomePage({
 
   const [catsRes, notesRes, recentNotesRes] = await Promise.all([
     supabase.from('categories').select('*').order('position').order('title'),
-    supabase
-      .from('notes')
-      .select(`
-        id, user_id, title, emoji, description, slug, content_type, updated_at, published,
-        note_categories(category_id, categories(id, slug, title, color))
-      `)
-      .eq('is_public', true)
-      .order('updated_at', { ascending: false }),
+    supabase.rpc('list_public_notes'),
     recentNotesPromise,
   ])
 
   const categories: Category[] = (catsRes.data ?? []) as Category[]
 
-  // Autoren-Namen: ein Batch-Lookup in profiles statt Join (kein FK notes→profiles)
-  const authorIds = [...new Set((notesRes.data ?? []).map((n: Record<string, unknown>) => n.user_id as string))]
-  const { data: profiles } = authorIds.length > 0
-    ? await supabase.from('profiles').select('id, display_name').in('id', authorIds)
-    : { data: [] }
-  const authorById = new Map((profiles ?? []).map(p => [p.id as string, p.display_name as string]))
-
-  // Flatten the nested Supabase join result into a clean shape
+  // The RPC exposes frozen snapshots only; live draft columns never reach readers.
   const allPublicNotes: PublicNote[] = (notesRes.data ?? []).map((n: Record<string, unknown>) => {
     // Public listing reflects the frozen snapshot, not the owner's live draft.
     const pub = (n.published ?? null) as {
       title?: string; emoji?: string | null; description?: string | null; slug?: string | null
     } | null
     return {
-    id: n.id as string,
+    id: n.note_id as string,
     title: pub?.title ?? (n.title as string),
     emoji: pub?.emoji ?? (n.emoji as string | null),
     description: pub?.description ?? (n.description as string | null),
     slug: pub?.slug ?? (n.slug as string | null),
     content_type: n.content_type as string,
     updated_at: n.updated_at as string,
-    categories: ((n.note_categories as Array<{ categories: Category | null }>) ?? [])
-      .map(nc => nc.categories)
-      .filter((c): c is Category => c !== null),
-    author: authorById.get(n.user_id as string) ?? null,
+    categories: (n.categories as Category[] | null) ?? [],
+    author: (n.author_name as string | null) ?? null,
     }
   })
 
@@ -105,7 +93,7 @@ export default async function HomePage({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={!!user} notes={(recentNotesRes.data ?? []) as Note[]} />
+      <Sidebar isLoggedIn={isOwner} notes={(recentNotesRes.data ?? []) as Note[]} />
       <main className="app-main" style={{ overflowY: 'visible', animation: 'fadeIn 0.2s ease both' }}>
         <section style={{ marginBottom: '32px', width: '100%', maxWidth: 'min(100%, 1480px)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>

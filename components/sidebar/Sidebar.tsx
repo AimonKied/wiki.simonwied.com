@@ -9,7 +9,7 @@ import type { Note } from '@/lib/types'
 import Logo from '@/components/Logo'
 
 const primaryNav = [
-  { label: 'Bibliothek', href: '/' },
+  { label: 'Bibliothek', href: '/bibliothek' },
 ]
 
 const workspaceNav = [
@@ -295,7 +295,7 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
       const loadRecentNotes = async () => {
         const { data } = await supabase
           .from('notes')
-          .select('id, title, emoji, content_type, is_public, slug, updated_at')
+          .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
           .eq('user_id', user.id)
           .not('last_opened_at', 'is', null)
           .order('last_opened_at', { ascending: false })
@@ -379,7 +379,7 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
 
   async function unpublishNote(noteId: string) {
     const supabase = createClient()
-    const { error } = await supabase.from('notes').update({ is_public: false }).eq('id', noteId)
+    const { error } = await supabase.rpc('set_note_private', { p_note_id: noteId })
     if (error) return
     await reloadNotesRef.current?.()
     setOpenMenuId(null)
@@ -428,7 +428,7 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {note.title || (note.content_type === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')}
               </span>
-              {!note.is_public && (
+              {(note.visibility ?? (note.is_public ? 'public' : 'private')) === 'private' && (
                 <svg
                   width="11" height="11" viewBox="0 0 24 24" fill="none"
                   stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -437,6 +437,11 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
+              )}
+              {(note.visibility ?? (note.is_public ? 'public' : 'private')) === 'link' && (
+                <span title="Nur per Link" style={{ marginLeft: 'auto', color: '#d97706', fontSize: '9px', fontWeight: 800, flexShrink: 0 }}>
+                  LINK
+                </span>
               )}
             </Link>
 
@@ -485,7 +490,7 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
                 borderRadius: '10px',
                 boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
               }}>
-                {note.is_public && (
+                {(note.visibility ?? (note.is_public ? 'public' : 'private')) !== 'private' && (
                   <button
                     type="button"
                     title="Notiz wieder privat schalten"
@@ -789,24 +794,6 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
               }}
             >
               Anmelden
-            </Link>
-            <Link
-              href="/register"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--accent)',
-                background: 'transparent',
-                border: '1px solid var(--accent)',
-                textDecoration: 'none',
-              }}
-            >
-              Registrieren
             </Link>
           </div>
         )}

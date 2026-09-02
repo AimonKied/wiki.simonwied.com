@@ -41,8 +41,8 @@ export default function LandingPage() {
         </h1>
 
         <p style={{ fontSize: '14px', lineHeight: 1.8, color: 'var(--muted)', marginBottom: '40px' }}>
-          Die Wiki bekommt ein neues Fundament. Früher kamen neue Seiten per Pull Request,
-          jetzt kann man Inhalte direkt auf der Webseite erstellen und verwalten.
+          Mein persönliches Wiki für Artikel, Notizen und visuelle Workspaces.
+          Inhalte schreibe und veröffentliche ich direkt im Browser.
         </p>
 
         <ul style={{
@@ -51,9 +51,9 @@ export default function LandingPage() {
           borderRadius: '12px', background: 'var(--surface)', width: '100%',
         }}>
           {[
-            'Inhalte direkt im Browser anlegen, statt über Pull Requests',
-            'Artikel schreiben, speichern und veröffentlichen ohne Git-Workflow',
-            'Inhalte privat halten oder als öffentliche Wiki-Seite freigeben',
+            'Öffentliche Artikel und Workspaces in der Bibliothek entdecken',
+            'Ausgewählte Inhalte sicher über einen geheimen Link teilen',
+            'Entwürfe bleiben bis zur Veröffentlichung vollständig privat',
           ].map(line => (
             <li key={line} style={{ fontSize: '13px', color: 'var(--muted)', display: 'flex', alignItems: 'baseline', gap: '10px' }}>
               <span style={{ color: 'var(--accent)', flexShrink: 0 }}>→</span>
@@ -108,7 +108,7 @@ export default function LandingPage() {
         </Link>
 
         <Link href="/login" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
-          Schon dabei? Anmelden →
+          Autorenbereich →
         </Link>
 
       </div>

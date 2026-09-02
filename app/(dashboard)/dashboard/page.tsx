@@ -24,7 +24,7 @@ export default async function DashboardPage() {
             {displayName ? `Hallo, ${displayName}` : 'Arbeitsbereich'}
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-            Inhalte erstellen, bearbeiten und für die öffentliche Startseite freigeben.
+            Inhalte erstellen, bearbeiten und öffentlich oder per Geheimlink freigeben.
             {user?.email && <span style={{ display: 'block', fontSize: '12px' }}>{user.email}</span>}
           </p>
         </div>

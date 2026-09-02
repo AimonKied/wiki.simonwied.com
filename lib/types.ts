@@ -16,12 +16,31 @@ export interface Note {
   content_type: 'article' | 'workspace'
   slug: string | null
   is_public: boolean
+  visibility: 'private' | 'link' | 'public'
   // Frozen public snapshot; the live columns above are the working draft.
   published?: PublishedSnapshot | null
+  published_at?: string | null
   created_at: string
   updated_at: string
   // Wann zuletzt im Editor geoeffnet; speist die "Zuletzt"-Liste der Sidebar
   last_opened_at?: string | null
+}
+
+export interface NoteShareLink {
+  note_id: string
+  token: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PublishedNoteResult {
+  note_id: string
+  user_id: string
+  content_type: 'article' | 'workspace'
+  published: PublishedSnapshot
+  updated_at: string
+  published_at: string | null
+  author_name: string | null
 }
 
 // Oeffentlich lesbarer Anzeigename (Spiegel aus auth.users, siehe migration.sql)

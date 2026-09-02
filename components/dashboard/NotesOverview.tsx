@@ -43,6 +43,7 @@ function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteR
   const [menuOpen, setMenuOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const isArticle = note.content_type === 'article'
+  const visibility = note.visibility ?? (note.is_public ? 'public' : 'private')
   const showActions = hovered || menuOpen
 
   return (
@@ -78,8 +79,13 @@ function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteR
         }}>
           {note.title || (isArticle ? 'Ohne Titel' : 'Unbenannter Workspace')}
         </span>
-        {!note.is_public && <LockIcon />}
-        {note.is_public && (
+        {visibility === 'private' && <LockIcon />}
+        {visibility === 'link' && (
+          <span title="Nur per Link" style={{ padding: '2px 6px', borderRadius: '999px', background: '#d9770622', color: '#d97706', fontSize: '9px', fontWeight: 800, flexShrink: 0 }}>
+            LINK
+          </span>
+        )}
+        {visibility === 'public' && (
           <span title="Öffentlich" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
         )}
         {/* Locale/timezone formatting can differ between SSR and browser */}
@@ -128,7 +134,7 @@ function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteR
           borderRadius: '10px',
           boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
         }}>
-          {note.is_public && (
+          {visibility !== 'private' && (
             <button
               type="button"
               title="Notiz wieder privat schalten"
@@ -208,9 +214,9 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
 
   async function unpublishNote(note: Note) {
     const supabase = createClient()
-    const { error } = await supabase.from('notes').update({ is_public: false }).eq('id', note.id)
+    const { error } = await supabase.rpc('set_note_private', { p_note_id: note.id })
     if (error) return
-    setNotes(current => current.map(n => n.id === note.id ? { ...n, is_public: false } : n))
+    setNotes(current => current.map(n => n.id === note.id ? { ...n, visibility: 'private', is_public: false } : n))
     // Sidebar "Zuletzt" refetches on this
     document.dispatchEvent(new Event('wiki-notes-changed'))
   }

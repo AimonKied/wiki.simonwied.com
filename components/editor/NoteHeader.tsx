@@ -26,6 +26,7 @@ export default function NoteHeader({
   title,
   description,
   statusLabel,
+  visibilityLabel,
   typeLabel,
   isArticle,
   isPublic,
@@ -43,6 +44,7 @@ export default function NoteHeader({
   title: string
   description: string
   statusLabel: string
+  visibilityLabel?: string
   typeLabel: string
   isArticle: boolean
   isPublic: boolean
@@ -136,8 +138,8 @@ export default function NoteHeader({
           </span>
         )}
         <span
-          title={isPublic ? 'Öffentlich' : 'Privater Entwurf'}
-          style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: isPublic ? 'var(--accent)' : 'var(--muted)' }}
+          title={visibilityLabel ?? (isPublic ? 'Öffentlich' : 'Privater Entwurf')}
+          style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: visibilityLabel === 'Nur per Link' ? '#d97706' : isPublic ? 'var(--accent)' : 'var(--muted)' }}
         />
         {meta}
         {linkRight}
@@ -264,8 +266,8 @@ export default function NoteHeader({
           borderRadius: '999px', background: 'var(--surface)',
           color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
         }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPublic ? 'var(--accent)' : 'var(--muted)' }} />
-          {isPublic ? 'Öffentlich' : 'Privater Entwurf'}
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: visibilityLabel === 'Nur per Link' ? '#d97706' : isPublic ? 'var(--accent)' : 'var(--muted)' }} />
+          {visibilityLabel ?? (isPublic ? 'Öffentlich' : 'Privater Entwurf')}
         </span>
         {linkRight}
       </div>

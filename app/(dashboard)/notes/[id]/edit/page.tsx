@@ -13,6 +13,8 @@ import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/markdownConvert'
 
+type Visibility = 'private' | 'link' | 'public'
+
 const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
 
@@ -50,7 +52,11 @@ export default function EditNotePage() {
   const [emoji, setEmoji] = useState('')
   const [content, setContent] = useState<object>({})
   const [contentType, setContentType] = useState<'article' | 'workspace'>('workspace')
-  const [isPublic, setIsPublic] = useState(false)
+  const [visibility, setVisibility] = useState<Visibility>('private')
+  const [publishVisibility, setPublishVisibility] = useState<Visibility>('public')
+  const [shareToken, setShareToken] = useState<string | null>(null)
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [publishError, setPublishError] = useState('')
   const [slug, setSlug] = useState('')
   const [slugManual, setSlugManual] = useState(false)
   const [allCategories, setAllCategories] = useState<Category[]>([])
@@ -90,10 +96,11 @@ export default function EditNotePage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [noteRes, catsRes, noteCatsRes] = await Promise.all([
+      const [noteRes, catsRes, noteCatsRes, shareLinkRes] = await Promise.all([
         supabase.from('notes').select('*').eq('id', id).single(),
         supabase.from('categories').select('*').order('position').order('title'),
         supabase.from('note_categories').select('category_id').eq('note_id', id),
+        supabase.from('note_share_links').select('token').eq('note_id', id).maybeSingle(),
       ])
 
       if (noteRes.data) {
@@ -114,12 +121,15 @@ export default function EditNotePage() {
         setEmoji(data.emoji ?? '')
         setContent(data.content ?? {})
         setContentType(data.content_type ?? 'workspace')
-        setIsPublic(data.is_public)
+        const loadedVisibility = data.visibility ?? (data.is_public ? 'public' : 'private')
+        setVisibility(loadedVisibility)
+        setPublishVisibility(loadedVisibility === 'private' ? 'public' : loadedVisibility)
         setSlug(data.slug ?? '')
         setSlugManual(!!data.slug)
       }
       if (catsRes.data) setAllCategories(catsRes.data as Category[])
       if (noteCatsRes.data) setSelectedCategories(noteCatsRes.data.map(r => r.category_id))
+      setShareToken((shareLinkRes.data?.token as string | undefined) ?? null)
 
       setLoading(false)
     }
@@ -128,26 +138,18 @@ export default function EditNotePage() {
 
   // Auto-suggest slug from title (only if not manually edited)
   useEffect(() => {
-    if (slugManual || !isPublic) return
+    if (slugManual || (visibility !== 'public' && publishVisibility !== 'public')) return
     setSlug(slugify(title))
-  }, [title, isPublic, slugManual])
+  }, [title, visibility, publishVisibility, slugManual])
 
-  // 'draft' = auto-save working copy only (never touches the public snapshot).
-  // 'publish' = copy the current draft into the frozen public snapshot + go public.
-  // 'unpublish' = take the note offline (snapshot stays for a later re-publish).
-  const persist = useCallback((mode: 'draft' | 'publish' | 'unpublish' = 'draft') => {
-    // Drafts may be saved without a title (new notes start empty); publishing needs one.
-    if (mode === 'publish' && !title.trim()) return
-    if (mode === 'publish' && selectedCategories.length === 0) {
-      setCategoryError(true)
-      return
-    }
+  // Auto-save only changes the working copy. Publishing always goes through the
+  // atomic RPC below, so readers can never observe a half-updated snapshot.
+  const persist = useCallback(() => {
     setCategoryError(false)
     window.clearTimeout(debounceRef.current)
     debounceRef.current = 0
 
-    const effectiveSlug = slug.trim() || (mode === 'publish' ? slugify(title) : '')
-    if (mode === 'publish' && effectiveSlug !== slug) setSlug(effectiveSlug)
+    const effectiveSlug = slug.trim()
     const draftSlug = effectiveSlug || null
 
     const snapshot = {
@@ -165,51 +167,126 @@ export default function EditNotePage() {
       content_type: contentType,
       slug: draftSlug,
     }
-    if (mode === 'publish') { payload.is_public = true; payload.published = snapshot }
-    if (mode === 'unpublish') { payload.is_public = false }
-    const cats = [...selectedCategories]
-
     setSaveStatus('saving')
     saveChain.current = saveChain.current
       .then(async () => {
         const supabase = createClient()
-
-        // Kategorien zuerst synchronisieren (delete all, re-insert current
-        // selection) — muss vor dem notes-Update passieren: die DB blockt
-        // is_public=true ohne verknuepfte Kategorie (siehe migration.sql
-        // Block 10), das wuerde sonst jeden ersten Publish verhindern.
-        const { error: catDeleteError } = await supabase.from('note_categories').delete().eq('note_id', id)
-        if (catDeleteError) { setSaveStatus('error'); return }
-        if (cats.length > 0) {
-          const { error: catInsertError } = await supabase.from('note_categories').insert(
-            cats.map(cat_id => ({ note_id: id, category_id: cat_id }))
-          )
-          if (catInsertError) { setSaveStatus('error'); return }
-        }
-
         const { error } = await supabase.from('notes').update(payload).eq('id', id)
         if (error) { setSaveStatus('error'); return }
         setSaveStatus('saved')
         // Sidebar "Zuletzt" refetches on this — instant even without Supabase realtime
         document.dispatchEvent(new Event('wiki-notes-changed'))
-        if (mode === 'publish') { setIsPublic(true); setNote(n => n ? { ...n, is_public: true, published: snapshot } : n) }
-        if (mode === 'unpublish') { setIsPublic(false); setNote(n => n ? { ...n, is_public: false } : n) }
       })
       .catch(() => setSaveStatus('error'))
-  }, [id, title, description, emoji, content, contentType, slug, selectedCategories])
+  }, [id, title, description, emoji, content, contentType, slug])
 
-  const handleSave = useCallback(() => { persist('draft') }, [persist])
+  const handleSave = useCallback(() => { persist() }, [persist])
   const openPublishModal = useCallback(() => {
     if (!slug.trim()) setSlug(slugify(title))
     setCategoryError(false)
+    setCopyStatus('idle')
+    setPublishError('')
+    setPublishVisibility(visibility === 'private' ? 'public' : visibility)
     setPublishModalOpen(true)
-  }, [slug, title])
-  const confirmPublish = useCallback(() => {
-    if (selectedCategories.length === 0) { setCategoryError(true); return }
-    persist('publish')
-    setPublishModalOpen(false)
-  }, [persist, selectedCategories])
-  const handleUnpublish = useCallback(() => { persist('unpublish') }, [persist])
+  }, [slug, title, visibility])
+
+  const confirmVisibility = useCallback(async () => {
+    if (publishVisibility !== 'private' && !title.trim()) {
+      setPublishError('Zum Freigeben ist ein Titel erforderlich.')
+      return
+    }
+    if (publishVisibility === 'public' && selectedCategories.length === 0) {
+      setCategoryError(true)
+      setPublishError('Bitte wähle mindestens eine Kategorie.')
+      return
+    }
+
+    window.clearTimeout(debounceRef.current)
+    debounceRef.current = 0
+    setCategoryError(false)
+    setPublishError('')
+    setSaveStatus('saving')
+
+    const effectiveSlug = slug.trim() || slugify(title)
+    if (effectiveSlug !== slug) setSlug(effectiveSlug)
+    const snapshot = {
+      title: title.trim(),
+      emoji: emoji || null,
+      description: description.trim() || null,
+      content,
+      slug: effectiveSlug || null,
+    }
+
+    const task = saveChain.current.then(async () => {
+      const supabase = createClient()
+      if (publishVisibility === 'private') {
+        const { error } = await supabase.rpc('set_note_private', { p_note_id: id })
+        if (error) throw error
+        setVisibility('private')
+        setShareToken(null)
+        setNote(current => current ? { ...current, visibility: 'private', is_public: false } : current)
+      } else {
+        const { data, error } = await supabase.rpc('publish_note', {
+          p_note_id: id,
+          p_visibility: publishVisibility,
+          p_snapshot: snapshot,
+          p_slug: effectiveSlug,
+          p_category_ids: selectedCategories,
+          p_rotate_link: false,
+        }).single()
+        if (error) throw error
+        const token = (data as { share_token?: string | null } | null)?.share_token ?? null
+        setVisibility(publishVisibility)
+        setShareToken(publishVisibility === 'link' ? token : null)
+        setNote(current => current ? {
+          ...current,
+          visibility: publishVisibility,
+          is_public: publishVisibility === 'public',
+          published: snapshot,
+          published_at: new Date().toISOString(),
+        } : current)
+      }
+      setSaveStatus('saved')
+      setPublishError('')
+      document.dispatchEvent(new Event('wiki-notes-changed'))
+      if (publishVisibility !== 'link') setPublishModalOpen(false)
+    })
+
+    saveChain.current = task.catch((error: unknown) => {
+      setSaveStatus('error')
+      setPublishError(error instanceof Error ? error.message : 'Freigabe fehlgeschlagen.')
+    })
+    await saveChain.current
+  }, [content, description, emoji, id, publishVisibility, selectedCategories, slug, title])
+
+  const handleUnpublish = useCallback(async () => {
+    const supabase = createClient()
+    const { error } = await supabase.rpc('set_note_private', { p_note_id: id })
+    if (error) { setSaveStatus('error'); return }
+    setVisibility('private')
+    setShareToken(null)
+    setNote(current => current ? { ...current, visibility: 'private', is_public: false } : current)
+    document.dispatchEvent(new Event('wiki-notes-changed'))
+  }, [id])
+
+  const copyShareLink = useCallback(async () => {
+    if (!shareToken) return
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/share/${shareToken}`)
+      setCopyStatus('copied')
+    } catch {
+      setCopyStatus('error')
+    }
+  }, [shareToken])
+
+  const rotateShareLink = useCallback(async () => {
+    if (!window.confirm('Der bisherige Freigabelink wird sofort ungültig. Neuen Link erzeugen?')) return
+    const supabase = createClient()
+    const { data, error } = await supabase.rpc('rotate_note_share_link', { p_note_id: id })
+    if (error || !data) { setCopyStatus('error'); return }
+    setShareToken(data as string)
+    setCopyStatus('idle')
+  }, [id])
 
   // Notion-style: broadcast title/emoji per keystroke so the sidebar entry
   // updates in the same frame, before any save round trip.
@@ -308,7 +385,11 @@ export default function EditNotePage() {
 
   const isArticle = contentType === 'article'
   const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
-  const publishState = isPublic ? 'Öffentlich sichtbar' : 'Privater Entwurf'
+  const visibilityLabel = visibility === 'public'
+    ? 'Öffentlich'
+    : visibility === 'link'
+      ? 'Nur per Link'
+      : 'Privater Entwurf'
 
   return (
     <div
@@ -325,17 +406,18 @@ export default function EditNotePage() {
           emoji={emoji}
           title={title}
           description={description}
-          statusLabel={publishState}
+          statusLabel={visibilityLabel}
+          visibilityLabel={visibilityLabel}
           typeLabel={typeLabel}
           isArticle={isArticle}
-          isPublic={isPublic}
+          isPublic={visibility === 'public'}
           floating={!isArticle}
           editable
           titleInputRef={titleInputRef}
           onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}
           onTitleChange={v => { setTitle(v); patchSidebar({ title: v }) }}
           onDescriptionChange={setDescription}
-          linkRight={isPublic && note.published?.slug && (
+          linkRight={visibility === 'public' && note.published?.slug ? (
             <Link
               href={`/notes/${note.published.slug}`}
               target="_blank"
@@ -343,21 +425,29 @@ export default function EditNotePage() {
             >
               /notes/{note.published.slug} ansehen →
             </Link>
-          )}
+          ) : visibility === 'link' && shareToken ? (
+            <Link
+              href={`/share/${shareToken}`}
+              target="_blank"
+              style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+            >
+              Freigabelink ansehen →
+            </Link>
+          ) : undefined}
           actions={
             <>
               <ThemeToggle />
               {saveStatus === 'error' && <span style={{ fontSize: '12px', color: 'var(--accent2)' }}>Speichern fehlgeschlagen</span>}
               <button
                 onClick={openPublishModal}
-                title={isPublic ? 'Aktuellen Stand öffentlich übernehmen' : undefined}
+                title="Sichtbarkeit und Veröffentlichung verwalten"
                 style={{
                   padding: '9px 20px', background: 'var(--accent)', color: '#fff',
                   border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
                   fontFamily: 'inherit', cursor: 'pointer',
                 }}
               >
-                {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+                Teilen
               </button>
 
               {/* ⋯-Menue fuer sekundaere Aktionen */}
@@ -414,7 +504,7 @@ export default function EditNotePage() {
                         </button>
                       </>
                     )}
-                    {isPublic && (
+                    {visibility !== 'private' && (
                       <button
                         type="button"
                         title="Notiz wieder privat schalten"
@@ -476,70 +566,108 @@ export default function EditNotePage() {
             }}
           >
             <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '4px', fontFamily: 'var(--font-display)' }}>
-              {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+              Teilen und veröffentlichen
             </div>
             <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-              URL und Kategorien festlegen. Erst mit Bestätigung wird der aktuelle Stand öffentlich.
+              Leser sehen immer nur den zuletzt freigegebenen Stand, nie deinen laufenden Entwurf.
             </p>
 
-            {/* Slug */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px', fontWeight: 700, letterSpacing: '0.06em' }}>
-                URL
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
-                <input
-                  value={slug}
-                  onChange={e => {
-                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
-                    setSlugManual(true)
-                  }}
-                  placeholder="mein-slug"
-                  autoFocus
-                  style={{
-                    flex: 1, padding: '8px 10px', background: 'var(--bg)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
-                    fontSize: '13px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
-                  }}
-                />
-              </div>
+            <div style={{ display: 'grid', gap: '8px', marginBottom: '18px' }}>
+              {([
+                ['private', 'Entwurf', 'Nur für mich sichtbar. Bestehende Links werden widerrufen.'],
+                ['link', 'Nur per Link', 'Jeder mit dem geheimen Link kann diesen Stand lesen.'],
+                ['public', 'Öffentlich', 'In der Bibliothek und über die öffentliche URL sichtbar.'],
+              ] as Array<[Visibility, string, string]>).map(([value, label, help]) => {
+                const active = publishVisibility === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => { setPublishVisibility(value); setCategoryError(false); setCopyStatus('idle') }}
+                    style={{
+                      display: 'flex', gap: '11px', alignItems: 'flex-start', width: '100%', textAlign: 'left',
+                      padding: '11px 12px', borderRadius: '10px', cursor: 'pointer', fontFamily: 'inherit',
+                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      background: active ? 'color-mix(in srgb, var(--accent) 9%, transparent)' : 'var(--bg)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    <span style={{
+                      width: '15px', height: '15px', marginTop: '2px', flexShrink: 0, borderRadius: '50%',
+                      border: `4px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      background: 'var(--surface)',
+                    }} />
+                    <span>
+                      <strong style={{ display: 'block', fontSize: '13px', marginBottom: '2px' }}>{label}</strong>
+                      <span style={{ display: 'block', fontSize: '11px', lineHeight: 1.5, color: 'var(--muted)' }}>{help}</span>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Categories */}
-            <div style={{ marginBottom: '22px' }}>
-              <div style={{ fontSize: '11px', color: categoryError ? 'var(--accent2)' : 'var(--muted)', marginBottom: '8px', fontWeight: 700, letterSpacing: '0.06em' }}>
-                {categoryError ? 'Mindestens eine Kategorie wählen' : 'KATEGORIEN'}
+            {publishVisibility === 'public' && (
+              <>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px', fontWeight: 700, letterSpacing: '0.06em' }}>URL</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>/notes/</span>
+                    <input
+                      value={slug}
+                      onChange={e => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')); setSlugManual(true) }}
+                      placeholder="mein-slug"
+                      style={{ flex: 1, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{ fontSize: '11px', color: categoryError ? 'var(--accent2)' : 'var(--muted)', marginBottom: '8px', fontWeight: 700, letterSpacing: '0.06em' }}>
+                    {categoryError ? 'Mindestens eine Kategorie wählen' : 'KATEGORIEN'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {allCategories.map(cat => {
+                      const active = selectedCategories.includes(cat.id)
+                      return (
+                        <button key={cat.id} type="button" onClick={() => toggleCategory(cat.id)} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 11px', borderRadius: '999px', cursor: 'pointer',
+                          fontSize: '12px', fontFamily: 'inherit', fontWeight: 600,
+                          border: `1px solid ${active ? cat.color ?? 'var(--accent)' : 'var(--border)'}`,
+                          background: active ? (cat.color ?? 'var(--accent)') + '22' : 'transparent',
+                          color: active ? (cat.color ?? 'var(--accent)') : 'var(--muted)',
+                        }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: cat.color ?? 'var(--muted)', display: 'inline-block' }} />
+                          {cat.title}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {publishVisibility === 'link' && shareToken && visibility === 'link' && (
+              <div style={{ padding: '12px', marginBottom: '18px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--bg)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '7px', fontWeight: 700 }}>GEHEIMER FREIGABELINK</div>
+                <div style={{ fontSize: '12px', color: 'var(--text)', overflowWrap: 'anywhere', marginBottom: '10px' }}>
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/share/{shareToken}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button type="button" onClick={copyShareLink} style={{ padding: '7px 11px', borderRadius: '7px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    {copyStatus === 'copied' ? 'Kopiert ✓' : copyStatus === 'error' ? 'Kopieren fehlgeschlagen' : 'Link kopieren'}
+                  </button>
+                  <button type="button" onClick={rotateShareLink} style={{ padding: '7px 11px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer' }}>
+                    Link erneuern
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {allCategories.map(cat => {
-                  const active = selectedCategories.includes(cat.id)
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => toggleCategory(cat.id)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        padding: '6px 11px', borderRadius: '999px', cursor: 'pointer',
-                        fontSize: '12px', fontFamily: 'inherit', fontWeight: 600,
-                        border: `1px solid ${active ? cat.color ?? 'var(--accent)' : 'var(--border)'}`,
-                        background: active ? (cat.color ?? 'var(--accent)') + '22' : 'transparent',
-                        color: active ? (cat.color ?? 'var(--accent)') : 'var(--muted)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <span style={{
-                        width: '6px', height: '6px', borderRadius: '50%',
-                        background: cat.color ?? 'var(--muted)',
-                        display: 'inline-block',
-                      }} />
-                      {cat.title}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            )}
+
+            {publishError && (
+              <p role="alert" style={{ margin: '0 0 14px', color: 'var(--accent2)', fontSize: '12px', lineHeight: 1.5 }}>
+                {publishError}
+              </p>
+            )}
 
             {/* Footer */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
@@ -551,10 +679,10 @@ export default function EditNotePage() {
                   fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
                 }}
               >
-                Abbrechen
+                Schließen
               </button>
               <button
-                onClick={confirmPublish}
+                onClick={confirmVisibility}
                 disabled={saveStatus === 'saving'}
                 style={{
                   padding: '9px 20px', background: 'var(--accent)', color: '#fff',
@@ -563,7 +691,11 @@ export default function EditNotePage() {
                   opacity: saveStatus === 'saving' ? 0.6 : 1,
                 }}
               >
-                {isPublic ? 'Änderungen veröffentlichen' : 'Veröffentlichen'}
+                {publishVisibility === 'private'
+                  ? 'Privat schalten'
+                  : visibility === publishVisibility
+                    ? 'Aktuellen Stand freigeben'
+                    : publishVisibility === 'link' ? 'Per Link freigeben' : 'Öffentlich machen'}
               </button>
             </div>
           </div>
