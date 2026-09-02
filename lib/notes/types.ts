@@ -26,6 +26,11 @@ export interface Note {
   last_opened_at?: string | null
 }
 
+export type NoteSummary = Pick<
+  Note,
+  'id' | 'title' | 'emoji' | 'content_type' | 'slug' | 'is_public' | 'visibility' | 'updated_at'
+>
+
 export interface NoteShareLink {
   note_id: string
   token: string

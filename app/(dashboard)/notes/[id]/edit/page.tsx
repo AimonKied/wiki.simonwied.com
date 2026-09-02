@@ -66,6 +66,9 @@ export default function EditNotePage() {
   const [publishModalOpen, setPublishModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [deletePending, setDeletePending] = useState(false)
   const saveChain = useRef(Promise.resolve())
   const debounceRef = useRef(0)
   const hydratedRef = useRef(false)
@@ -94,6 +97,8 @@ export default function EditNotePage() {
   }, [actionsMenuOpen])
 
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
       const supabase = createClient()
       const [noteRes, catsRes, noteCatsRes, shareLinkRes] = await Promise.all([
@@ -102,6 +107,16 @@ export default function EditNotePage() {
         supabase.from('note_categories').select('category_id').eq('note_id', id),
         supabase.from('note_share_links').select('token').eq('note_id', id).maybeSingle(),
       ])
+
+      if (cancelled) return
+      const loadFailure = noteRes.error?.code === 'PGRST116'
+        ? catsRes.error ?? noteCatsRes.error ?? shareLinkRes.error
+        : noteRes.error ?? catsRes.error ?? noteCatsRes.error ?? shareLinkRes.error
+      if (loadFailure) {
+        setLoadError(`Notiz konnte nicht geladen werden: ${loadFailure.message}`)
+        setLoading(false)
+        return
+      }
 
       if (noteRes.data) {
         const data = noteRes.data as Note
@@ -133,14 +148,13 @@ export default function EditNotePage() {
 
       setLoading(false)
     }
-    load()
+    load().catch((error: unknown) => {
+      if (cancelled) return
+      setLoadError(error instanceof Error ? error.message : 'Notiz konnte nicht geladen werden.')
+      setLoading(false)
+    })
+    return () => { cancelled = true }
   }, [id])
-
-  // Auto-suggest slug from title (only if not manually edited)
-  useEffect(() => {
-    if (slugManual || (visibility !== 'public' && publishVisibility !== 'public')) return
-    setSlug(slugify(title))
-  }, [title, visibility, publishVisibility, slugManual])
 
   // Auto-save only changes the working copy. Publishing always goes through the
   // atomic RPC below, so readers can never observe a half-updated snapshot.
@@ -304,8 +318,17 @@ export default function EditNotePage() {
   }, [loading, note])
 
   async function confirmDelete() {
+    setDeleteError('')
+    setDeletePending(true)
+    window.clearTimeout(debounceRef.current)
+    debounceRef.current = 0
     const supabase = createClient()
-    await supabase.from('notes').delete().eq('id', id)
+    const { error } = await supabase.from('notes').delete().eq('id', id)
+    if (error) {
+      setDeleteError(`Löschen fehlgeschlagen: ${error.message}`)
+      setDeletePending(false)
+      return
+    }
     document.dispatchEvent(new Event('wiki-notes-changed'))
     router.push('/dashboard')
   }
@@ -377,6 +400,11 @@ export default function EditNotePage() {
   }
 
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Lädt…</div>
+  if (loadError) return (
+    <div role="alert" style={{ color: 'var(--accent2)', fontSize: '13px' }}>
+      {loadError} <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Zurück</Link>
+    </div>
+  )
   if (!note) return (
     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
       Notiz nicht gefunden. <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Zurück</Link>
@@ -415,7 +443,13 @@ export default function EditNotePage() {
           editable
           titleInputRef={titleInputRef}
           onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}
-          onTitleChange={v => { setTitle(v); patchSidebar({ title: v }) }}
+          onTitleChange={v => {
+            setTitle(v)
+            if (!slugManual && (visibility === 'public' || publishVisibility === 'public')) {
+              setSlug(slugify(v))
+            }
+            patchSidebar({ title: v })
+          }}
           onDescriptionChange={setDescription}
           linkRight={visibility === 'public' && note.published?.slug ? (
             <Link
@@ -730,6 +764,11 @@ export default function EditNotePage() {
             <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
               „{title || 'Ohne Titel'}“ wird endgültig gelöscht.
             </p>
+            {deleteError && (
+              <p role="alert" style={{ margin: '0 0 14px', color: 'var(--accent2)', fontSize: '12px' }}>
+                {deleteError}
+              </p>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button
                 type="button"
@@ -744,14 +783,15 @@ export default function EditNotePage() {
               </button>
               <button
                 type="button"
+                disabled={deletePending}
                 onClick={confirmDelete}
                 style={{
                   padding: '9px 16px', background: 'var(--accent2)', color: '#fff',
                   border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700,
-                  fontFamily: 'inherit', cursor: 'pointer',
+                  fontFamily: 'inherit', cursor: deletePending ? 'wait' : 'pointer', opacity: deletePending ? 0.7 : 1,
                 }}
               >
-                Löschen
+                {deletePending ? 'Wird gelöscht…' : 'Löschen'}
               </button>
             </div>
           </div>

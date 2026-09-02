@@ -42,12 +42,15 @@ const DEFAULT_ARTICLE_CONTENT = {
 
 // Creates a private draft and returns its id — callers navigate straight to
 // /notes/[id]/edit; there is no separate create page.
-export async function createNote(type: 'article' | 'workspace'): Promise<string | null> {
+export async function createNote(type: 'article' | 'workspace'): Promise<string> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: isOwner } = await supabase.rpc('is_wiki_owner')
-  if (isOwner !== true) return null
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError) throw new Error(`Session konnte nicht geprüft werden: ${userError.message}`)
+  if (!user) throw new Error('Du bist nicht mehr angemeldet.')
+
+  const { data: isOwner, error: ownerError } = await supabase.rpc('is_wiki_owner')
+  if (ownerError) throw new Error(`Berechtigung konnte nicht geprüft werden: ${ownerError.message}`)
+  if (isOwner !== true) throw new Error('Dieses Konto darf keine Inhalte erstellen.')
 
   const { data, error } = await supabase
     .from('notes')
@@ -64,7 +67,8 @@ export async function createNote(type: 'article' | 'workspace'): Promise<string 
     .select('id')
     .single()
 
-  if (error || !data) return null
+  if (error) throw new Error(`Inhalt konnte nicht erstellt werden: ${error.message}`)
+  if (!data) throw new Error('Inhalt konnte nicht erstellt werden.')
   // Sidebar "Zuletzt" refetches on this
   document.dispatchEvent(new Event('wiki-notes-changed'))
   return data.id

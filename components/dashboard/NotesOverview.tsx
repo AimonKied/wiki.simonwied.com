@@ -192,6 +192,8 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Note | null>(null)
+  const [operationError, setOperationError] = useState('')
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null)
 
   const filtered = notes.filter(note => {
     if (typeFilter !== 'all' && note.content_type !== typeFilter) return false
@@ -203,9 +205,15 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   const workspaces = filtered.filter(n => n.content_type === 'workspace')
 
   async function deleteNote(note: Note) {
+    setOperationError('')
+    setPendingActionId(note.id)
     const supabase = createClient()
     const { error } = await supabase.from('notes').delete().eq('id', note.id)
-    if (error) return
+    setPendingActionId(null)
+    if (error) {
+      setOperationError(`Löschen fehlgeschlagen: ${error.message}`)
+      return
+    }
     setNotes(current => current.filter(n => n.id !== note.id))
     setPendingDelete(null)
     // Sidebar "Zuletzt" refetches on this
@@ -213,9 +221,15 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   }
 
   async function unpublishNote(note: Note) {
+    setOperationError('')
+    setPendingActionId(note.id)
     const supabase = createClient()
     const { error } = await supabase.rpc('set_note_private', { p_note_id: note.id })
-    if (error) return
+    setPendingActionId(null)
+    if (error) {
+      setOperationError(`Privatstellen fehlgeschlagen: ${error.message}`)
+      return
+    }
     setNotes(current => current.map(n => n.id === note.id ? { ...n, visibility: 'private', is_public: false } : n))
     // Sidebar "Zuletzt" refetches on this
     document.dispatchEvent(new Event('wiki-notes-changed'))
@@ -292,6 +306,12 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
           }}
         />
       </div>
+
+      {operationError && (
+        <p role="alert" style={{ margin: '-6px 0 16px', color: 'var(--accent2)', fontSize: '12px' }}>
+          {operationError}
+        </p>
+      )}
 
       {!filtered.length ? (
         <div style={{
@@ -383,6 +403,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
               </button>
               <button
                 type="button"
+                disabled={pendingActionId === pendingDelete.id}
                 onClick={() => deleteNote(pendingDelete)}
                 style={{
                   padding: '8px 12px',
@@ -390,12 +411,13 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
                   border: 'none',
                   background: 'var(--accent2)',
                   color: '#fff',
-                  cursor: 'pointer',
+                  cursor: pendingActionId === pendingDelete.id ? 'wait' : 'pointer',
                   fontFamily: 'inherit',
                   fontWeight: 700,
+                  opacity: pendingActionId === pendingDelete.id ? 0.7 : 1,
                 }}
               >
-                Löschen
+                {pendingActionId === pendingDelete.id ? 'Wird gelöscht…' : 'Löschen'}
               </button>
             </div>
           </div>

@@ -21,6 +21,7 @@ export default function NewContentButton() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState<string | null>(null)
+  const [createError, setCreateError] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -105,11 +106,17 @@ export default function NewContentButton() {
                 type="button"
                 disabled={creating !== null}
                 onClick={async () => {
+                  setCreateError('')
                   setCreating(opt.type)
-                  const id = await createNote(opt.type)
-                  setCreating(null)
-                  setOpen(false)
-                  if (id) router.push(`/notes/${id}/edit`)
+                  try {
+                    const id = await createNote(opt.type)
+                    setOpen(false)
+                    router.push(`/notes/${id}/edit`)
+                  } catch (error) {
+                    setCreateError(error instanceof Error ? error.message : 'Inhalt konnte nicht erstellt werden.')
+                  } finally {
+                    setCreating(null)
+                  }
                 }}
                 style={{
                   display: 'block',
@@ -136,6 +143,11 @@ export default function NewContentButton() {
               </button>
             )
           })}
+          {createError && (
+            <p role="alert" style={{ margin: '4px 8px', color: 'var(--accent2)', fontSize: '12px', lineHeight: 1.4 }}>
+              {createError}
+            </p>
+          )}
         </div>
       )}
     </div>

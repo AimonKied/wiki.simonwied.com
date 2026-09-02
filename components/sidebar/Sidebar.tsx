@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createNote } from '@/lib/notes/create'
-import type { Note } from '@/lib/notes/types'
+import type { NoteSummary } from '@/lib/notes/types'
 import Logo from '@/components/Logo'
 
 const primaryNav = [
@@ -27,6 +27,7 @@ function NewContentNavItem() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState<string | null>(null)
+  const [createError, setCreateError] = useState('')
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -156,11 +157,17 @@ function NewContentNavItem() {
                 type="button"
                 disabled={creating !== null}
                 onClick={async () => {
+                  setCreateError('')
                   setCreating(opt.type)
-                  const id = await createNote(opt.type)
-                  setCreating(null)
-                  setOpen(false)
-                  if (id) router.push(`/notes/${id}/edit`)
+                  try {
+                    const id = await createNote(opt.type)
+                    setOpen(false)
+                    router.push(`/notes/${id}/edit`)
+                  } catch (error) {
+                    setCreateError(error instanceof Error ? error.message : 'Inhalt konnte nicht erstellt werden.')
+                  } finally {
+                    setCreating(null)
+                  }
                 }}
                 style={{
                   display: 'flex',
@@ -185,6 +192,11 @@ function NewContentNavItem() {
               </button>
             )
           })}
+          {createError && (
+            <p role="alert" style={{ margin: '4px 8px', color: 'var(--accent2)', fontSize: '11px', lineHeight: 1.4 }}>
+              {createError}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -239,15 +251,16 @@ function SidebarSection({
 
 // "Zuletzt" = Notizen mit last_opened_at, account-weit aus der DB. Die
 // Edit-Seite stempelt beim Oeffnen; nie geoeffnete Notizen erscheinen nicht.
-function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
+function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string }) {
   const router = useRouter()
   const listRef = useRef<HTMLDivElement>(null)
   const reloadNotesRef = useRef<null | (() => Promise<void>)>(null)
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [pendingDeleteNote, setPendingDeleteNote] = useState<Note | null>(null)
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<NoteSummary | null>(null)
+  const [notesError, setNotesError] = useState('')
   // Startwert kommt server-seitig, bereits nach last_opened_at sortiert
-  const [recentNotes, setRecentNotes] = useState<Note[]>(notes)
+  const [recentNotes, setRecentNotes] = useState<NoteSummary[]>(notes)
 
   // Beim Navigieren neu laden; der last_opened_at-Stempel der Edit-Seite
   // sortiert die geoeffnete Notiz nach vorn.
@@ -289,11 +302,12 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
     async function setupLiveNotes() {
       const supabase = createClient()
       supabaseClient = supabase
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
       if (!user || cancelled) return
 
       const loadRecentNotes = async () => {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('notes')
           .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
           .eq('user_id', user.id)
@@ -301,8 +315,13 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
           .order('last_opened_at', { ascending: false })
           .limit(8)
 
+        if (error) {
+          if (!cancelled) setNotesError(`Zuletzt-Liste konnte nicht geladen werden: ${error.message}`)
+          return
+        }
         if (!cancelled && data) {
-          setRecentNotes(data as Note[])
+          setNotesError('')
+          setRecentNotes(data as NoteSummary[])
         }
       }
 
@@ -322,7 +341,11 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
         .subscribe()
     }
 
-    void setupLiveNotes()
+    void setupLiveNotes().catch((error: unknown) => {
+      if (!cancelled) {
+        setNotesError(error instanceof Error ? error.message : 'Zuletzt-Liste konnte nicht geladen werden.')
+      }
+    })
 
     return () => {
       cancelled = true
@@ -364,9 +387,13 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   }, [])
 
   async function deleteNote(noteId: string) {
+    setNotesError('')
     const supabase = createClient()
     const { error } = await supabase.from('notes').delete().eq('id', noteId)
-    if (error) return
+    if (error) {
+      setNotesError(`Löschen fehlgeschlagen: ${error.message}`)
+      return
+    }
     await reloadNotesRef.current?.()
     setOpenMenuId(null)
     setPendingDeleteNote(null)
@@ -378,9 +405,13 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   }
 
   async function unpublishNote(noteId: string) {
+    setNotesError('')
     const supabase = createClient()
     const { error } = await supabase.rpc('set_note_private', { p_note_id: noteId })
-    if (error) return
+    if (error) {
+      setNotesError(`Privatstellen fehlgeschlagen: ${error.message}`)
+      return
+    }
     await reloadNotesRef.current?.()
     setOpenMenuId(null)
     setHoveredNoteId(null)
@@ -390,12 +421,17 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   // Verlaufsreihenfolge kommt aus recentIds: die aktive Notiz wurde beim
   // Oeffnen bereits nach vorn gebumpt.
   const visibleNotes = recentNotes
-  if (!visibleNotes.length) return null
+  if (!visibleNotes.length && !notesError) return null
   return (
     <div ref={listRef} style={{ padding: '0 12px', marginBottom: '10px' }}>
       <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
         Zuletzt
       </div>
+      {notesError && (
+        <p role="alert" style={{ padding: '4px 8px', color: 'var(--accent2)', fontSize: '11px', lineHeight: 1.4 }}>
+          {notesError}
+        </p>
+      )}
       {visibleNotes.map(note => {
         const href = `/notes/${note.id}/edit`
         const isActive = pathname === href
@@ -618,13 +654,16 @@ function NotesList({ notes, pathname }: { notes: Note[]; pathname: string }) {
   )
 }
 
-export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; notes?: Note[] }) {
+function subscribeToHydration() {
+  return () => {}
+}
+
+export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; notes?: NoteSummary[] }) {
   const realPathname = usePathname()
   const router = useRouter()
   // Only mark the active link after mount so SSR and first client render agree
   // (usePathname can differ between server and hydration → hydration mismatch).
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false)
   const pathname = mounted ? realPathname : ''
 
   // Mobile: Sidebar ist ein Off-Canvas-Drawer (CSS in globals.css, .sidebar-nav)
@@ -635,12 +674,13 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   // Attribut auf <body>, damit .app-main im selben Tick mitreagieren kann.
   const [collapsed, setCollapsed] = useState(false)
   useEffect(() => {
-    let stored = false
-    try { stored = localStorage.getItem('wiki-sidebar-collapsed') === '1' } catch {}
-    if (stored) {
-      setCollapsed(true)
-      document.body.setAttribute('data-sidebar-collapsed', 'true')
-    }
+    const frame = window.requestAnimationFrame(() => {
+      let stored = false
+      try { stored = localStorage.getItem('wiki-sidebar-collapsed') === '1' } catch {}
+      setCollapsed(stored)
+      document.body.setAttribute('data-sidebar-collapsed', String(stored))
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [])
 
   function toggleCollapsed() {
@@ -655,7 +695,9 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
   // Klick auf einen Link im Drawer schliesst ihn (Event-Delegation statt
   // Pathname-Effect: kein setState im Render/Effect, DevTools-freundlich)
   function onNavClick(e: React.MouseEvent) {
-    if ((e.target as HTMLElement).closest('a')) setDrawerOpen(false)
+    const target = e.target
+    const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null
+    if (element?.closest('a')) setDrawerOpen(false)
   }
 
   // Escape schliesst, Body-Scroll gesperrt solange offen

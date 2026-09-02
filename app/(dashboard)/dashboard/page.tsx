@@ -1,18 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
-import type { Note } from '@/lib/notes/types'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import NewContentButton from '@/components/dashboard/NewContentButton'
 import NotesOverview from '@/components/dashboard/NotesOverview'
+import { getOwnerSession } from '@/lib/auth/session'
+import { listOwnerNotes } from '@/lib/notes/owner'
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { data: notes } = await supabase
-    .from('notes')
-    .select('*')
-    .order('updated_at', { ascending: false })
-  const allNotes = (notes ?? []) as Note[]
+  const [{ user }, allNotes] = await Promise.all([
+    getOwnerSession(),
+    listOwnerNotes(),
+  ])
 
   const displayName = (user?.user_metadata?.display_name as string | undefined)?.trim() || null
 

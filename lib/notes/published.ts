@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { getOwnerSession } from '@/lib/auth/session'
 import type { Category, PublishedNoteResult } from './types'
 
 export interface PublicNoteSummary {
@@ -74,18 +75,16 @@ export async function listCategories(): Promise<Category[]> {
 }
 
 export async function recordOwnerVisit(note: PublishedNoteResult): Promise<boolean> {
+  const { user, isOwner } = await getOwnerSession()
+  const ownsNote = isOwner && user?.id === note.user_id
+  if (!ownsNote) return false
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const isOwner = user?.id === note.user_id
+  const { error } = await supabase
+    .from('notes')
+    .update({ last_opened_at: new Date().toISOString() })
+    .eq('id', note.note_id)
 
-  if (isOwner) {
-    const { error } = await supabase
-      .from('notes')
-      .update({ last_opened_at: new Date().toISOString() })
-      .eq('id', note.note_id)
-
-    if (error) console.error('last_opened_at konnte nicht gesetzt werden:', error.message)
-  }
-
-  return isOwner
+  if (error) console.error('last_opened_at konnte nicht gesetzt werden:', error.message)
+  return true
 }

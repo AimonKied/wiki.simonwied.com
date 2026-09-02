@@ -1,30 +1,22 @@
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/sidebar/Sidebar'
-import type { Note } from '@/lib/notes/types'
+import { getOwnerSession } from '@/lib/auth/session'
+import { listRecentOwnerNotes } from '@/lib/notes/owner'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, isOwner } = await getOwnerSession()
 
   if (!user) redirect('/login')
-  const { data: isOwner } = await supabase.rpc('is_wiki_owner')
-  if (isOwner !== true) redirect('/login?error=forbidden')
+  if (!isOwner) redirect('/login?error=forbidden')
 
   // "Zuletzt"-Startwert fuer die Sidebar: nur wirklich geoeffnete Notizen
-  const { data: notes } = await supabase
-    .from('notes')
-    .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
-    .eq('user_id', user.id)
-    .not('last_opened_at', 'is', null)
-    .order('last_opened_at', { ascending: false })
-    .limit(8)
+  const notes = await listRecentOwnerNotes(user.id)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar isLoggedIn={true} notes={(notes ?? []) as Note[]} />
+      <Sidebar isLoggedIn={true} notes={notes} />
       <main className="app-main" style={{ overflowY: 'visible' }}>
         {children}
       </main>
