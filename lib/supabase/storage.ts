@@ -7,6 +7,14 @@ export const MEDIA_LIMITS = {
 
 const ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+}
+
 // SVG ist Vektor, GIF verliert Animation beim Canvas-Export — beide unkomprimiert lassen
 const SKIP_COMPRESSION = ['image/svg+xml', 'image/gif']
 
@@ -56,15 +64,6 @@ async function compressImage(file: File): Promise<File> {
   return new File([blob], `${baseName}.webp`, { type: 'image/webp' })
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'))
-    reader.readAsDataURL(file)
-  })
-}
-
 export async function uploadMedia(file: File): Promise<string> {
   const validation = validateMedia(file)
   if (!validation.ok) throw new Error(validation.error)
@@ -79,14 +78,12 @@ export async function uploadMedia(file: File): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Nicht angemeldet')
 
-  const ext = compressed.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const ext = IMAGE_EXTENSIONS[compressed.type]
+  if (!ext) throw new Error('Der komprimierte Dateityp wird nicht unterstützt.')
   const path = `${user.id}/${crypto.randomUUID()}.${ext}`
 
   const { error } = await supabase.storage.from('wiki-media').upload(path, compressed)
   if (error) {
-    if (error.message.toLowerCase().includes('bucket not found')) {
-      return fileToDataUrl(compressed)
-    }
     throw new Error(`Upload fehlgeschlagen: ${error.message}`)
   }
 
