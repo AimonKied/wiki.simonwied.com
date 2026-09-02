@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Static archive kept for reference; it is not part of the Next.js app.
+    "legacy-v1/**",
   ]),
 ]);
 
