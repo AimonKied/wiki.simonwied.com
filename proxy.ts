@@ -1,12 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseConfig } from '@/lib/supabase/config'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  const { url, anonKey } = getSupabaseConfig()
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
@@ -21,20 +23,25 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: ownerResult } = user
-    ? await supabase.rpc('is_wiki_owner')
-    : { data: false }
-  const isOwner = ownerResult === true
+  const pathname = request.nextUrl.pathname
+  const isProtected = pathname === '/dashboard'
+    || pathname.startsWith('/dashboard/')
+    || /^\/notes\/[^/]+\/edit(?:\/|$)/.test(pathname)
+  const isAuthRoute = pathname === '/login' || pathname === '/register'
 
-  const isProtected = request.nextUrl.pathname.startsWith('/dashboard')
-    || (request.nextUrl.pathname.startsWith('/notes/') && request.nextUrl.pathname.includes('/edit'))
+  const { data: { user } } = await supabase.auth.getUser()
+  let isOwner = false
+  if (user && (isProtected || isAuthRoute)) {
+    const { data } = await supabase.rpc('is_wiki_owner')
+    isOwner = data === true
+  }
+
   if (isProtected && !isOwner) {
     const loginUrl = new URL('/login', request.url)
     if (user) loginUrl.searchParams.set('error', 'forbidden')
     return NextResponse.redirect(loginUrl)
   }
-  if (isOwner && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  if (isOwner && isAuthRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
