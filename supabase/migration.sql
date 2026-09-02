@@ -229,3 +229,402 @@ drop trigger if exists notes_require_category_on_publish on notes;
 create trigger notes_require_category_on_publish
   after insert or update of is_public on notes
   for each row execute function trg_notes_require_category_on_publish();
+
+-- 11. Single-author wiki + draft/link/public publishing.
+--
+-- The first existing Supabase account becomes the owner. This is the safe
+-- default for this personal wiki's existing installation. Before running this
+-- block on a project that already has several accounts, verify the result with:
+--   select id, email, created_at from auth.users order by created_at;
+-- If necessary, replace the row in wiki_owners with Simon's user id afterwards.
+create table if not exists wiki_owners (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists wiki_owners_single_row
+  on wiki_owners ((true));
+
+alter table wiki_owners enable row level security;
+
+insert into wiki_owners (user_id)
+select id
+from auth.users
+where not exists (select 1 from wiki_owners)
+order by created_at asc
+limit 1
+on conflict (user_id) do nothing;
+
+create or replace function is_wiki_owner(p_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_user_id is not null
+    and exists (select 1 from wiki_owners where user_id = p_user_id);
+$$;
+
+revoke all on function is_wiki_owner(uuid) from public;
+grant execute on function is_wiki_owner(uuid) to anon, authenticated;
+
+alter table notes
+  add column if not exists visibility text not null default 'private',
+  add column if not exists published_at timestamptz;
+
+update notes
+set visibility = case when is_public then 'public' else 'private' end;
+
+alter table notes drop constraint if exists notes_visibility_check;
+alter table notes add constraint notes_visibility_check
+  check (visibility in ('private', 'link', 'public'));
+
+update notes
+set published_at = coalesce(updated_at, created_at, now())
+where published is not null and published_at is null;
+
+-- Keep the legacy is_public column in sync while the app and existing queries
+-- migrate to the more expressive visibility column.
+create or replace function sync_note_visibility()
+returns trigger as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.is_public then
+      new.visibility := 'public';
+    else
+      new.is_public := new.visibility = 'public';
+    end if;
+  elsif new.visibility is distinct from old.visibility then
+    new.is_public := new.visibility = 'public';
+  elsif new.is_public is distinct from old.is_public then
+    new.visibility := case when new.is_public then 'public' else 'private' end;
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists notes_sync_visibility on notes;
+create trigger notes_sync_visibility
+  before insert or update of visibility, is_public on notes
+  for each row execute function sync_note_visibility();
+
+create table if not exists note_share_links (
+  note_id    uuid primary key references notes(id) on delete cascade,
+  token      uuid unique not null default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table note_share_links enable row level security;
+alter table notes enable row level security;
+alter table note_categories enable row level security;
+alter table profiles enable row level security;
+
+-- Remove legacy permissive policies. PostgreSQL combines permissive policies
+-- with OR, so leaving an old multi-user policy behind would defeat owner-only
+-- access even if stricter policies were added next to it.
+do $$
+declare policy_row record;
+begin
+  for policy_row in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('notes', 'note_categories', 'profiles', 'note_share_links')
+  loop
+    execute format(
+      'drop policy if exists %I on %I.%I',
+      policy_row.policyname,
+      policy_row.schemaname,
+      policy_row.tablename
+    );
+  end loop;
+end $$;
+
+create policy "notes_owner_select" on notes
+  for select using (is_wiki_owner() and user_id = auth.uid());
+create policy "notes_owner_insert" on notes
+  for insert with check (is_wiki_owner() and user_id = auth.uid());
+create policy "notes_owner_update" on notes
+  for update using (is_wiki_owner() and user_id = auth.uid())
+  with check (is_wiki_owner() and user_id = auth.uid());
+create policy "notes_owner_delete" on notes
+  for delete using (is_wiki_owner() and user_id = auth.uid());
+
+create policy "note_categories_owner_all" on note_categories
+  for all using (
+    is_wiki_owner()
+    and exists (
+      select 1 from notes
+      where notes.id = note_id and notes.user_id = auth.uid()
+    )
+  )
+  with check (
+    is_wiki_owner()
+    and exists (
+      select 1 from notes
+      where notes.id = note_id and notes.user_id = auth.uid()
+    )
+  );
+
+create policy "profiles_owner_read" on profiles
+  for select using (is_wiki_owner() and id = auth.uid());
+
+create policy "note_share_links_owner_all" on note_share_links
+  for all using (
+    is_wiki_owner()
+    and exists (
+      select 1 from notes
+      where notes.id = note_id and notes.user_id = auth.uid()
+    )
+  )
+  with check (
+    is_wiki_owner()
+    and exists (
+      select 1 from notes
+      where notes.id = note_id and notes.user_id = auth.uid()
+    )
+  );
+
+-- Any content owned by old public sign-ups is taken offline. No data is
+-- deleted; after confirming the owner id it can still be migrated manually.
+update notes
+set visibility = 'private', is_public = false
+where not exists (
+  select 1 from wiki_owners where wiki_owners.user_id = notes.user_id
+);
+
+-- Atomic publishing keeps categories, frozen snapshot, visibility and secret
+-- link consistent. Link visibility deliberately does not require a category,
+-- because link-only content never appears in the public library.
+create or replace function publish_note(
+  p_note_id uuid,
+  p_visibility text,
+  p_snapshot jsonb,
+  p_slug text,
+  p_category_ids uuid[] default '{}'::uuid[],
+  p_rotate_link boolean default false
+)
+returns table (result_visibility text, share_token uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result_token uuid;
+begin
+  if p_visibility not in ('link', 'public') then
+    raise exception 'Ungueltige Sichtbarkeit';
+  end if;
+
+  if not is_wiki_owner() or not exists (
+    select 1 from notes where id = p_note_id and user_id = auth.uid()
+  ) then
+    raise exception 'Nicht berechtigt';
+  end if;
+
+  if nullif(trim(p_snapshot->>'title'), '') is null then
+    raise exception 'Zum Veroeffentlichen ist ein Titel erforderlich';
+  end if;
+
+  if p_visibility = 'public' then
+    if nullif(trim(p_slug), '') is null then
+      raise exception 'Oeffentliche Inhalte brauchen eine URL';
+    end if;
+    if coalesce(array_length(p_category_ids, 1), 0) = 0 then
+      raise exception 'Oeffentliche Inhalte brauchen mindestens eine Kategorie';
+    end if;
+  end if;
+
+  delete from note_categories where note_id = p_note_id;
+  insert into note_categories (note_id, category_id)
+  select p_note_id, category_id
+  from unnest(coalesce(p_category_ids, '{}'::uuid[])) as category_id;
+
+  update notes
+  set title = p_snapshot->>'title',
+      emoji = nullif(p_snapshot->>'emoji', ''),
+      description = nullif(p_snapshot->>'description', ''),
+      content = p_snapshot->'content',
+      slug = nullif(trim(p_slug), ''),
+      published = p_snapshot,
+      visibility = p_visibility,
+      is_public = p_visibility = 'public',
+      published_at = now()
+  where id = p_note_id;
+
+  if p_visibility = 'link' then
+    insert into note_share_links (note_id)
+    values (p_note_id)
+    on conflict (note_id) do update
+      set token = case
+            when p_rotate_link then gen_random_uuid()
+            else note_share_links.token
+          end,
+          updated_at = now()
+    returning token into result_token;
+  else
+    delete from note_share_links where note_id = p_note_id;
+  end if;
+
+  return query select p_visibility, result_token;
+end;
+$$;
+
+create or replace function set_note_private(p_note_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_wiki_owner() or not exists (
+    select 1 from notes where id = p_note_id and user_id = auth.uid()
+  ) then
+    raise exception 'Nicht berechtigt';
+  end if;
+
+  update notes
+  set visibility = 'private', is_public = false
+  where id = p_note_id;
+  delete from note_share_links where note_id = p_note_id;
+end;
+$$;
+
+create or replace function rotate_note_share_link(p_note_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result_token uuid;
+begin
+  if not is_wiki_owner() or not exists (
+    select 1 from notes
+    where id = p_note_id and user_id = auth.uid() and visibility = 'link'
+  ) then
+    raise exception 'Nicht berechtigt oder nicht per Link freigegeben';
+  end if;
+
+  insert into note_share_links (note_id)
+  values (p_note_id)
+  on conflict (note_id) do update
+    set token = gen_random_uuid(), updated_at = now()
+  returning token into result_token;
+
+  return result_token;
+end;
+$$;
+
+-- Public readers and secret-link readers receive only the frozen snapshot.
+-- The live draft columns never pass through either function.
+create or replace function get_public_note(p_slug text)
+returns table (
+  note_id uuid,
+  user_id uuid,
+  content_type text,
+  published jsonb,
+  updated_at timestamptz,
+  published_at timestamptz,
+  author_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+         n.published_at, p.display_name
+  from notes n
+  left join profiles p on p.id = n.user_id
+  where n.visibility = 'public'
+    and n.is_public = true
+    and n.published is not null
+    and n.published->>'slug' = p_slug
+  limit 1;
+$$;
+
+create or replace function get_shared_note(p_token uuid)
+returns table (
+  note_id uuid,
+  user_id uuid,
+  content_type text,
+  published jsonb,
+  updated_at timestamptz,
+  published_at timestamptz,
+  author_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+         n.published_at, p.display_name
+  from note_share_links link
+  join notes n on n.id = link.note_id
+  left join profiles p on p.id = n.user_id
+  where link.token = p_token
+    and n.visibility = 'link'
+    and n.published is not null
+  limit 1;
+$$;
+
+create or replace function list_public_notes()
+returns table (
+  note_id uuid,
+  user_id uuid,
+  content_type text,
+  published jsonb,
+  updated_at timestamptz,
+  published_at timestamptz,
+  author_name text,
+  categories jsonb
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+         n.published_at, p.display_name,
+         coalesce(
+           jsonb_agg(
+             jsonb_build_object(
+               'id', c.id,
+               'slug', c.slug,
+               'title', c.title,
+               'color', c.color,
+               'position', c.position,
+               'created_at', c.created_at
+             ) order by c.position, c.title
+           ) filter (where c.id is not null),
+           '[]'::jsonb
+         )
+  from notes n
+  left join profiles p on p.id = n.user_id
+  left join note_categories nc on nc.note_id = n.id
+  left join categories c on c.id = nc.category_id
+  where n.visibility = 'public'
+    and n.is_public = true
+    and n.published is not null
+  group by n.id, n.user_id, n.content_type, n.published, n.updated_at,
+           n.published_at, p.display_name
+  order by n.published_at desc nulls last, n.updated_at desc;
+$$;
+
+revoke all on function publish_note(uuid, text, jsonb, text, uuid[], boolean) from public;
+revoke all on function set_note_private(uuid) from public;
+revoke all on function rotate_note_share_link(uuid) from public;
+revoke all on function get_public_note(text) from public;
+revoke all on function get_shared_note(uuid) from public;
+revoke all on function list_public_notes() from public;
+
+grant execute on function publish_note(uuid, text, jsonb, text, uuid[], boolean) to authenticated;
+grant execute on function set_note_private(uuid) to authenticated;
+grant execute on function rotate_note_share_link(uuid) to authenticated;
+grant execute on function get_public_note(text) to anon, authenticated;
+grant execute on function get_shared_note(uuid) to anon, authenticated;
+grant execute on function list_public_notes() to anon, authenticated;

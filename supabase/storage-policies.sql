@@ -13,7 +13,7 @@ create policy "wiki_media_upload"
   on storage.objects for insert
   with check (
     bucket_id = 'wiki-media'
-    and auth.role() = 'authenticated'
+    and is_wiki_owner()
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -22,7 +22,7 @@ create policy "wiki_media_delete"
   on storage.objects for delete
   using (
     bucket_id = 'wiki-media'
-    and auth.role() = 'authenticated'
+    and is_wiki_owner()
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
