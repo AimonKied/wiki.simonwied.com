@@ -10,6 +10,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { ResizableImage } from './MediaNodes'
 import { VideoEmbed } from './VideoNode'
 import { BookmarkCard } from './BookmarkNode'
+import { ColumnList, Column } from './ColumnNode'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { Table } from '@tiptap/extension-table'
@@ -307,6 +308,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TaskItem.configure({ nested: true }),
       VideoEmbed,
       BookmarkCard,
+      ColumnList,
+      Column,
       SectionExtension,
       ToggleExtension,
       CalloutExtension,

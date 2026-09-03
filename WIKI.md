@@ -501,7 +501,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 > trennt Entwurf und Veroeffentlichtes bereits. Ebenso faellt alles weg, was
 > mehrere Schreibende voraussetzt.
 
-- [ ] Spalten-Layout (Bloecke nebeneinander)
+- [x] Spalten-Layout (2026-09-04): columnList/column als Container in einer Section, zwei oder drei Spalten ueber das Slash-Menue. Unter 240px Spaltenbreite laufen sie untereinander. Markdown kennt keine Spalten — beim Export wird der Inhalt nacheinander ausgegeben
 - [x] Bookmark-Karten (2026-09-04): externer Link als Vorschaukarte. Metadaten werden einmal beim Einfuegen geholt und im Dokument gespeichert -- oeffentliche Seiten loesen beim Anzeigen keinen Abruf aus
 - [x] Backlinks ("Verlinkt von" unter dem Artikel, 2026-09-04)
 - [ ] Mathe-Formeln (KaTeX) — zurueckgestellt, siehe unten

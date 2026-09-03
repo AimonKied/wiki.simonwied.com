@@ -12,6 +12,7 @@ import { useId, useState, useRef, useEffect, useEffectEvent, useLayoutEffect, us
 import { createPortal } from 'react-dom'
 import { toggleJSON } from './ToggleNode'
 import { ELEMENT_PALETTE } from './elementPalette'
+import { columnListJSON } from './ColumnNode'
 
 // ── Module-level section selection store ──────────────────────────────────────
 // Notion-Modell: ein Anker merkt sich, wo die Auswahl begann. Shift spannt von
@@ -1552,6 +1553,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       setMediaUrl('')
       setMediaError(null)
       setImageInsertOpen(true)
+      return
+    }
+    if (key === 'columns2' || key === 'columns3') {
+      editor.chain().focus()
+        .insertContentAt(elementInsertPos, columnListJSON(key === 'columns3' ? 3 : 2))
+        .run()
       return
     }
     if (key === 'hr') {

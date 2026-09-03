@@ -49,6 +49,8 @@ export const ELEMENT_PALETTE: ElementPaletteItem[] = [
   { key: 'video',       label: 'Video',             icon: 'VID', group: 'Media', keywords: 'video youtube vimeo mp4 film clip', description: 'YouTube, Vimeo oder Videodatei' },
   { key: 'bookmark',    label: 'Lesezeichen',       icon: 'URL', group: 'Media', keywords: 'lesezeichen bookmark link vorschau embed karte', description: 'Externer Link als Vorschaukarte' },
   { key: 'codeBlock',   label: 'Codeblock',         icon: '</>', group: 'Media', keywords: 'code programmieren snippet pre', description: 'Codeblock mit Highlighting' },
+  { key: 'columns2',    label: 'Zwei Spalten',      icon: '||',  group: 'Basic', keywords: 'spalten columns nebeneinander zwei layout', description: 'Zwei Spalten nebeneinander' },
+  { key: 'columns3',    label: 'Drei Spalten',      icon: '|||', group: 'Basic', keywords: 'spalten columns nebeneinander drei layout', description: 'Drei Spalten nebeneinander' },
   { key: 'hr',          label: 'Trennlinie',        icon: '-',   group: 'Basic', keywords: 'linie divider separator trennlinie', description: 'Horizontale Linie' },
   { key: 'toggle',      label: 'Toggle',            icon: '▶T',  group: 'Toggle', keywords: 'toggle aufklappen details', description: 'Einklappbarer Block' },
   { key: 'toggleH1',    label: 'Toggle Titel',      icon: '▶H1', group: 'Toggle', keywords: 'toggle titel aufklappen gross', description: 'Toggle in Titelgröße' },

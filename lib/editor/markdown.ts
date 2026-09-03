@@ -356,6 +356,27 @@ function nodeToMd(node: MdNode): string {
       return `<details>\n<summary>${summaryPrefix}${summaryText}</summary>${inner}</details>`
     }
 
+    // Spalten kennt Markdown nicht: der Inhalt wird nacheinander ausgegeben.
+    // Ohne diese Faelle liefe er in den default-Zweig und die Bloecke klebten
+    // aneinander, weil der mit '' verbindet.
+    case 'columnList':
+    case 'column':
+      return (node.content ?? []).map(nodeToMd).join('\n\n')
+
+    // Atome ohne Kindknoten. Ohne eigenen Fall gaebe der default-Zweig einen
+    // leeren String zurueck -- sie verschwaenden beim Export spurlos.
+    case 'videoEmbed': {
+      const src = (node.attrs?.src as string | undefined) ?? ''
+      return src ? `[Video](${src})` : ''
+    }
+
+    case 'bookmark': {
+      const url = (node.attrs?.url as string | undefined) ?? ''
+      if (!url) return ''
+      const label = (node.attrs?.title as string | undefined)?.trim() || url
+      return `[${label}](${url})`
+    }
+
     default:
       return (node.content ?? []).map(nodeToMd).join('')
   }
