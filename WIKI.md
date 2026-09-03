@@ -134,6 +134,8 @@ lib/
 supabase/
   migration.sql             Schema-Migration (im SQL Editor ausfuehren)
   migration-remove-workspace.sql  Einmal-Migration: Canvas-Notizen loeschen, content_type droppen
+  migration-phase3.sql      Einmal-Migration: deleted_at, is_favorite, cover_url
+  migration-remove-profiles.sql   Einmal-Migration: Autorenanzeige und profiles entfernen
   storage-policies.sql      Storage-Policies fuer wiki-media
 proxy.ts                    Auth-Middleware
 ```
@@ -175,14 +177,7 @@ note_categories (
   PRIMARY KEY (note_id, category_id)
 )
 
-profiles (
-  id           uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
-  display_name text NOT NULL,          -- Trigger-Sync aus auth.users bei Signup/Metadaten-/E-Mail-Aenderung
-  updated_at   timestamptz DEFAULT now()
-)
-```
-
-RLS: Kategorien oeffentlich lesbar; `note_categories` lesbar wenn Notiz public, Owner darf alles; `profiles` oeffentlich lesbar (Autor-Anzeige auf oeffentlichen Seiten), da `auth.users` selbst fuer Besucher nicht abfragbar ist.
+RLS: Kategorien oeffentlich lesbar; `note_categories` lesbar wenn Notiz public, Owner darf alles.
 
 Draft/Publish-Modell:
 
@@ -456,7 +451,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Block 6a aus `migration.sql` ausgefuehrt (`notes` in Realtime-Publication)
 - [x] Block 6b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
-- [x] Block 7 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
+- [x] `profiles`-Tabelle und Anzeigename-Sync wieder entfernt (2026-09-04, `migration-remove-profiles.sql`) — die Autorenzeile hatte bei einem einzigen Autor keinen Zweck
 - [x] Block 8 aus `migration.sql` ausgefuehrt (2026-07-06): Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
 
 ### Deploy

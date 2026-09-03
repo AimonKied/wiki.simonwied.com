@@ -45,26 +45,13 @@ export default function PublishedNoteView({
           )}
         />
 
-        {note.author_name && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '-8px 0 22px', fontSize: '12px', color: 'var(--muted)' }}>
-            <span
-              aria-hidden="true"
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: '24px', height: '24px', borderRadius: '50%',
-                background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
-                color: 'var(--accent)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase',
-              }}
-            >
-              {note.author_name.charAt(0)}
-            </span>
-            <span>Von <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{note.author_name}</strong></span>
-            <span style={{ color: 'var(--border)' }}>·</span>
-            <span suppressHydrationWarning>
-              {new Date(visibleDate).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-        )}
+        {/* Datum bleibt, die Autorenzeile ist mit profiles entfallen -- bei
+            genau einem Autor stand auf jeder Seite derselbe Name. */}
+        <div style={{ margin: '-8px 0 22px', fontSize: '12px', color: 'var(--muted)' }}>
+          <span suppressHydrationWarning>
+            {new Date(visibleDate).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
+        </div>
 
         <EditorViewer content={pub.content} />
       </div>

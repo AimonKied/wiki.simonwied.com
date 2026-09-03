@@ -11,7 +11,6 @@ export interface PublicNoteSummary {
   slug: string | null
   updatedAt: string
   categories: Category[]
-  author: string | null
 }
 
 export const getPublicNote = cache(async (slug: string): Promise<PublishedNoteResult | null> => {
@@ -55,7 +54,6 @@ export async function listPublicNotes(): Promise<PublicNoteSummary[]> {
       slug: published?.slug ?? (row.slug as string | null),
       updatedAt: row.updated_at as string,
       categories: (row.categories as Category[] | null) ?? [],
-      author: (row.author_name as string | null) ?? null,
     }
   })
 }

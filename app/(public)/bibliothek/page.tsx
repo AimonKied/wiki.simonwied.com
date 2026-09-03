@@ -101,7 +101,6 @@ export default async function HomePage({
               {filteredNotes.map(note => {
                 const href = note.slug ? `/notes/${note.slug}` : `/notes/${note.id}`
                 const meta = note.categories.map(cat => cat.title).join(' / ')
-                const byline = note.author ? `Von ${note.author}` : null
                 return (
                   <Link
                     key={note.id}
@@ -131,7 +130,6 @@ export default async function HomePage({
                       </div>
                       <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.5 }}>
                         <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</span>
-                        {byline && <span style={{ flexShrink: 0 }}>{byline}</span>}
                       </div>
                     </div>
                   </Link>

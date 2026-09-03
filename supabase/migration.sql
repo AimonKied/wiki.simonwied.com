@@ -123,50 +123,7 @@ set published = jsonb_build_object(
 )
 where is_public = true and published is null;
 
--- 7. Profiles: oeffentlich lesbarer Anzeigename pro User. auth.users ist fuer
---    Besucher nicht lesbar, daher wird der display_name aus den Auth-Metadaten
---    per Trigger hierher gespiegelt (Autor-Anzeige bei oeffentlichen Inhalten).
-create table if not exists profiles (
-  id           uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null,
-  updated_at   timestamptz default now()
-);
-
-alter table profiles enable row level security;
-
-drop policy if exists "profiles_public_read" on profiles;
-create policy "profiles_public_read" on profiles
-  for select using (true);
-
--- Sync bei Signup und Metadaten-/E-Mail-Aenderung; Fallback: E-Mail-Prefix
--- (Bestandskonten von vor dem Anzeigename-Feld haben keinen display_name)
-create or replace function sync_profile_from_auth()
-returns trigger as $$
-begin
-  insert into profiles (id, display_name, updated_at)
-  values (
-    new.id,
-    coalesce(nullif(new.raw_user_meta_data->>'display_name', ''), split_part(new.email, '@', 1)),
-    now()
-  )
-  on conflict (id) do update
-    set display_name = excluded.display_name, updated_at = now();
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public;
-
-drop trigger if exists on_auth_user_upsert on auth.users;
-create trigger on_auth_user_upsert
-  after insert or update of raw_user_meta_data, email on auth.users
-  for each row execute function sync_profile_from_auth();
-
--- Backfill bestehender Konten
-insert into profiles (id, display_name)
-select id, coalesce(nullif(raw_user_meta_data->>'display_name', ''), split_part(email, '@', 1))
-from auth.users
-on conflict (id) do update set display_name = excluded.display_name;
-
--- 8. Public-Regel als DB-Constraint absichern (bisher nur App-Validierung):
+-- 7. Public-Regel als DB-Constraint absichern (bisher nur App-Validierung):
 --     oeffentliche Notizen brauchen Slug + mindestens eine Kategorie.
 --     Slug ist ein einfacher CHECK (gleiche Zeile). Die Kategorie-Pflicht
 --     braucht einen Trigger (andere Tabelle) und feuert bewusst nur, wenn
@@ -220,7 +177,7 @@ create trigger notes_require_category_on_publish
   after insert or update of is_public on notes
   for each row execute function trg_notes_require_category_on_publish();
 
--- 9. Single-author wiki + draft/link/public publishing.
+-- 8. Single-author wiki + draft/link/public publishing.
 --
 -- The first existing Supabase account becomes the owner. This is the safe
 -- default for this personal wiki's existing installation. Before running this
@@ -318,7 +275,6 @@ create table if not exists note_share_links (
 alter table note_share_links enable row level security;
 alter table notes enable row level security;
 alter table note_categories enable row level security;
-alter table profiles enable row level security;
 
 -- Remove legacy permissive policies. PostgreSQL combines permissive policies
 -- with OR, so leaving an old multi-user policy behind would defeat owner-only
@@ -330,7 +286,7 @@ begin
     select schemaname, tablename, policyname
     from pg_policies
     where schemaname = 'public'
-      and tablename in ('notes', 'note_categories', 'profiles', 'note_share_links')
+      and tablename in ('notes', 'note_categories', 'note_share_links')
   loop
     execute format(
       'drop policy if exists %I on %I.%I',
@@ -366,9 +322,6 @@ create policy "note_categories_owner_all" on note_categories
       where notes.id = note_id and notes.user_id = auth.uid()
     )
   );
-
-create policy "profiles_owner_read" on profiles
-  for select using (is_wiki_owner() and id = auth.uid());
 
 create policy "note_share_links_owner_all" on note_share_links
   for all using (
@@ -525,18 +478,15 @@ returns table (
   user_id uuid,
   published jsonb,
   updated_at timestamptz,
-  published_at timestamptz,
-  author_name text
+  published_at timestamptz
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.published, n.updated_at,
-         n.published_at, p.display_name
+  select n.id, n.user_id, n.published, n.updated_at, n.published_at
   from notes n
-  left join profiles p on p.id = n.user_id
   where n.visibility = 'public'
     and n.is_public = true
     and n.published is not null
@@ -551,19 +501,16 @@ returns table (
   user_id uuid,
   published jsonb,
   updated_at timestamptz,
-  published_at timestamptz,
-  author_name text
+  published_at timestamptz
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.published, n.updated_at,
-         n.published_at, p.display_name
+  select n.id, n.user_id, n.published, n.updated_at, n.published_at
   from note_share_links link
   join notes n on n.id = link.note_id
-  left join profiles p on p.id = n.user_id
   where link.token = p_token
     and n.visibility = 'link'
     and n.published is not null
@@ -578,7 +525,6 @@ returns table (
   published jsonb,
   updated_at timestamptz,
   published_at timestamptz,
-  author_name text,
   categories jsonb
 )
 language sql
@@ -586,8 +532,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.published, n.updated_at,
-         n.published_at, p.display_name,
+  select n.id, n.user_id, n.published, n.updated_at, n.published_at,
          coalesce(
            jsonb_agg(
              jsonb_build_object(
@@ -602,15 +547,13 @@ as $$
            '[]'::jsonb
          )
   from notes n
-  left join profiles p on p.id = n.user_id
   left join note_categories nc on nc.note_id = n.id
   left join categories c on c.id = nc.category_id
   where n.visibility = 'public'
     and n.is_public = true
     and n.published is not null
     and n.deleted_at is null
-  group by n.id, n.user_id, n.published, n.updated_at,
-           n.published_at, p.display_name
+  group by n.id, n.user_id, n.published, n.updated_at, n.published_at
   order by n.published_at desc nulls last, n.updated_at desc;
 $$;
 
@@ -628,7 +571,7 @@ grant execute on function get_public_note(text) to anon, authenticated;
 grant execute on function get_shared_note(uuid) to anon, authenticated;
 grant execute on function list_public_notes() to anon, authenticated;
 
--- 10. Security and URL hardening (safe to run after an existing block 9).
+-- 9. Security and URL hardening (safe to run after an existing block 8).
 -- Do not let callers probe arbitrary user ids through the owner helper.
 create or replace function is_wiki_owner(p_user_id uuid default auth.uid())
 returns boolean

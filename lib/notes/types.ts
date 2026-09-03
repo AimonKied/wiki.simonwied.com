@@ -50,14 +50,6 @@ export interface PublishedNoteResult {
   published: PublishedSnapshot
   updated_at: string
   published_at: string | null
-  author_name: string | null
-}
-
-// Oeffentlich lesbarer Anzeigename (Spiegel aus auth.users, siehe migration.sql)
-export interface Profile {
-  id: string
-  display_name: string
-  updated_at?: string
 }
 
 export interface Category {
