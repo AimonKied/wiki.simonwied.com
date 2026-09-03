@@ -1,21 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
-
-const DEFAULT_ARTICLE_CONTENT = {
-  type: 'doc',
-  attrs: { wikiMode: 'article' },
-  content: [
-    {
-      type: 'section',
-      content: [
-        { type: 'paragraph' },
-      ],
-    },
-  ],
-}
+import { templateByKey } from './templates'
 
 // Creates a private article draft and returns its id — callers navigate straight
-// to /notes/[id]/edit; there is no separate create page.
-export async function createNote(): Promise<string> {
+// to /notes/[id]/edit; there is no separate create page. Ohne Angabe entsteht
+// der leere Artikel, der auch vorher der Standard war.
+export async function createNote(templateKey = 'blank'): Promise<string> {
   const supabase = createClient()
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError) throw new Error(`Session konnte nicht geprüft werden: ${userError.message}`)
@@ -25,13 +14,14 @@ export async function createNote(): Promise<string> {
   if (ownerError) throw new Error(`Berechtigung konnte nicht geprüft werden: ${ownerError.message}`)
   if (isOwner !== true) throw new Error('Dieses Konto darf keine Inhalte erstellen.')
 
+  const template = templateByKey(templateKey)
   const { data, error } = await supabase
     .from('notes')
     .insert({
       title: '',
-      emoji: null,
+      emoji: template.emoji,
       description: null,
-      content: DEFAULT_ARTICLE_CONTENT,
+      content: template.content,
       user_id: user.id,
       is_public: false,
       visibility: 'private',
