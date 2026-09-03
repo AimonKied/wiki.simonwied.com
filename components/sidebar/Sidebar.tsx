@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { createNote } from '@/lib/notes/create'
 import type { NoteSummary } from '@/lib/notes/types'
 import Logo from '@/components/Logo'
+import QuickSearch from '@/components/search/QuickSearch'
 
 const primaryNav = [
   { label: 'Bibliothek', href: '/bibliothek' },
@@ -593,6 +594,9 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
 
   return (
     <>
+    {/* Beide Layouts rendern die Sidebar, die Suche gilt damit ueberall */}
+    <QuickSearch isOwner={isLoggedIn} />
+
     {/* Nur auf Mobil sichtbar (CSS): Topbar mit Hamburger + Logo */}
     <div className="mobile-topbar">
       <button
@@ -708,6 +712,29 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
             </Link>
           </div>
         )}
+        <div style={{ padding: '0 12px', marginBottom: '4px' }}>
+          <button
+            type="button"
+            onClick={() => document.dispatchEvent(new Event('wiki-open-search'))}
+            title="Suchen (Strg/Cmd+P)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              width: '100%', padding: '7px 8px', borderRadius: '6px',
+              border: 'none', background: 'transparent', color: 'var(--muted)',
+              fontFamily: 'inherit', fontSize: '13px', textAlign: 'left',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.65" y1="16.65" x2="21" y2="21" />
+            </svg>
+            <span>Suchen</span>
+            <span style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.7 }}>⌘P</span>
+          </button>
+        </div>
         <SidebarSection title="Navigation" items={primaryNav} pathname={pathname} />
         {isLoggedIn && (
           <>
