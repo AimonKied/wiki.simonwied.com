@@ -119,15 +119,19 @@ function _ensureGlobalHandlers() {
   if (_globalHandlersInstalled) return
   _globalHandlersInstalled = true
 
-  // Deselect blocks on click outside any drag handle
-  document.addEventListener('mousedown', (e) => {
-    if (_selSet.size === 0) return
+  // Ein Zeigerdruck irgendwo ausserhalb der Bedienelemente beendet die
+  // Markierung. Beide Quellen werden abgeraeumt: die Markierung ist
+  // isSelected || blockMenuOpen, ein offenes Menue allein haelt sie also
+  // ebenfalls am Leben. Deshalb hier kein fruehes return bei leerer Auswahl.
+  // pointerdown statt mousedown, damit es auch auf Touch greift.
+  document.addEventListener('pointerdown', (e) => {
     const target = e.target
     if (target instanceof Element && target.closest('[data-section-drag-handle]')) return
     if (target instanceof Element && target.closest('[data-article-block-controls]')) return
     if (target instanceof Element && target.closest('[data-block-menu]')) return
     if (target instanceof Element && target.closest('[data-element-palette]')) return
     sectionSel.clear()
+    blockMenu.close()
   })
 
 	  document.addEventListener('keydown', (e) => {
