@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react'
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -12,93 +12,35 @@ const primaryNav = [
   { label: 'Bibliothek', href: '/bibliothek' },
 ]
 
-const workspaceNav = [
+const privateNav = [
   { label: 'Arbeitsbereich', href: '/dashboard' },
 ]
 
-const newContentOptions: Array<{ label: string; type: 'article' | 'workspace' }> = [
-  { label: 'Artikel', type: 'article' },
-  { label: 'Canvas Workspace', type: 'workspace' },
-]
-
-const NEW_CONTENT_FLYOUT_WIDTH = 200
-
+// Ein Klick legt den Artikel an und springt in den Editor — seit dem Wegfall
+// des Canvas gibt es nur noch einen Inhaltstyp, also auch kein Flyout mehr.
 function NewContentNavItem() {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const flyRef = useRef<HTMLDivElement>(null)
 
-  const getFlyoutCoords = useCallback(() => {
-    if (!btnRef.current) return null
-    const r = btnRef.current.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const margin = 12
-    const width = Math.min(NEW_CONTENT_FLYOUT_WIDTH, viewportWidth - margin * 2)
-    const isMobile = viewportWidth <= 768
-
-    if (isMobile) {
-      return {
-        top: r.bottom + 4,
-        left: Math.max(margin, Math.min(r.left, viewportWidth - width - margin)),
-        width,
-      }
+  async function create() {
+    setCreateError('')
+    setCreating(true)
+    try {
+      const id = await createNote()
+      router.push(`/notes/${id}/edit`)
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Artikel konnte nicht erstellt werden.')
+      setCreating(false)
     }
-
-    // subtract flyout padding (6) + link/button padding diff (1) so the first
-    // option lines up with the "Neuer Inhalt" row
-    return {
-      top: r.top - 7,
-      left: Math.max(margin, Math.min(r.right + 6, viewportWidth - width - margin)),
-      width,
-    }
-  }, [])
-
-  function toggle() {
-    setOpen(o => {
-      const next = !o
-      if (next) setCoords(getFlyoutCoords())
-      return next
-    })
   }
 
-  useEffect(() => {
-    if (!open) return
-    function onDocClick(e: MouseEvent) {
-      const t = e.target as Node
-      if (wrapRef.current?.contains(t)) return
-      if (flyRef.current?.contains(t)) return
-      setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    function updatePosition() {
-      setCoords(getFlyoutCoords())
-    }
-    document.addEventListener('mousedown', onDocClick)
-    document.addEventListener('keydown', onKey)
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    return () => {
-      document.removeEventListener('mousedown', onDocClick)
-      document.removeEventListener('keydown', onKey)
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [getFlyoutCoords, open])
-
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div>
       <button
-        ref={btnRef}
         type="button"
-        onClick={toggle}
-        aria-expanded={open}
+        onClick={create}
+        disabled={creating}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -107,97 +49,24 @@ function NewContentNavItem() {
           padding: '7px 8px',
           borderRadius: '6px',
           fontSize: '13px',
-          color: open ? 'var(--text)' : 'var(--muted)',
-          background: open ? 'var(--surface2)' : 'transparent',
+          color: 'var(--muted)',
+          background: 'transparent',
           border: 'none',
           fontFamily: 'inherit',
-          cursor: 'pointer',
+          cursor: creating ? 'wait' : 'pointer',
           textAlign: 'left',
           transition: 'all 0.15s',
         }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
       >
-        <span>Neuer Inhalt</span>
-        <span
-          style={{
-            marginLeft: 'auto',
-            fontSize: '9px',
-            lineHeight: 1,
-            transform: open ? 'rotate(-90deg)' : 'none',
-            transition: 'transform 0.15s',
-          }}
-        >
-          ▸
-        </span>
+        <span>{creating ? 'Wird erstellt…' : 'Neuer Artikel'}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '13px', lineHeight: 1 }}>+</span>
       </button>
-      {open && coords && (
-        <div
-          ref={flyRef}
-          style={{
-            position: 'fixed',
-            top: coords.top,
-            left: coords.left,
-            zIndex: 100,
-            width: `${coords.width}px`,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
-            padding: '6px',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
-            animation: 'fadeIn 0.12s ease both',
-          }}
-        >
-          {newContentOptions.map(opt => {
-            const isCreating = creating === opt.type
-            return (
-              <button
-                key={opt.type}
-                type="button"
-                disabled={creating !== null}
-                onClick={async () => {
-                  setCreateError('')
-                  setCreating(opt.type)
-                  try {
-                    const id = await createNote(opt.type)
-                    setOpen(false)
-                    router.push(`/notes/${id}/edit`)
-                  } catch (error) {
-                    setCreateError(error instanceof Error ? error.message : 'Inhalt konnte nicht erstellt werden.')
-                  } finally {
-                    setCreating(null)
-                  }
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  width: '100%',
-                  textAlign: 'left',
-                  fontFamily: 'inherit',
-                  fontSize: '13px',
-                  color: isCreating ? 'var(--text)' : 'var(--muted)',
-                  background: isCreating ? 'var(--surface2)' : 'transparent',
-                  cursor: creating ? 'wait' : 'pointer',
-                  transition: 'all 0.1s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                onMouseLeave={e => { if (!isCreating) e.currentTarget.style.background = 'transparent' }}
-              >
-                {isCreating ? 'Wird erstellt…' : opt.label}
-              </button>
-            )
-          })}
-          {createError && (
-            <p role="alert" style={{ margin: '4px 8px', color: 'var(--accent2)', fontSize: '11px', lineHeight: 1.4 }}>
-              {createError}
-            </p>
-          )}
-        </div>
+      {createError && (
+        <p role="alert" style={{ margin: '4px 8px', color: 'var(--accent2)', fontSize: '11px', lineHeight: 1.4 }}>
+          {createError}
+        </p>
       )}
     </div>
   )
@@ -309,7 +178,7 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
       const loadRecentNotes = async () => {
         const { data, error } = await supabase
           .from('notes')
-          .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
+          .select('id, title, emoji, visibility, is_public, slug, updated_at')
           .eq('user_id', user.id)
           .not('last_opened_at', 'is', null)
           .order('last_opened_at', { ascending: false })
@@ -460,9 +329,9 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
                 overflow: 'hidden',
               }}
             >
-              <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? (note.content_type === 'article' ? '📄' : '🗂️')}</span>
+              <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? '📄'}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {note.title || (note.content_type === 'article' ? 'Neuer Artikel' : 'Neuer Workspace')}
+                {note.title || 'Neuer Artikel'}
               </span>
               {(note.visibility ?? (note.is_public ? 'public' : 'private')) === 'private' && (
                 <svg
@@ -812,7 +681,7 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
           </button>
         </div>
         <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--muted)', lineHeight: 1.45 }}>
-          Wissen, Notizen und Workspaces
+          Wissen, Notizen und Artikel
         </div>
       </div>
 
@@ -842,7 +711,7 @@ export default function Sidebar({ isLoggedIn, notes }: { isLoggedIn: boolean; no
         <SidebarSection title="Navigation" items={primaryNav} pathname={pathname} />
         {isLoggedIn && (
           <>
-            <SidebarSection title="Privat" items={workspaceNav} pathname={pathname}>
+            <SidebarSection title="Privat" items={privateNav} pathname={pathname}>
               <NewContentNavItem />
             </SidebarSection>
             {/* Auch mit leerem Startwert mounten: die Liste fuellt sich

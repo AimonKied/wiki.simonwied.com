@@ -1,53 +1,36 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createNote } from '@/lib/notes/create'
 
-const OPTIONS: Array<{ type: 'article' | 'workspace'; title: string; description: string }> = [
-  {
-    type: 'article',
-    title: 'Artikel',
-    description: 'Linearer Text für Guides, Rezepte, Cheatsheets und längere Notizen.',
-  },
-  {
-    type: 'workspace',
-    title: 'Canvas Workspace',
-    description: 'Freie Fläche für strukturierte Blöcke, Skizzen und visuelle Arbeitsstände.',
-  },
-]
-
+// Ein Klick legt den Artikel an und springt in den Editor — seit dem Wegfall
+// des Canvas gibt es nur noch einen Inhaltstyp, also auch kein Auswahlmenue.
 export default function NewContentButton() {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
-  const wrapRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+  async function create() {
+    setCreateError('')
+    setCreating(true)
+    try {
+      const id = await createNote()
+      router.push(`/notes/${id}/edit`)
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Artikel konnte nicht erstellt werden.')
+      setCreating(false)
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onDocClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  }
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }}>
       <button
         type="button"
         className="new-content-button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        aria-label="Neuer Inhalt"
+        onClick={create}
+        disabled={creating}
+        aria-label="Neuer Artikel"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -60,95 +43,38 @@ export default function NewContentButton() {
           fontSize: '13px',
           fontWeight: 700,
           fontFamily: 'inherit',
-          cursor: 'pointer',
+          cursor: creating ? 'wait' : 'pointer',
+          opacity: creating ? 0.7 : 1,
         }}
       >
         <span className="new-content-plus" aria-hidden="true">+</span>
-        <span className="new-content-label">Neuer Inhalt</span>
-        <span
-          className="new-content-caret"
-          aria-hidden="true"
-          style={{
-            fontSize: '10px',
-            lineHeight: 1,
-            transform: open ? 'rotate(180deg)' : 'none',
-            transition: 'transform 0.15s',
-          }}
-        >
-          ▾
+        <span className="new-content-label">
+          {creating ? 'Wird erstellt…' : 'Neuer Artikel'}
         </span>
       </button>
 
-      {open && (
-        <div
+      {createError && (
+        <p
+          role="alert"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 8px)',
+            top: 'calc(100% + 6px)',
             right: 0,
             zIndex: 20,
-            width: 'min(88vw, 320px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            padding: '6px',
+            margin: 0,
+            width: 'max-content',
+            maxWidth: 'min(88vw, 320px)',
+            padding: '8px 10px',
             background: 'var(--surface)',
             border: '1px solid var(--border)',
-            borderRadius: '10px',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
-            animation: 'fadeIn 0.12s ease both',
+            borderRadius: '8px',
+            color: 'var(--accent2)',
+            fontSize: '12px',
+            lineHeight: 1.4,
           }}
         >
-          {OPTIONS.map(opt => {
-            const isCreating = creating === opt.type
-            return (
-              <button
-                key={opt.type}
-                type="button"
-                disabled={creating !== null}
-                onClick={async () => {
-                  setCreateError('')
-                  setCreating(opt.type)
-                  try {
-                    const id = await createNote(opt.type)
-                    setOpen(false)
-                    router.push(`/notes/${id}/edit`)
-                  } catch (error) {
-                    setCreateError(error instanceof Error ? error.message : 'Inhalt konnte nicht erstellt werden.')
-                  } finally {
-                    setCreating(null)
-                  }
-                }}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  border: 'none',
-                  fontFamily: 'inherit',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  color: 'var(--text)',
-                  background: isCreating ? 'var(--surface2)' : 'transparent',
-                  cursor: creating ? 'wait' : 'pointer',
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => { if (!creating) e.currentTarget.style.background = 'var(--surface2)' }}
-                onMouseLeave={e => { if (!creating) e.currentTarget.style.background = 'transparent' }}
-              >
-                <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '4px' }}>
-                  {isCreating ? 'Wird erstellt…' : opt.title}
-                </div>
-                <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', lineHeight: 1.5 }}>
-                  {opt.description}
-                </p>
-              </button>
-            )
-          })}
-          {createError && (
-            <p role="alert" style={{ margin: '4px 8px', color: 'var(--accent2)', fontSize: '12px', lineHeight: 1.4 }}>
-              {createError}
-            </p>
-          )}
-        </div>
+          {createError}
+        </p>
       )}
     </div>
   )

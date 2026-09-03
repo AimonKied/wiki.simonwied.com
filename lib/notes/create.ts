@@ -1,32 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
 
-const DEFAULT_WORKSPACE_CONTENT = {
-  type: 'doc',
-  content: [
-    {
-      type: 'section',
-      content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Übersicht' }] },
-        { type: 'paragraph' },
-      ],
-    },
-    {
-      type: 'section',
-      content: [
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Details' }] },
-        { type: 'paragraph' },
-      ],
-    },
-    {
-      type: 'section',
-      content: [
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Notizen' }] },
-        { type: 'paragraph' },
-      ],
-    },
-  ],
-}
-
 const DEFAULT_ARTICLE_CONTENT = {
   type: 'doc',
   attrs: { wikiMode: 'article' },
@@ -40,9 +13,9 @@ const DEFAULT_ARTICLE_CONTENT = {
   ],
 }
 
-// Creates a private draft and returns its id — callers navigate straight to
-// /notes/[id]/edit; there is no separate create page.
-export async function createNote(type: 'article' | 'workspace'): Promise<string> {
+// Creates a private article draft and returns its id — callers navigate straight
+// to /notes/[id]/edit; there is no separate create page.
+export async function createNote(): Promise<string> {
   const supabase = createClient()
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError) throw new Error(`Session konnte nicht geprüft werden: ${userError.message}`)
@@ -58,8 +31,7 @@ export async function createNote(type: 'article' | 'workspace'): Promise<string>
       title: '',
       emoji: null,
       description: null,
-      content: type === 'workspace' ? DEFAULT_WORKSPACE_CONTENT : DEFAULT_ARTICLE_CONTENT,
-      content_type: type,
+      content: DEFAULT_ARTICLE_CONTENT,
       user_id: user.id,
       is_public: false,
       visibility: 'private',
