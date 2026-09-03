@@ -8,7 +8,7 @@ import { Fragment } from '@tiptap/pm/model'
 import type { Node as PMNode, Slice } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
-import { useId, useState, useRef, useEffect, useEffectEvent, useLayoutEffect, useCallback } from 'react'
+import { useId, useState, useRef, useEffect, useEffectEvent, useLayoutEffect, useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { toggleJSON } from './ToggleNode'
 import { ELEMENT_PALETTE } from './elementPalette'
@@ -239,6 +239,11 @@ const articleMenuBackStyle: React.CSSProperties = {
 
 function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const sectionId = useId()
+  const isSelected = useSyncExternalStore(
+    sectionSel.sub,
+    () => sectionSel.has(sectionId),
+    () => false,
+  )
   const [cardHovered, setCardHovered] = useState(false)
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -1542,8 +1547,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           minHeight: 0,
           boxSizing: 'border-box',
           overflow: 'visible',
-          outline: elementDropTarget ? '2px solid var(--accent)' : 'none',
-          outlineOffset: '0',
+          outline: elementDropTarget || isSelected ? '2px solid var(--accent)' : 'none',
+          outlineOffset: elementDropTarget ? '0' : '-1px',
           boxShadow: elementDropTarget
             ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
             : undefined,
@@ -1594,6 +1599,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '1px',
+              // ueber der Auswahl-Flaeche (zIndex 5), sonst faerbt die sie mit ein
+              zIndex: 10,
               opacity: cardHovered || blockMenuOpen ? 1 : 0,
               transition: 'opacity 0.1s',
             }}
@@ -1771,6 +1778,19 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               )}
             </div>
           </div>
+        )}
+
+        {isSelected && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+          />
         )}
 
         <NodeViewContent style={{ minHeight: 0 }} />
