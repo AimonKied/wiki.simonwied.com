@@ -10,13 +10,16 @@
 
 Persoenliches Wiki mit genau einem Autor. Besucher lesen oeffentliche Inhalte
 oder erhalten Zugriff auf einen eingefrorenen Stand ueber einen geheimen,
-widerrufbaren Link. Nur der konfigurierte Owner kann zwei Arten von Inhalten
-erstellen:
+widerrufbaren Link. Nur der konfigurierte Owner kann Inhalte erstellen — und
+zwar genau eine Art:
 
 - **Artikel**: sollen sich so nah wie moeglich an Notion anfuehlen — Block-Editor mit Slash-Menue, Drag-Handle, allen gaengigen Block-Typen und interner Verlinkung. Leitfrage bei jedem Artikel-Feature: "Wie macht Notion das?"
-- **Workspace Canvas**: das Alleinstellungsmerkmal gegenueber Notion — freie Arbeitsflaechen mit verschiebbaren Bloecken, Pan und Zoom. Bleibt bewusst eigenstaendig.
 
-Beide Inhaltstypen koennen Entwurf bleiben, nur per Geheimlink geteilt oder
+Der frueher parallel existierende Canvas-Workspace (freie Arbeitsflaeche mit
+Pan/Zoom) wurde in Runde 16 wieder entfernt — das Wiki ist bewusst reine
+Artikel-Software.
+
+Artikel koennen Entwurf bleiben, nur per Geheimlink geteilt oder
 oeffentlich veroeffentlicht werden. Oeffentliche Inhalte muessen Kategorien
 haben, damit sie in der Bibliothek gefiltert werden koennen, zum Beispiel
 `Rezepte`, `Technik` oder `Informatik`.
@@ -41,21 +44,17 @@ haben, damit sie in der Bibliothek gefiltert werden koennen, zum Beispiel
 
 ### Inhaltstypen
 
+Das Wiki kennt genau einen Inhaltstyp — den Artikel. Der frueher parallel
+existierende Canvas-Workspace ist entfernt (siehe Runde 16).
+
 ```text
 article
-  Klassische Wiki-Seite wie v1.
-  Soll als ruhiger Lesemodus erscheinen und keine Canvas-Navigation brauchen.
+  Klassische Wiki-Seite wie v1, ruhiger Lesemodus ohne Canvas-Navigation.
   Markdown-kompatibel: Artikel koennen als .md importiert und exportiert werden.
   Bloecke entsprechen direkt Markdown-Elementen:
     H2-Headings trennen Sections
     Headings, Paragraphen, Listen, Codeblocks, Blockquotes, Tables, HR, Image, Video
     Toggles werden als <details>/<summary> HTML in MD gespeichert
-
-workspace
-  Canvas-basierter Editor wie aktuell in v2.
-  Bloecke liegen frei auf einer grossen Arbeitsflaeche.
-  Unterstuetzt Toggle-Elemente und Canvas-spezifische Features (Pan, Zoom, Lasso).
-  Kein Markdown-Export vorgesehen.
 ```
 
 ### Sichtbarkeit
@@ -92,47 +91,49 @@ Das fruehere Set (Security, Development, Ressourcen) wurde entfernt.
 app/
   (auth)/login/             Login-Seite
   (dashboard)/              Nur eingeloggt
-    dashboard/              Arbeitsbereich: Filter, Suche, Loeschen
+    dashboard/              Arbeitsbereich: Suche, Loeschen
     notes/
-      [id]/edit/            Inhalt bearbeiten ("Neuer Inhalt" legt an und springt direkt hierher; keine /create-Seite mehr)
+      [id]/edit/            Artikel bearbeiten ("Neuer Artikel" legt an und springt direkt hierher; keine /create-Seite mehr)
   (public)/
     notes/[id]/             Oeffentliche Ansicht per Slug (+ not-found.tsx)
   layout.tsx
-  page.tsx                  Homepage "Bibliothek" mit Kategorie- und Typ-Filtern
+  page.tsx                  Homepage "Bibliothek" mit Kategorie-Filtern
   robots.ts                 Sperrt alle Crawler (Wiki ist fuer Freunde, nicht fuer Google-Suche gedacht)
 components/
   dashboard/
-    NewContentButton.tsx    Neuer-Inhalt-Button (legt Notiz an, springt in Editor)
-    NotesOverview.tsx       Arbeitsbereich-Liste: Typ-Filter, Suche, Loeschen-/Privat-schalten-Menue
+    NewContentButton.tsx    Neuer-Artikel-Button (legt Artikel an, springt in Editor)
+    NotesOverview.tsx       Arbeitsbereich-Liste: Suche, Loeschen-/Privat-schalten-Menue
   editor/
-    Editor.tsx              TipTap, Canvas-Viewport, Pan/Zoom/Lasso
     ArticleEditor.tsx       Linearer Block-Editor fuer Artikel (Notion-Stil: Slash-Menue, volle Breite, kein Panel)
-    NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text; floating-Modus = schwebende Overlay-Pille auf dem Canvas (einklappbar)
-    ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Off-Canvas-Drawer mit schwebendem Button
-    SectionNode.tsx         Canvas-Bloecke: move, resize, snap, z-layer; Block-Controls (+/⠿)
+    NoteHeader.tsx          Gemeinsamer Kopf (Emoji/Titel/Beschreibung/Badges) fuer Edit- UND Public-Ansicht — editable-Flag schaltet Inputs vs. statischen Text
+    ArticleToc.tsx          Inhaltsverzeichnis rechts (sticky, H1/H2/H3, Scroll-Tracking); unter 1100px als rechter Drawer mit schwebendem Button
+    SectionNode.tsx         Artikel-Bloecke: Drag-Reorder, Auswahl-Store, Block-Controls (+/⠿), Clipboard
     ToggleNode.tsx          Toggle-Element (<details>/<summary>)
     CalloutNode.tsx         Callout-Block (Emoji + Farbe, Picker als Dokument-Overlay)
     MediaNodes.tsx          Bild-Node (Supabase Storage Upload; Video geplant)
-    RightSidebar.tsx        Workspace-Blockliste: schwebendes Panel rechts neben der Werkzeugleiste (Default), frei verschiebbar + einklappbar, unter 1100px rechter Drawer
-    useDraggablePanel.ts    Geteilter Drag-Hook fuer schwebende Panels (Blockliste, Werkzeugleiste), Position in localStorage
     elementPalette.ts       Gemeinsame Element-Palette + Slash-Ranking (filterPalette)
     editorTransforms.ts     Doc-Transformationen
     EmojiPicker.tsx
     EditorViewer.tsx        Read-only Darstellung
   sidebar/
-    Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Inhalt-Flyout, Loeschen, Privat schalten, ab 769px einklappbar)
+    Sidebar.tsx             Linke Navigation ("Zuletzt" = echter Oeffnen-Verlauf, Neuer-Artikel-Button, Loeschen, Privat schalten, ab 769px einklappbar)
   theme/ThemeToggle.tsx     Dark/Light Toggle
   InlineScript.tsx          Client Component fuer Anti-Flash-Theme-Script im Root-Layout (Server Components liefen im Browser nie erneut, daher eigene Komponente noetig)
   Logo.tsx                  Wortmarke (theme-adaptiv)
 lib/
+  auth/session.ts          Gecachter Owner-Kontext fuer Server-Routen
+  editor/markdown.ts       Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
+  notes/create.ts          Artikel anlegen (Default-Inhalt)
+  notes/owner.ts           Owner-Abfragen fuer Dashboard und Verlauf
+  notes/published.ts       Oeffentliche und Link-Snapshot-Abfragen
+  notes/types.ts           Gemeinsame Datenmodelle
   supabase/client.ts
+  supabase/config.ts       Validierte Supabase-Umgebung
   supabase/server.ts
   supabase/storage.ts       Upload in Bucket wiki-media (WebP-Kompression vor Upload)
-  createNote.ts             Notiz anlegen (Default-Inhalte pro Typ)
-  markdownConvert.ts        Markdown-Import/Export fuer Artikel (inkl. Task-Listen, Callouts)
-  types.ts
 supabase/
   migration.sql             Schema-Migration (im SQL Editor ausfuehren)
+  migration-remove-workspace.sql  Einmal-Migration: Canvas-Notizen loeschen, content_type droppen
   storage-policies.sql      Storage-Policies fuer wiki-media
 proxy.ts                    Auth-Middleware
 ```
@@ -154,7 +155,6 @@ notes (
   published    jsonb,          -- eingefrorener oeffentlicher Snapshot
   slug         text UNIQUE,
   is_public    boolean DEFAULT false,
-  content_type text NOT NULL DEFAULT 'workspace',  -- 'article' | 'workspace'
   created_at   timestamptz DEFAULT now(),
   updated_at   timestamptz DEFAULT now(),          -- Auto-Trigger (ignoriert reine Oeffnen-Updates)
   last_opened_at timestamptz                       -- Stempel beim Oeffnen/Ansehen, speist "Zuletzt"
@@ -193,7 +193,7 @@ published     = Snapshot (title, emoji, description, content, slug)
 Oeffentliche Seiten lesen ausschliesslich `published`.
 ```
 
-Public-Regel (App-Validierung + DB-Constraint, Migration Block 10):
+Public-Regel (App-Validierung + DB-Constraint, Migration Block 8):
 
 ```text
 Wenn is_public = true:
@@ -205,7 +205,7 @@ Der Trigger feuert bewusst nur, wenn `is_public` selbst im UPDATE steckt (nicht 
 
 Storage: Bucket `wiki-media` (public) fuer Bilder, Policies in `supabase/storage-policies.sql` (Upload/Delete nur im eigenen `user_id`-Ordner, keine SELECT-Policy — Public-Bucket liefert ueber die URL, Listing bleibt gesperrt). Bilder werden vor dem Upload clientseitig komprimiert (max 1600px, WebP 85%, Limit 2 MB nach Kompression) — so passen tausende Bilder ins 1-GB-Free-Kontingent statt ~100.
 
-Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in `migration.sql`), sonst liefert `postgres_changes` keine Events und die "Zuletzt"-Liste ist nur im eigenen Tab live.
+Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 6a in `migration.sql`), sonst liefert `postgres_changes` keine Events und die "Zuletzt"-Liste ist nur im eigenen Tab live.
 
 ---
 
@@ -264,7 +264,7 @@ Realtime: `notes` muss in der `supabase_realtime`-Publication sein (Block 8a in 
 - Neues Kategorien-Set (Technik…Sonstiges) mit `position`-Sortierung
 - Lock-Icon fuer private Notizen im Dashboard
 - Artikel-Editor: lineare Section-Bloecke, gemeinsame Element-Palette mit Canvas, Notion-artiges Griff-Popover, Platzhaltertext, fillHeight-Modus (Editor fuellt Viewport, interne Scroll-Flaeche)
-- Markdown-Import/Export fuer Artikel (`lib/markdownConvert.ts`)
+- Markdown-Import/Export fuer Artikel (`lib/editor/markdown.ts`)
 - Bild/Video-Upload in Supabase Storage (`wiki-media`, MediaNodes)
 - Toggle-Element (`ToggleNode`)
 - v1-Migrations-Tooling: `/migrate`-Seite + `api/migrate-v1` + `lib/v1Parser.ts` (nur lokal nutzbar) — 2026-07-06 wieder entfernt, verbleibende v1-Seiten werden manuell uebertragen
@@ -392,6 +392,19 @@ Beide schwebenden Canvas-Panels (Werkzeugleiste = Element-Palette, Blockliste = 
 
 ---
 
+### Erledigt (Runde 16 — Canvas-Workspace entfernt, 2026-09-03)
+
+- Zweiter Inhaltstyp `workspace` komplett zurueckgebaut: das Wiki ist jetzt reine Artikel-Software
+- Geloescht: `Editor.tsx` (Canvas-Viewport, Pan/Zoom/Lasso, Minimap, Element-Palette), `RightSidebar.tsx` (Blockliste), `useDraggablePanel.ts`
+- `SectionNode.tsx` von ~2950 auf ~2050 Zeilen: Snap-Helfer, Free-Move, Resize-Griffe, z-Layer, Auto-Size und alle `isArticleMode`-Verzweigungen raus; die Node-Attribute `x/y/w/h/z` sind aus dem Schema verschwunden
+- `NoteHeader` verliert `floating`/`meta`/`isArticle` (die einklappbare Overlay-Pille war Canvas-only), `EditorViewer` rendert immer den Artikel-Editor
+- Typ-Filter aus Bibliothek und Arbeitsbereich entfernt; "Neuer Inhalt"-Flyout (Sidebar und Dashboard) ist ein direkter "Neuer Artikel"-Button, da nur noch ein Typ existiert
+- DB: `supabase/migration-remove-workspace.sql` loescht Canvas-Notizen, droppt `content_type` und legt `get_public_note`/`get_shared_note`/`list_public_notes` ohne die Spalte neu an; `migration.sql` kennt `content_type` gar nicht mehr (Bloecke neu durchnummeriert)
+- Verwaistes CSS raus: `.canvas-viewport`, `.canvas-outline`, `.outline-*`, alle `[data-content-type]`-Regeln
+- Offen: Bilder geloeschter Canvas-Notizen bleiben als Karteileichen im Bucket `wiki-media` (Storage-Pfade haengen an `user_id`, nicht an einer `note_id`)
+
+---
+
 ## UX-Regeln
 
 - Private Inhalte erscheinen im Dashboard.
@@ -436,11 +449,15 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 
 ### Setup (einmalig im Supabase SQL Editor)
 
-- [x] Block 8a aus `migration.sql` ausgefuehrt (`notes` in Realtime-Publication)
-- [x] Block 8b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
+> Die Blocknummern in `migration.sql` haben sich mit Runde 16 um eins nach
+> vorne verschoben (die alten Bloecke 1+2 legten `content_type` an und sind
+> weg). Die Haken unten nennen bereits die neuen Nummern.
+
+- [x] Block 6a aus `migration.sql` ausgefuehrt (`notes` in Realtime-Publication)
+- [x] Block 6b aus `migration.sql` ausgefuehrt (2026-07-05): `last_opened_at` + Trigger-Anpassung
 - [x] Bucket `wiki-media` angelegt (public) + `storage-policies.sql` ausgefuehrt (2026-07-05)
-- [x] Block 9 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
-- [x] Block 10 aus `migration.sql` ausgefuehrt (2026-07-06): Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
+- [x] Block 7 aus `migration.sql` ausgefuehrt: `profiles`-Tabelle + Anzeigename-Sync-Trigger
+- [x] Block 8 aus `migration.sql` ausgefuehrt (2026-07-06): Public-Regel als DB-Constraint/Trigger (Slug-CHECK + Kategorie-Pflicht-Trigger)
 
 ### Deploy
 
@@ -453,13 +470,13 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 - [x] Supabase-Credentials als Env-Vars im Vercel-Projekt gesetzt (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - [x] Custom Domain `wiki.simonwied.com` im Vercel-Projekt + DNS-CNAME beim Domain-Provider — live und getestet (2026-07-07): Landing → Beta-Button → `/bibliothek` → Login/Register funktioniert
 - [x] Root aufgeraeumt: v1-Statik liegt archiviert unter `legacy-v1/`, Repo-Root ist jetzt der App-Code (siehe Runde 14)
-- [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 10, 2026-07-06) — Restluecke siehe Datenbankschema oben
+- [x] Public-Regel per DB-Constraint/Trigger implementiert und ausgefuehrt (Migration Block 8, 2026-07-06) — Restluecke siehe Datenbankschema oben
 
 ---
 
 ## Roadmap: Artikel → Notion-Paritaet
 
-Ziel: Artikel-Editor und -Ansicht fuehlen sich wie Notion an. Der Canvas-Workspace bleibt separat und eigenstaendig.
+Ziel: Artikel-Editor und -Ansicht fuehlen sich wie Notion an. Seit Runde 16 ist der Artikel der einzige Inhaltstyp.
 
 Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranking, Drag-Handle (⠿) mit "Umwandeln in"/"Duplizieren", To-dos, Callouts, Toggles, Tabellen, Codebloecke mit Highlighting, resizable Bilder, Text-Formatierung (BubbleMenu), Links (StarterKit), Platzhalter-Hinweis auf leerer Zeile, Emoji-Icon pro Seite, Markdown-Import/Export, stickes Inhaltsverzeichnis, Live-Sidebar, Dark Mode.
 

@@ -26,10 +26,15 @@ This project is maintained by [simonwied](https://github.com/aimonkied).
 ## Development
 
 ```bash
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+Fill `.env.local` with the project URL and anon key from Supabase before
+starting Next.js. Restart the dev server after changing environment values.
 
 Useful checks:
 
@@ -38,9 +43,7 @@ npm run lint
 npx tsc --noEmit
 ```
 
-`npx tsc --noEmit` passes with zero errors. `npm run lint` has a handful of
-known pre-existing `react-hooks` findings (sync setState in effects) that are
-tolerated noise.
+Both checks pass with zero errors and zero warnings.
 
 ## Single-author access and publishing
 
@@ -54,6 +57,11 @@ Run block 11 of `supabase/migration.sql` after the earlier schema blocks. It:
 - creates one revocable secret link per link-published note;
 - exposes frozen snapshots through narrow public RPCs, so live draft columns
   are never readable by visitors.
+
+If block 11 was already installed, also run block 12 once. It prevents owner-id
+probing, normalizes public URLs and adds a unique index so one public slug can
+never resolve to two notes. If index creation reports an existing duplicate,
+make one of the conflicting notes private, then run block 12 again.
 
 Verify the selected owner after migrating:
 
@@ -91,59 +99,28 @@ width, the decorative grid is hidden while editing).
   "Umwandeln in" and "Duplizieren", dragging reorders.
 - A sticky table of contents (H1/H2/H3) sits on the right in the editor and
   the public article view; it tracks the scroll position. Below 1100px it
-  becomes a right-hand off-canvas drawer opened via a floating button.
+  becomes a right-hand drawer opened via a floating button.
 - Public (`/notes/[slug]`) and secret-link (`/share/[token]`) views render through the same
   `NoteHeader` component as the editor (`editable={false}`) — Notion share-link
   parity: viewers see the identical page, just without edit controls.
-- "Neuer Inhalt" creates the note directly and opens `/notes/[id]/edit` with
-  the title focused — there is no separate create page.
+- "Neuer Artikel" creates the article directly and opens `/notes/[id]/edit`
+  with the title focused — there is no separate create page.
 
-## Editor Workspace
+## Editor
 
-The note editor uses a large canvas workspace rather than a narrow document column.
-Pan, pinch-zoom, block drag, resize, and element reorder all run on Pointer
-Events (`components/editor/Editor.tsx`, `SectionNode.tsx`), so mouse and touch
-share the same code path. Touch gestures (Canva-style): one finger on empty
-canvas pans; two fingers pan **and** pinch-zoom simultaneously, anywhere — even
-over blocks (touch contacts are tracked before the block-exclusion checks, or
-the gesture would never start when a finger lands on a block); in hand mode
-(palette ✋) one finger pans over blocks too. Lasso multi-select stays
-mouse-only. The read-only public view gets the same navigation (drag-pan on
-empty canvas, one-finger pan anywhere, pinch, `Ctrl`+wheel) — only editing
-tools (lasso, palette, minimap) stay `editable`-gated.
+The editor is a single linear document column (`components/editor/ArticleEditor.tsx`).
+Each top-level block is a TipTap `section` node; `SectionNode.tsx` renders it with
+the hover controls (`+` insert below, `⠿` handle menu) and handles drag-reorder,
+cross-block element moves and the block clipboard on Pointer Events, so mouse and
+touch share the same code path.
 
-The canvas is the page (Canva model): `.canvas-viewport` fills the whole
-viewport (`100dvh`; minus the 56px topbar on mobile) and all chrome floats on
-top of it. `NoteHeader` (`floating` prop) renders as an absolutely positioned
-semi-transparent pill; collapsed it shrinks to a round button top-right (same
-chevron SVG, flipped). The zoom bar sits bottom-right, the element palette
-top-right, the minimap bottom-left (hand mode only). On workspace pages the
-body grid overlay and `min-height` are disabled (`body:has(...)` in
-`globals.css`) — otherwise the page background shows as stripes on mobile when
-`dvh`/`vh` diverge. Article notes are unaffected — same `NoteHeader`,
-`floating` just isn't set.
-
-- Drag a block handle (`⠿`) to move a section freely; click it to (de)select, `Shift`+click for multi-select.
-- Drag on empty workspace area to lasso-select multiple blocks; selected blocks move, resize, delete and copy together.
-- Drag block edges or corners to resize in any direction. With a multi-selection every selected block gets the same delta.
-- The element palette (top-right, canvas only) inserts elements: click adds to the selected block, drag & drop adds to any block. Its grip handle (top of the palette) drags the whole toolbar anywhere on screen (`useDraggablePanel`, position persisted in localStorage).
-- Every block has a layer (`z`); the `⤒`/`⤓` buttons bring it to front or send it to back. Layer 0 is the floor — sending back pushes the others up instead of going negative (negative z would paint behind the editor surface and become unreachable).
-- "Auto" resets a block to content-sized width/height; new blocks are content-sized by default (max 960px).
-- Hold `Space` and drag with the left mouse button to pan; `Ctrl`/`Cmd` + mouse wheel or the zoom buttons zoom.
-- Blocks snap to matching edges of nearby blocks and show alignment guides (single-block move/resize only).
-- The block outline (`RightSidebar.tsx`) floats top-right next to the element
-  palette by default; clicking an entry pans the block animated to the
-  workspace center, double-click renames. Its header row is a drag handle
-  (`useDraggablePanel`) — grab it to move the panel anywhere, position
-  persists in localStorage. It collapses to a round button (persisted
-  separately) instead of following the app sidebar's collapsed state. Below
-  1100px it becomes a right-hand drawer opened via a floating button above
-  the zoom bar — same UX as the article TOC, shared CSS (`.toc-*`/`.outline-*`).
-
-Section geometry is stored on TipTap section nodes as `x`, `y`, `w`, `h` and `z` attributes.
-Sections without stored positions render in normal flow once; right after the first
-paint a layout pass measures their real heights and migrates them to canvas
-coordinates (outside the undo history).
+- Drag the `⠿` handle to reorder blocks; click it for the block menu
+  ("Umwandeln in", "Farbe", "Duplizieren", "Loeschen"), `Shift`+click to add the
+  block to a multi-selection (delete/duplicate/copy act on the whole selection).
+- Elements inside a block can be dragged between blocks, or onto empty space
+  below the last block to start a new one.
+- `Enter` at the end of a block starts the next block, `Backspace` at the very
+  start merges it into the one above.
 
 Notes auto-save 1.5 s after the last change with a status indicator; `Ctrl+S` saves
 immediately. Closing the tab while a save is pending shows a browser warning.
@@ -152,36 +129,31 @@ immediately. Closing the tab while a save is pending shows a browser warning.
 
 ```text
 app/
-  (dashboard)/dashboard/       workspace overview: filter, search, delete
-  (dashboard)/notes/[id]/edit/ note editor (articles + canvas)
+  (dashboard)/dashboard/       article overview: search, delete
+  (dashboard)/notes/[id]/edit/ article editor
+  (public)/bibliothek/         public library (route remains /bibliothek)
   (public)/notes/[id]/         public note view (published snapshot)
   (public)/share/[token]/      secret-link view (published snapshot)
 components/dashboard/
-  NewContentButton.tsx         creates a note and jumps into the editor
-  NotesOverview.tsx            dashboard list with visibility/filter/search/delete
+  NewContentButton.tsx         creates an article and jumps into the editor
+  NotesOverview.tsx            dashboard list with visibility/search/delete
 components/editor/
-  Editor.tsx                   TipTap setup, workspace viewport, pan/zoom/lasso,
-                               element palette, layout migration pass
   ArticleEditor.tsx            linear Notion-style article editor (slash menu)
   NoteHeader.tsx               shared header (emoji/title/description/badges) for
                                edit and public view; `editable` flag toggles
-                               inputs vs. static text; `floating` renders it as
-                               a collapsible overlay pill on the canvas
+                               inputs vs. static text
   ArticleToc.tsx               sticky table of contents (editor + public view),
                                right-side drawer below 1100px
-  SectionNode.tsx              section node view: move/resize/snap, selection store,
-                               layers, block controls (+/⠿), clipboard
+  SectionNode.tsx              section node view: drag-reorder, selection store,
+                               block controls (+/⠿), clipboard
   ToggleNode.tsx               collapsible toggle block
   CalloutNode.tsx              callout block (emoji + color, document-level picker)
   MediaNodes.tsx               resizable image node (Supabase Storage upload)
   elementPalette.ts            shared block palette + slash-menu ranking
   editorTransforms.ts          line/block transformations shared by both editors
-  RightSidebar.tsx             block outline: floating panel top-right by default,
-                               draggable (collapsible), right-hand drawer below
-                               1100px; click pans block to workspace center
-  useDraggablePanel.ts         shared drag hook for floating panels (element
-                               palette, block outline), position in localStorage
   EmojiPicker.tsx              emoji picker for note icons
+components/notes/
+  PublishedNoteView.tsx        shared public/link snapshot view
 components/sidebar/
   Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
                                ⋯ menu (delete, unpublish back to private);
@@ -193,9 +165,14 @@ components/
                                type ternary never diverges and React warns on
                                every hydration, not just soft navigations
 lib/
-  createNote.ts                insert new note with per-type default content
-  markdownConvert.ts           article Markdown import/export
+  auth/session.ts              cached owner-session lookup for server routes
+  editor/markdown.ts           article Markdown import/export
+  notes/create.ts              insert new note with per-type default content
+  notes/owner.ts               owner-only note listing queries
+  notes/published.ts           public/link snapshot queries
+  notes/types.ts               note, category and snapshot types
   supabase/client.ts           browser Supabase client
+  supabase/config.ts           validated public Supabase environment
   supabase/server.ts           server Supabase client
   supabase/storage.ts          wiki-media bucket upload + WebP compression
 ```
