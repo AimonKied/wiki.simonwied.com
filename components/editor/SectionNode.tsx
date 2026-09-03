@@ -1524,6 +1524,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const bgColor     = node.attrs.bgColor     as string | null
   const borderColor = node.attrs.borderColor as string | null
 
+  // Hervorhebung in zwei Faellen: bei Mehrfachauswahl (Shift-Klick) und
+  // solange das Block-Menue offen ist -- sonst ist nicht erkennbar, auf
+  // welchen Block sich "Duplizieren"/"Loeschen" bezieht.
+  const blockHighlighted = isSelected || blockMenuOpen
+
   return (
     <NodeViewWrapper style={{ position: 'relative', margin: 0 }}>
       <div
@@ -1547,7 +1552,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           minHeight: 0,
           boxSizing: 'border-box',
           overflow: 'visible',
-          outline: elementDropTarget || isSelected ? '2px solid var(--accent)' : 'none',
+          outline: elementDropTarget || blockHighlighted ? '2px solid var(--accent)' : 'none',
           outlineOffset: elementDropTarget ? '0' : '-1px',
           boxShadow: elementDropTarget
             ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
@@ -1780,7 +1785,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {isSelected && (
+        {blockHighlighted && (
           <div
             aria-hidden="true"
             style={{
