@@ -1,22 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import EmojiPicker from './EmojiPicker'
-
-const WORKSPACE_HEADER_COLLAPSED_KEY = 'wiki-workspace-header-collapsed'
-
-// Ein Chevron fuer beide Zustaende der Workspace-Kopfleiste — Unicode-Pfeile
-// (︿/⌄) rendern je nach Font verschieden, SVG bleibt identisch.
-function ChevronUp({ flipped }: { flipped?: boolean }) {
-  return (
-    <svg
-      width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
-      style={{ display: 'block', transform: flipped ? 'rotate(180deg)' : undefined }}
-    >
-      <path d="M2.5 7.5 L6 4 L9.5 7.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 // Eine Chrome fuer Edit- und Public-Ansicht einer Notiz, damit beide exakt
 // gleich aussehen (Notion-Style: Viewer sieht dieselbe Seite, nur ohne
@@ -28,7 +13,6 @@ export default function NoteHeader({
   statusLabel,
   visibilityLabel,
   typeLabel,
-  isArticle,
   isPublic,
   editable,
   onEmojiChange,
@@ -37,8 +21,6 @@ export default function NoteHeader({
   titleInputRef,
   actions,
   linkRight,
-  meta,
-  floating,
 }: {
   emoji: string
   title: string
@@ -46,7 +28,6 @@ export default function NoteHeader({
   statusLabel: string
   visibilityLabel?: string
   typeLabel: string
-  isArticle: boolean
   isPublic: boolean
   editable: boolean
   onEmojiChange?: (emoji: string) => void
@@ -55,121 +36,8 @@ export default function NoteHeader({
   titleInputRef?: React.Ref<HTMLInputElement>
   actions?: React.ReactNode
   linkRight?: React.ReactNode
-  // Kleine Zusatzinfo in der schwebenden Pille (z.B. Autor auf Public-Seite)
-  meta?: React.ReactNode
-  // Schwebende Pille ueber dem Canvas statt Titel+Beschreibung+Badges im
-  // Flow — fuer Workspace-Notizen, deren Canvas den ganzen Viewport fuellt
-  // (Canva-Muster: alles Chrome liegt auf der Arbeitsflaeche).
-  floating?: boolean
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
-
-  // Workspace-Kopfleiste einklappbar, damit sie dem Canvas nicht dauerhaft
-  // im Weg ist. Die Pille liegt als Overlay auf dem Canvas — der Canvas
-  // selbst bleibt immer volle Viewport-Hoehe. Zustand in localStorage.
-  const [collapsed, setCollapsed] = useState(false)
-  useEffect(() => {
-    if (!floating) return
-    const frame = window.requestAnimationFrame(() => {
-      try {
-        setCollapsed(localStorage.getItem(WORKSPACE_HEADER_COLLAPSED_KEY) === '1')
-      } catch {}
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [floating])
-
-  function toggleCollapsed() {
-    setCollapsed(c => {
-      const next = !c
-      try { localStorage.setItem(WORKSPACE_HEADER_COLLAPSED_KEY, next ? '1' : '0') } catch {}
-      return next
-    })
-  }
-
-  if (floating) {
-    if (collapsed) {
-      return (
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          title="Kopfleiste einblenden"
-          aria-label="Kopfleiste einblenden"
-          style={{
-            position: 'absolute', top: '10px', right: '10px', zIndex: 60,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '28px', height: '28px',
-            border: '1px solid var(--border)', borderRadius: '8px',
-            background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer', lineHeight: 1,
-            boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)' }}
-        >
-          <ChevronUp flipped />
-        </button>
-      )
-    }
-    return (
-      <div style={{
-        position: 'absolute', top: '10px', left: '10px', right: '10px', zIndex: 60,
-        display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
-        padding: '7px 10px',
-        background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
-        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-        border: '1px solid var(--border)', borderRadius: '12px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-      }}>
-        <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{emoji || '🗂️'}</span>
-        {editable ? (
-          <input
-            ref={titleInputRef}
-            value={title}
-            placeholder="Ohne Titel"
-            onChange={e => onTitleChange?.(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
-            style={{
-              flex: '1 1 200px', minWidth: 0, fontSize: '15px', fontWeight: 700, background: 'none', border: 'none',
-              outline: 'none', color: 'var(--text)', fontFamily: 'inherit', padding: 0,
-            }}
-          />
-        ) : (
-          <span style={{
-            flex: '1 1 200px', minWidth: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {title || 'Ohne Titel'}
-          </span>
-        )}
-        <span
-          title={visibilityLabel ?? (isPublic ? 'Öffentlich' : 'Privater Entwurf')}
-          style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: visibilityLabel === 'Nur per Link' ? '#d97706' : isPublic ? 'var(--accent)' : 'var(--muted)' }}
-        />
-        {meta}
-        {linkRight}
-        {actions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
-            {actions}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          title="Kopfleiste ausblenden"
-          aria-label="Kopfleiste ausblenden"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '22px', height: '22px', flexShrink: 0,
-            border: 'none', borderRadius: '5px',
-            background: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '11px', lineHeight: 1,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' }}
-        >
-          <ChevronUp />
-        </button>
-      </div>
-    )
-  }
 
   return (
     <>
@@ -260,7 +128,7 @@ export default function NoteHeader({
           borderRadius: '999px', background: 'var(--surface)',
           color: 'var(--muted)', fontSize: '11px', fontWeight: 700,
         }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isArticle ? '#009955' : '#4488ff' }} />
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#009955' }} />
           {typeLabel}
         </span>
         <span style={{

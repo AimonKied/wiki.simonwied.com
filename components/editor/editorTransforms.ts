@@ -45,7 +45,7 @@ export function createLineElement(editor: TiptapEditor, key: string, content: Fr
 }
 
 // Transforms the visual line at the cursor position (bounded by hardBreaks) into
-// the element type identified by `key`. Used by both the canvas and article editors
+// the element type identified by `key`.
 // because sections use hardBreaks as line separators inside a single textblock.
 export function transformVisualLine(
   editor: TiptapEditor,

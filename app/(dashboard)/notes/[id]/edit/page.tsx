@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Note, Category } from '@/lib/notes/types'
 import Link from 'next/link'
-import RightSidebar from '@/components/editor/RightSidebar'
 import ArticleToc from '@/components/editor/ArticleToc'
 import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
@@ -15,7 +14,6 @@ import { mdToArticleJson, mdExtractTitle, articleJsonToMd } from '@/lib/editor/m
 
 type Visibility = 'private' | 'link' | 'public'
 
-const Editor = dynamic(() => import('@/components/editor/Editor'), { ssr: false })
 const ArticleEditor = dynamic(() => import('@/components/editor/ArticleEditor'), { ssr: false })
 
 function menuItemStyle(color?: string): React.CSSProperties {
@@ -51,7 +49,6 @@ export default function EditNotePage() {
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
   const [content, setContent] = useState<object>({})
-  const [contentType, setContentType] = useState<'article' | 'workspace'>('workspace')
   const [visibility, setVisibility] = useState<Visibility>('private')
   const [publishVisibility, setPublishVisibility] = useState<Visibility>('public')
   const [shareToken, setShareToken] = useState<string | null>(null)
@@ -135,7 +132,6 @@ export default function EditNotePage() {
         setDescription(data.description ?? '')
         setEmoji(data.emoji ?? '')
         setContent(data.content ?? {})
-        setContentType(data.content_type ?? 'workspace')
         const loadedVisibility = data.visibility ?? (data.is_public ? 'public' : 'private')
         setVisibility(loadedVisibility)
         setPublishVisibility(loadedVisibility === 'private' ? 'public' : loadedVisibility)
@@ -178,7 +174,6 @@ export default function EditNotePage() {
       emoji: snapshot.emoji,
       description: snapshot.description,
       content,
-      content_type: contentType,
       slug: draftSlug,
     }
     setSaveStatus('saving')
@@ -192,7 +187,7 @@ export default function EditNotePage() {
         document.dispatchEvent(new Event('wiki-notes-changed'))
       })
       .catch(() => setSaveStatus('error'))
-  }, [id, title, description, emoji, content, contentType, slug])
+  }, [id, title, description, emoji, content, slug])
 
   const handleSave = useCallback(() => { persist() }, [persist])
   const openPublishModal = useCallback(() => {
@@ -411,8 +406,6 @@ export default function EditNotePage() {
     </div>
   )
 
-  const isArticle = contentType === 'article'
-  const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
   const visibilityLabel = visibility === 'public'
     ? 'Öffentlich'
     : visibility === 'link'
@@ -422,12 +415,9 @@ export default function EditNotePage() {
   return (
     <div
       className="note-editor-shell"
-      data-content-type={isArticle ? 'article' : 'workspace'}
       style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap' }}
     >
 
-      {/* Main editor column — relative als Anker fuer die schwebende
-          Workspace-Kopfleiste (NoteHeader floating) */}
       <div className="note-editor-main" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
 
         <NoteHeader
@@ -436,10 +426,8 @@ export default function EditNotePage() {
           description={description}
           statusLabel={visibilityLabel}
           visibilityLabel={visibilityLabel}
-          typeLabel={typeLabel}
-          isArticle={isArticle}
+          typeLabel="Artikel"
           isPublic={visibility === 'public'}
-          floating={!isArticle}
           editable
           titleInputRef={titleInputRef}
           onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}
@@ -485,15 +473,13 @@ export default function EditNotePage() {
               </button>
 
               {/* ⋯-Menue fuer sekundaere Aktionen */}
-              {isArticle && (
-                <input
-                  ref={mdImportRef}
-                  type="file"
-                  accept=".md,text/markdown"
-                  style={{ display: 'none' }}
-                  onChange={handleMdImport}
-                />
-              )}
+              <input
+                ref={mdImportRef}
+                type="file"
+                accept=".md,text/markdown"
+                style={{ display: 'none' }}
+                onChange={handleMdImport}
+              />
               <div ref={actionsMenuRef} style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -516,28 +502,24 @@ export default function EditNotePage() {
                     borderRadius: '10px', boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
                     animation: 'fadeIn 0.12s ease both',
                   }}>
-                    {isArticle && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setActionsMenuOpen(false); mdImportRef.current?.click() }}
-                          style={menuItemStyle()}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                        >
-                          MD importieren
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setActionsMenuOpen(false); handleMdExport() }}
-                          style={menuItemStyle()}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                        >
-                          MD exportieren
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setActionsMenuOpen(false); mdImportRef.current?.click() }}
+                      style={menuItemStyle()}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      MD importieren
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setActionsMenuOpen(false); handleMdExport() }}
+                      style={menuItemStyle()}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      MD exportieren
+                    </button>
                     {visibility !== 'private' && (
                       <button
                         type="button"
@@ -566,15 +548,10 @@ export default function EditNotePage() {
           }
         />
 
-        {/* Editor */}
-        {isArticle
-          ? <ArticleEditor key={importKey} content={content} onChange={setContent} />
-          : <Editor content={content} onChange={setContent} />}
-
+        <ArticleEditor key={importKey} content={content} onChange={setContent} />
       </div>
 
-      {!isArticle && <RightSidebar content={content} />}
-      {isArticle && <ArticleToc content={content} />}
+      <ArticleToc content={content} />
 
       {/* Publish modal — portalled to body so the editor's transform (fadeIn)
           doesn't clip the fixed overlay to a rectangle */}
@@ -759,7 +736,7 @@ export default function EditNotePage() {
             }}
           >
             <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '6px', fontFamily: 'var(--font-display)' }}>
-              {isArticle ? 'Artikel löschen?' : 'Workspace löschen?'}
+              Artikel löschen?
             </div>
             <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
               „{title || 'Ohne Titel'}“ wird endgültig gelöscht.

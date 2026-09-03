@@ -2,7 +2,6 @@ import Link from 'next/link'
 import type { PublishedNoteResult } from '@/lib/notes/types'
 import EditorViewer from '@/components/editor/EditorViewer'
 import ArticleToc from '@/components/editor/ArticleToc'
-import RightSidebar from '@/components/editor/RightSidebar'
 import NoteHeader from '@/components/editor/NoteHeader'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
@@ -16,15 +15,12 @@ export default function PublishedNoteView({
   isOwner: boolean
 }) {
   const pub = note.published
-  const isArticle = note.content_type === 'article'
   const accessLabel = access === 'public' ? 'Öffentlich' : 'Nur per Link'
-  const typeLabel = isArticle ? 'Artikel' : 'Workspace Canvas'
   const visibleDate = note.published_at ?? note.updated_at
 
   return (
     <div
       className="note-editor-shell"
-      data-content-type={isArticle ? 'article' : 'workspace'}
       style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', animation: 'fadeIn 0.2s ease both', flexWrap: 'wrap', width: '100%' }}
     >
       <div className="note-editor-main" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
@@ -34,17 +30,10 @@ export default function PublishedNoteView({
           description={pub.description ?? ''}
           statusLabel={accessLabel}
           visibilityLabel={accessLabel}
-          typeLabel={typeLabel}
-          isArticle={isArticle}
+          typeLabel="Artikel"
           isPublic={access === 'public'}
-          floating={!isArticle}
           editable={false}
           actions={<ThemeToggle />}
-          meta={!isArticle && note.author_name ? (
-            <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Von {note.author_name}
-            </span>
-          ) : undefined}
           linkRight={isOwner && (
             <Link
               href={`/notes/${note.note_id}/edit`}
@@ -55,7 +44,7 @@ export default function PublishedNoteView({
           )}
         />
 
-        {note.author_name && isArticle && (
+        {note.author_name && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '-8px 0 22px', fontSize: '12px', color: 'var(--muted)' }}>
             <span
               aria-hidden="true"
@@ -76,11 +65,10 @@ export default function PublishedNoteView({
           </div>
         )}
 
-        <EditorViewer content={pub.content} contentType={note.content_type} />
+        <EditorViewer content={pub.content} />
       </div>
 
-      {!isArticle && pub.content && <RightSidebar content={pub.content} />}
-      {isArticle && pub.content && <ArticleToc content={pub.content} />}
+      {pub.content && <ArticleToc content={pub.content} />}
     </div>
   )
 }
