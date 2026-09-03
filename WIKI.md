@@ -522,7 +522,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 ### Unabhaengig davon (App-Ebene)
 
 - [x] Canvas-Editor Touch-Bedienung (2026-07-06): Pan (1 Finger auf leerem Canvas), Pinch-Zoom (2 Finger), Block verschieben, Resize-Handles und Element-Reorder (⠿) laufen jetzt über Pointer Events statt reiner Maus-Events. Lasso-Mehrfachauswahl per Touch bewusst nicht gebaut (Ein-Finger-Ziehen auf leerem Canvas ist jetzt Pan; Lasso bräuchte einen eigenen Touch-Toggle-Button)
-- [ ] Kategorie-Seiten (eigene Route pro Kategorie-Slug)
+- [x] Kategorie-Seiten (2026-09-04): /kategorie/[slug] statt ?category= — eine Kategorie ist damit eine eigene, verschickbare Adresse; unbekannter Slug ergibt 404 statt einer leeren Liste
 - [x] Public-Regel per DB-Trigger/Constraint absichern (Migration Block 10, 2026-07-06)
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
 - [x] v1-Wiki abgeloest (2026-07-06): Homepage ist jetzt die "Beta im Aufbau"-Landing-Page mit Beta-Button (vorher Redirect-Hack `index.html` → `v2-in-arbeit.html`); alte Homepage (Karten-Grid), Templates und Contribution-Flow entfernt. Die v1-Inhaltsseiten bleiben als Archiv unter `pages/` (samt `style.css`/`nav.js`/`version.js`/`assets/`), falls sie spaeter in die neue Wiki eingebunden werden — verlinkt sind sie nirgends mehr

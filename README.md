@@ -157,6 +157,7 @@ app/
   (dashboard)/notes/[id]/edit/ article editor
   (dashboard)/papierkorb/      trash: restore or delete permanently
   (public)/bibliothek/         public library (route remains /bibliothek)
+  (public)/kategorie/[slug]/   one page per category (404 on unknown slug)
   (public)/notes/[id]/         public note view (published snapshot)
   (public)/share/[token]/      secret-link view (published snapshot)
 components/dashboard/
@@ -180,6 +181,7 @@ components/editor/
   editorTransforms.ts          line/block transformations shared by both editors
   EmojiPicker.tsx              emoji picker for note icons
 components/notes/
+  NoteCardGrid.tsx             card grid shared by library and category pages
   PublishedNoteView.tsx        shared public/link snapshot view + backlinks
 components/search/
   QuickSearch.tsx              Ctrl/Cmd+P overlay; mounted in the sidebar, so
