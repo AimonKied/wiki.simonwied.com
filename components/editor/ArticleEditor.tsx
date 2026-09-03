@@ -696,6 +696,28 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
             padding-left: 0 !important;
           }
         }
+        /* Auswahl-Flaeche eines Blocks. Die Maße stehen bewusst hier neben dem
+           Karten-Padding: sie leiten sich davon ab und muessen mitwandern.
+           Ziel ist ein gleicher Abstand von 3px auf allen vier Seiten zum
+           Inhalt -- oben/unten liefert ihn das 3px-Padding der Karte, links
+           der Versatz gegen die 44px-Rinne, rechts der Ueberstand (die Karte
+           hat dort kein Padding, der Text endet also an ihrer Kante). */
+        [data-article-editor] .wiki-block-highlight {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 41px;
+          right: -3px;
+          border-radius: 6px;
+          background: color-mix(in srgb, var(--accent) 16%, transparent);
+          pointer-events: none;
+          z-index: 5;
+        }
+        @media (max-width: 640px) {
+          [data-article-editor] .wiki-block-highlight {
+            left: -3px;
+          }
+        }
         [data-article-editor] [data-section-card] h1 {
           font-size: 30px;
           line-height: 1.2;

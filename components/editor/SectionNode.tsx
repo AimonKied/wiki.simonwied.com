@@ -1837,19 +1837,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           </div>
         )}
 
-        {blockHighlighted && (
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: '6px',
-              background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
-              pointerEvents: 'none',
-              zIndex: 5,
-            }}
-          />
-        )}
+        {blockHighlighted && <div className="wiki-block-highlight" aria-hidden="true" />}
 
         <NodeViewContent style={{ minHeight: 0 }} />
 
