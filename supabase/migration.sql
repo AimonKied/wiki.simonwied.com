@@ -3,17 +3,7 @@
 -- Run this in the Supabase SQL Editor (supabase.com → SQL Editor)
 -- ============================================================
 
--- 1. Add content_type column to notes
-alter table notes
-  add column if not exists content_type text not null default 'workspace'
-    check (content_type in ('article', 'workspace'));
-
--- 2. Backfill existing notes from content JSON
-update notes
-set content_type = 'article'
-where (content->'attrs'->>'wikiMode') = 'article';
-
--- 3. Create categories table
+-- 1. Create categories table
 create table if not exists categories (
   id         uuid primary key default gen_random_uuid(),
   slug       text unique not null,
@@ -22,7 +12,7 @@ create table if not exists categories (
   created_at timestamptz default now()
 );
 
--- 4. Seed categories (position controls display order; Sonstiges stays last)
+-- 2. Seed categories (position controls display order; Sonstiges stays last)
 alter table categories
   add column if not exists position int not null default 100;
 
@@ -41,14 +31,14 @@ on conflict (slug) do update
 -- Remove the earlier placeholder categories (also drops their note links)
 delete from categories where slug in ('security', 'development', 'ressourcen');
 
--- 5. Create note_categories join table
+-- 3. Create note_categories join table
 create table if not exists note_categories (
   note_id     uuid references notes(id) on delete cascade,
   category_id uuid references categories(id) on delete cascade,
   primary key (note_id, category_id)
 );
 
--- 6. Enable RLS on new tables
+-- 4. Enable RLS on new tables
 alter table categories enable row level security;
 alter table note_categories enable row level security;
 
@@ -74,7 +64,7 @@ create policy "note_categories_owner_all" on note_categories
     )
   );
 
--- 7. updated_at auto-trigger
+-- 5. updated_at auto-trigger
 create or replace function update_updated_at_column()
 returns trigger as $$
 begin
@@ -88,7 +78,7 @@ create trigger notes_updated_at
   before update on notes
   for each row execute function update_updated_at_column();
 
--- 8a. Realtime: without this, postgres_changes subscriptions (sidebar "Zuletzt")
+-- 6a. Realtime: without this, postgres_changes subscriptions (sidebar "Zuletzt")
 --     connect fine but never receive any events.
 do $$
 begin
@@ -100,7 +90,7 @@ begin
   end if;
 end $$;
 
--- 8b. "Zuletzt"-Verlauf: last_opened_at wird beim Oeffnen der Edit-Seite
+-- 6b. "Zuletzt"-Verlauf: last_opened_at wird beim Oeffnen der Edit-Seite
 --     gesetzt. Der updated_at-Trigger ignoriert reine Oeffnen-Updates,
 --     sonst wuerde jedes Oeffnen die "geaendert"-Sortierung verfaelschen.
 alter table notes
@@ -117,7 +107,7 @@ begin
 end;
 $$ language plpgsql;
 
--- 8. Draft/publish split: `published` holds the frozen public snapshot.
+-- 6. Draft/publish split: `published` holds the frozen public snapshot.
 --    The live note columns are the working draft; public pages read `published`.
 alter table notes
   add column if not exists published jsonb;
@@ -133,7 +123,7 @@ set published = jsonb_build_object(
 )
 where is_public = true and published is null;
 
--- 9. Profiles: oeffentlich lesbarer Anzeigename pro User. auth.users ist fuer
+-- 7. Profiles: oeffentlich lesbarer Anzeigename pro User. auth.users ist fuer
 --    Besucher nicht lesbar, daher wird der display_name aus den Auth-Metadaten
 --    per Trigger hierher gespiegelt (Autor-Anzeige bei oeffentlichen Inhalten).
 create table if not exists profiles (
@@ -176,7 +166,7 @@ select id, coalesce(nullif(raw_user_meta_data->>'display_name', ''), split_part(
 from auth.users
 on conflict (id) do update set display_name = excluded.display_name;
 
--- 10. Public-Regel als DB-Constraint absichern (bisher nur App-Validierung):
+-- 8. Public-Regel als DB-Constraint absichern (bisher nur App-Validierung):
 --     oeffentliche Notizen brauchen Slug + mindestens eine Kategorie.
 --     Slug ist ein einfacher CHECK (gleiche Zeile). Die Kategorie-Pflicht
 --     braucht einen Trigger (andere Tabelle) und feuert bewusst nur, wenn
@@ -230,7 +220,7 @@ create trigger notes_require_category_on_publish
   after insert or update of is_public on notes
   for each row execute function trg_notes_require_category_on_publish();
 
--- 11. Single-author wiki + draft/link/public publishing.
+-- 9. Single-author wiki + draft/link/public publishing.
 --
 -- The first existing Supabase account becomes the owner. This is the safe
 -- default for this personal wiki's existing installation. Before running this
@@ -524,7 +514,6 @@ create or replace function get_public_note(p_slug text)
 returns table (
   note_id uuid,
   user_id uuid,
-  content_type text,
   published jsonb,
   updated_at timestamptz,
   published_at timestamptz,
@@ -535,7 +524,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+  select n.id, n.user_id, n.published, n.updated_at,
          n.published_at, p.display_name
   from notes n
   left join profiles p on p.id = n.user_id
@@ -550,7 +539,6 @@ create or replace function get_shared_note(p_token uuid)
 returns table (
   note_id uuid,
   user_id uuid,
-  content_type text,
   published jsonb,
   updated_at timestamptz,
   published_at timestamptz,
@@ -561,7 +549,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+  select n.id, n.user_id, n.published, n.updated_at,
          n.published_at, p.display_name
   from note_share_links link
   join notes n on n.id = link.note_id
@@ -576,7 +564,6 @@ create or replace function list_public_notes()
 returns table (
   note_id uuid,
   user_id uuid,
-  content_type text,
   published jsonb,
   updated_at timestamptz,
   published_at timestamptz,
@@ -588,7 +575,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select n.id, n.user_id, n.content_type, n.published, n.updated_at,
+  select n.id, n.user_id, n.published, n.updated_at,
          n.published_at, p.display_name,
          coalesce(
            jsonb_agg(
@@ -610,7 +597,7 @@ as $$
   where n.visibility = 'public'
     and n.is_public = true
     and n.published is not null
-  group by n.id, n.user_id, n.content_type, n.published, n.updated_at,
+  group by n.id, n.user_id, n.published, n.updated_at,
            n.published_at, p.display_name
   order by n.published_at desc nulls last, n.updated_at desc;
 $$;
@@ -629,7 +616,7 @@ grant execute on function get_public_note(text) to anon, authenticated;
 grant execute on function get_shared_note(uuid) to anon, authenticated;
 grant execute on function list_public_notes() to anon, authenticated;
 
--- 12. Security and URL hardening (safe to run after an existing block 11).
+-- 10. Security and URL hardening (safe to run after an existing block 9).
 -- Do not let callers probe arbitrary user ids through the owner helper.
 create or replace function is_wiki_owner(p_user_id uuid default auth.uid())
 returns boolean
