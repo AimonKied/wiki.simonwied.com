@@ -87,6 +87,33 @@ function _mountedView(ed: Editor | null) {
   }
 }
 
+// Sections in Dokumentreihenfolge, jeweils mit der Id ihrer gerenderten Karte.
+// Position und Id treffen sich nur ueber das DOM: die Id stammt aus useId().
+type SectionEntry = { id: string; pos: number; node: PMNode }
+
+function _sectionEntries(view: NonNullable<ReturnType<typeof _mountedView>>): SectionEntry[] {
+  const out: SectionEntry[] = []
+  view.state.doc.forEach((node: PMNode, offset: number) => {
+    if (node.type.name !== 'section') return
+    const dom = view.nodeDOM(offset) as HTMLElement | null
+    const card = (dom?.querySelector?.('[data-section-card]') ?? null) as HTMLElement | null
+    const id = card?.dataset.sectionId
+    if (id) out.push({ id, pos: offset, node })
+  })
+  return out
+}
+
+function _sectionIdAtCursor(view: NonNullable<ReturnType<typeof _mountedView>>): string | null {
+  try {
+    const { node } = view.domAtPos(view.state.selection.from)
+    const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null
+    const card = el?.closest('[data-section-card]') as HTMLElement | null
+    return card?.dataset.sectionId ?? null
+  } catch {
+    return null
+  }
+}
+
 let _globalHandlersInstalled = false
 function _ensureGlobalHandlers() {
   if (_globalHandlersInstalled) return
@@ -104,8 +131,43 @@ function _ensureGlobalHandlers() {
   })
 
 	  document.addEventListener('keydown', (e) => {
-	    if (e.key === 'Escape') { sectionSel.clear(); return }
 	    const activeView = _mountedView(_activeEditor)
+
+	    // Escape hebt vom Text auf die Blockebene und beim zweiten Mal ganz
+	    // heraus -- so macht es Notion. Beides hier statt im Editor-Keymap,
+	    // sonst wuerde der Keymap auswaehlen und dieser Handler es direkt
+	    // wieder leeren (das Event blubbert bis zum document).
+	    if (e.key === 'Escape') {
+	      blockMenu.close()
+	      if (_selSet.size > 0) { sectionSel.clear(); return }
+	      if (activeView?.hasFocus()) {
+	        const id = _sectionIdAtCursor(activeView)
+	        if (id) { e.preventDefault(); sectionSel.selectOnly(id) }
+	      }
+	      return
+	    }
+
+	    // Pfeiltasten bewegen die Blockauswahl, Shift erweitert sie. Nur wenn
+	    // ueberhaupt Bloecke ausgewaehlt sind -- sonst gehoert die Taste dem
+	    // Text-Cursor.
+	    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && _selSet.size > 0 && activeView) {
+	      const entries = _sectionEntries(activeView)
+	      const ids = entries.map(entry => entry.id)
+	      const picked = ids.map((id, i) => (_selSet.has(id) ? i : -1)).filter(i => i >= 0)
+	      if (!picked.length) return
+	      e.preventDefault()
+	      const step = e.key === 'ArrowDown' ? 1 : -1
+	      const edge = step > 0 ? Math.max(...picked) : Math.min(...picked)
+	      const next = Math.min(ids.length - 1, Math.max(0, edge + step))
+	      if (e.shiftKey) {
+	        const from = _selAnchor ? ids.indexOf(_selAnchor) : edge
+	        const [lo, hi] = from <= next ? [from, next] : [next, from]
+	        sectionSel.selectRange(ids.slice(lo, hi + 1))
+	      } else {
+	        sectionSel.selectOnly(ids[next])
+	      }
+	      return
+	    }
 
 	    if ((e.key === 'Delete' || e.key === 'Backspace') && _selSet.size > 0) {
 	      if (!activeView || !_activeEditor) return
@@ -131,6 +193,55 @@ function _ensureGlobalHandlers() {
 
     const ctrl = e.ctrlKey || e.metaKey
     if (!ctrl) return
+
+	    // Strg/Cmd+A in zwei Stufen wie in Notion: erst der Text des aktuellen
+	    // Blocks, dann alle Bloecke. Deckt die Textauswahl den Block schon ab,
+	    // ist die zweite Stufe faellig.
+	    if (e.key === 'a' && activeView) {
+	      const entries = _sectionEntries(activeView)
+	      if (!entries.length) return
+	      if (_selSet.size > 0) {
+	        e.preventDefault()
+	        sectionSel.selectRange(entries.map(entry => entry.id))
+	        return
+	      }
+	      if (!activeView.hasFocus()) return
+	      const { from, to } = activeView.state.selection
+	      const current = entries.find(entry => from > entry.pos && to < entry.pos + entry.node.nodeSize)
+	      if (!current) return
+	      const innerFrom = current.pos + 1
+	      const innerTo = current.pos + current.node.nodeSize - 1
+	      e.preventDefault()
+	      if (from <= innerFrom && to >= innerTo) {
+	        sectionSel.selectRange(entries.map(entry => entry.id))
+	      } else {
+	        const tr = activeView.state.tr.setSelection(
+	          TextSelection.create(activeView.state.doc, innerFrom, innerTo),
+	        )
+	        activeView.dispatch(tr)
+	      }
+	      return
+	    }
+
+	    // Strg/Cmd+D dupliziert die Auswahl, sonst den Block unter dem Cursor.
+	    if (e.key === 'd' && activeView) {
+	      const entries = _sectionEntries(activeView)
+	      // Ohne Blockauswahl zaehlt der Cursor -- aber nur, wenn er wirklich im
+	      // Editor steht. Sonst wuerde Strg+D im Titelfeld einen Block kopieren.
+	      const targets = _selSet.size > 0
+	        ? entries.filter(entry => _selSet.has(entry.id))
+	        : activeView.hasFocus()
+	          ? entries.filter(entry => entry.id === _sectionIdAtCursor(activeView))
+	          : []
+	      if (!targets.length) return
+	      e.preventDefault()
+	      const insertPos = targets.reduce((max, t) => Math.max(max, t.pos + t.node.nodeSize), 0)
+	      const copies = targets.map(t => t.node.copy(t.node.content))
+	      activeView.dispatch(
+	        activeView.state.tr.insert(insertPos, Fragment.fromArray(copies)).scrollIntoView(),
+	      )
+	      return
+	    }
 
 	    if (e.key === 'z' || e.key === 'y') {
 	      if (!activeView) return
