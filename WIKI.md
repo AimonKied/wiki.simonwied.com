@@ -438,7 +438,7 @@ Weitere v1-Seiten werden manuell im Editor nachgebaut statt ueber ein Import-Too
 
 ### Feature-Plaene
 
-- [ ] [SHARING.md](SHARING.md) — Notizen mit einzelnen Personen teilen (Lesen/Schreiben), Notion-artig. Noch nicht umgesetzt.
+- [x] Freigabemodell entschieden und dokumentiert ([SHARING.md](SHARING.md)): drei Sichtbarkeiten (privat / Geheimlink / oeffentlich), sonst nichts. Das urspruenglich angedachte "Notizen mit einzelnen Personen teilen (Lesen/Schreiben)" faellt weg — es gibt genau einen Autor, Besucher bekommen nie Schreibzugriff.
 
 ### Migration
 
@@ -501,12 +501,16 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 ### Phase 4 — Layout und Extras
 
+> Gestrichen (2026-09-04): Versionen/Seiten-Historie. Bei einem einzigen Autor
+> gibt es keine fremden Aenderungen nachzuvollziehen; der `published`-Snapshot
+> trennt Entwurf und Veroeffentlichtes bereits. Ebenso faellt alles weg, was
+> mehrere Schreibende voraussetzt.
+
 - [ ] Spalten-Layout (Bloecke nebeneinander)
 - [ ] Embeds/Bookmark-Karten (Link-Preview)
 - [ ] Backlinks ("Verlinkt von" unter dem Artikel)
 - [ ] Mathe-Formeln (KaTeX)
 - [ ] Mermaid-Diagramme
-- [ ] Versionen/Seiten-Historie (ueber den `published`-Snapshot hinaus)
 
 ### Unabhaengig davon (App-Ebene)
 
@@ -516,4 +520,4 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 - [x] Bekannte TS-Fehler gefixt (2026-07-05): `tsc --noEmit` laeuft fehlerfrei (`never`-Narrowing in `SectionNode.tsx`, `ImageOptions` in `MediaNodes.tsx`; der `tippyOptions`-Fehler in `Editor.tsx` war bereits verschwunden)
 - [x] v1-Wiki abgeloest (2026-07-06): Homepage ist jetzt die "Beta im Aufbau"-Landing-Page mit Beta-Button (vorher Redirect-Hack `index.html` → `v2-in-arbeit.html`); alte Homepage (Karten-Grid), Templates und Contribution-Flow entfernt. Die v1-Inhaltsseiten bleiben als Archiv unter `pages/` (samt `style.css`/`nav.js`/`version.js`/`assets/`), falls sie spaeter in die neue Wiki eingebunden werden — verlinkt sind sie nirgends mehr
 
-Bewusst ausgelassen: Echtzeit-Kollaboration auf derselben Notiz, Kommentare, granulare Rechteverwaltung, Datenbank-Views, Synced Blocks — jeder Nutzer verwaltet seine eigenen Notizen unabhaengig, es wird nicht gemeinsam an einer Notiz geschrieben.
+Bewusst ausgelassen: Echtzeit-Kollaboration, Kommentare, granulare Rechteverwaltung, Freigabe an einzelne Personen, Versionshistorie, Datenbank-Views, Synced Blocks. Das Wiki hat genau einen Autor — alles, was mehrere Schreibende oder das Nachvollziehen fremder Aenderungen voraussetzt, hat hier keinen Zweck.
