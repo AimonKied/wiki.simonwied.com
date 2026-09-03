@@ -99,7 +99,8 @@ width, the decorative grid is hidden while editing).
   Deleting an article for good removes its uploads too, but only those no other
   article still references — the same URL can sit in two documents after a copy.
 - Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
-  "Umwandeln in" and "Duplizieren", dragging reorders.
+  "Umwandeln in", "Farbe", "Duplizieren" and "Loeschen", dragging reorders. What
+  counts as a block follows Notion — see "Block model" below.
 - A sticky table of contents (H1/H2/H3) sits on the right in the editor and
   the public article view; it tracks the scroll position. Below 1100px it
   becomes a right-hand drawer opened via a floating button.
@@ -150,6 +151,40 @@ touch share the same code path.
 
 Notes auto-save 1.5 s after the last change with a status indicator; `Ctrl+S` saves
 immediately. Closing the tab while a save is pending shows a browser warning.
+
+## Block model
+
+Notion's rule, and now ours: **everything in the page body is a block, and every
+block gets its own `⠿` handle.** The practical test while typing is `Enter`
+creates a new block, `Shift`+`Enter` a new line inside the current one.
+
+What has a handle:
+
+- every paragraph, heading, image, video, bookmark, divider, callout, quote
+- a code block and a table as a whole — not their lines or cells
+- **every single list item** (bullet, numbered, to-do), not the list as a whole
+- every child of an open toggle
+- every column of a column group (via its own ◀ ▶ ✕ controls, see below)
+
+What does not: anything below block level — inline formatting, links, table
+cells, individual lines in a code block, and lines produced by `Shift`+`Enter`.
+
+### How that maps onto the document
+
+The document stays `doc > section+`, one block per section. Lists, toggles and
+column groups are single nodes in that tree, so their items would have no handle
+of their own. Instead the handle *descends* into these containers: hovering a
+list item puts the handle on the item and remembers the list as its container
+(`HandleInfo.containerPos`). Reordering then rewrites the container's children.
+
+This keeps Notion's behaviour without a recursive block model — the trade-off is
+that a list item can be reordered within its list, but not dragged out of it into
+the surrounding document.
+
+Columns are the exception to dragging: the drag machinery measures on `clientY`
+only, and columns sit side by side. They are reordered with explicit ◀ ▶ buttons
+instead. Removing the second-to-last column dissolves the group and lifts the
+remaining content into its place, since a group of one is not a column layout.
 
 ## Structure
 

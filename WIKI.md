@@ -519,6 +519,37 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 > import erst beim Rendern nachladen -- ein Artikel ohne Formel oder Diagramm
 > soll nichts davon mitladen.
 
+### Blockmodell (2026-09-04)
+
+Uebernommen von Notion: alles im Seitenkoerper ist ein Block, jeder Block hat
+seinen eigenen ⠿-Griff. Beim Tippen gilt: `Enter` erzeugt einen Block,
+`Shift+Enter` eine Zeile darin.
+
+Eigener Griff: Absaetze, Ueberschriften, Bilder, Video, Lesezeichen, Trennlinie,
+Callouts, Zitate, Codeblock und Tabelle als Ganzes, **jeder einzelne
+Listenpunkt**, jedes Kind einer offenen Toggle, jede Spalte.
+
+Kein Griff: alles unterhalb der Blockebene -- Inline-Formatierung, Links,
+Tabellenzellen, einzelne Zeilen im Codeblock, `Shift+Enter`-Zeilen.
+
+Das Dokument bleibt dabei `doc > section+` mit einem Block pro Section. Listen,
+Toggles und Spaltengruppen sind darin je ein Knoten, ihre Kinder haetten also
+keinen eigenen Griff. Stattdessen greift der Griff in diese Container hinein
+und merkt sich den Container (`HandleInfo.containerPos`); umsortiert wird, indem
+dessen Kinder neu geschrieben werden.
+
+Damit gibt es Notions Verhalten ohne rekursives Blockmodell. Der Preis: ein
+Listenpunkt laesst sich innerhalb seiner Liste umsortieren, aber nicht aus ihr
+heraus in den umgebenden Text ziehen. Wer das braucht, kommt um den Umbau des
+Dokumentmodells nicht herum -- dasselbe gilt fuer `Tab` als allgemeine
+Verschachtelung beliebiger Bloecke (Listen verschachteln bereits).
+
+Spalten sind die Ausnahme beim Ziehen: die Zieh-Mechanik misst ausschliesslich
+ueber `clientY`, Spalten liegen nebeneinander. Sie werden deshalb ueber ◀ ▶
+verschoben. Entfernt man die vorletzte Spalte, loest sich die Gruppe auf und ihr
+Inhalt tritt an ihre Stelle -- eine Gruppe mit einer Spalte ist kein
+Spaltenlayout.
+
 ### Unabhaengig davon (App-Ebene)
 
 - [x] Canvas-Editor Touch-Bedienung (2026-07-06): Pan (1 Finger auf leerem Canvas), Pinch-Zoom (2 Finger), Block verschieben, Resize-Handles und Element-Reorder (⠿) laufen jetzt über Pointer Events statt reiner Maus-Events. Lasso-Mehrfachauswahl per Touch bewusst nicht gebaut (Ein-Finger-Ziehen auf leerem Canvas ist jetzt Pan; Lasso bräuchte einen eigenen Touch-Toggle-Button)

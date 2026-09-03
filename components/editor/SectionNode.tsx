@@ -328,8 +328,14 @@ interface HandleInfo {
   childPos: number
   childSize: number
   childIdx: number
-  togglePos?: number   // set when the child lives inside a toggle
+  // Position des umschliessenden Knotens (Toggle oder Liste), wenn der
+  // Griff nicht an einem direkten Section-Kind haengt.
+  containerPos?: number
 }
+
+// Container, in die der Element-Griff hineingreift: ihre Kinder sind aus
+// Sicht der Bedienung eigene Bloecke.
+const LIST_TYPES = new Set(['bulletList', 'orderedList', 'taskList'])
 
 interface ElBound { top: number; bottom: number; mid: number }
 
@@ -346,7 +352,7 @@ interface DragRefState {
   targetIsNewBlock: boolean
   slotLeft: number
   slotRight: number
-  togglePos?: number   // set when dragging a child inside a toggle
+  containerPos?: number   // umschliessender Knoten beim Ziehen
 }
 
 const articleMenuButtonStyle: React.CSSProperties = {
@@ -486,9 +492,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const sectionNode = editor.state.doc.nodeAt(sectionPos)
       if (!sectionNode || !handle) return
 
-      const isToggle = handle.togglePos !== undefined
-      const containerPos  = isToggle ? handle.togglePos! : sectionPos
-      const containerNode = isToggle ? editor.state.doc.nodeAt(containerPos) : sectionNode
+      const isNested = handle.containerPos !== undefined
+      const containerPos  = isNested ? handle.containerPos! : sectionPos
+      const containerNode = isNested ? editor.state.doc.nodeAt(containerPos) : sectionNode
       if (!containerNode) return
 
       if (e.key === 'c') {
@@ -624,13 +630,42 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                     childPos: tOffset,
                     childSize: tChild.nodeSize,
                     childIdx: j,
-                    togglePos: offset,
+                    containerPos: offset,
                   })
                   return
                 }
                 tOffset += tChild.nodeSize
               }
             }
+          }
+        }
+
+        // Notion-Modell: jeder Listenpunkt ist ein eigener Block mit eigenem
+        // Griff. Im Dokument bleibt die Liste ein Knoten -- der Griff haengt
+        // deshalb am Listenpunkt und merkt sich die Liste als Container,
+        // genau wie bei den Kindern einer Toggle.
+        if (LIST_TYPES.has(child.type.name)) {
+          let lOffset = offset + 1
+          for (let j = 0; j < child.childCount; j++) {
+            const item = child.child(j)
+            try {
+              const itemEl = editor.view.nodeDOM(lOffset) as HTMLElement | null
+              if (itemEl?.getBoundingClientRect) {
+                const r = itemEl.getBoundingClientRect()
+                if (e.clientY >= r.top - 2 && e.clientY <= r.bottom + 2) {
+                  setHandle({
+                    top: r.top - cardRect.top,
+                    height: r.bottom - r.top,
+                    childPos: lOffset,
+                    childSize: item.nodeSize,
+                    childIdx: j,
+                    containerPos: offset,
+                  })
+                  return
+                }
+              }
+            } catch { /* Punkt ueberspringen, der naechste passt vielleicht */ }
+            lOffset += item.nodeSize
           }
         }
 
@@ -660,8 +695,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const sectionPos = getPos()
     if (sectionPos === undefined) return
 
-    const isToggleDrag = handle.togglePos !== undefined
-    const containerPos  = isToggleDrag ? handle.togglePos! : sectionPos
+    const isNestedDrag = handle.containerPos !== undefined
+    const containerPos  = isNestedDrag ? handle.containerPos! : sectionPos
     const elBounds = calcElBounds(containerPos, cardRect.top)
 
     const containerNode = editor.state.doc.nodeAt(containerPos)
@@ -755,7 +790,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       targetIsNewBlock: false,
       slotLeft,
       slotRight,
-      togglePos: handle.togglePos,
+      containerPos: handle.containerPos,
     }
     setDragging(true)
     setHandle(null)
@@ -776,7 +811,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const ghH     = ghostHRef.current
 
       // Toggle-child drags: "Neuer Block" is not a valid drop target
-      const newBlockBtn = d.togglePos === undefined
+      const newBlockBtn = d.containerPos === undefined
         ? document.querySelector('[data-new-block-btn]') as HTMLElement | null
         : null
       if (newBlockBtn) {
@@ -823,7 +858,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       if (cursorSectionPos === null) return
 
       // Toggle-child drags stay within the toggle — ignore cross-section cursor movement
-      if (d.togglePos !== undefined && cursorSectionPos !== d.sourceSectionPos) {
+      if (d.containerPos !== undefined && cursorSectionPos !== d.sourceSectionPos) {
         if (slotRef.current) slotRef.current.style.display = 'none'
         siblingsRef.current.forEach((el, i) => { if (i !== fromIdx) el.style.transform = 'translateY(0)' })
         return
@@ -948,8 +983,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
       if (!d) return
 
-      if (d.togglePos !== undefined) {
-        moveToggleElement(d.togglePos, d.childIdx, d.dropIdx)
+      if (d.containerPos !== undefined) {
+        moveContainerElement(d.containerPos, d.childIdx, d.dropIdx)
       } else if (d.targetIsNewBlock) {
         moveElementToNewSection(d.sourceSectionPos, d.childIdx)
       } else if (d.targetSectionPos === d.sourceSectionPos) {
@@ -984,20 +1019,23 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
-  function moveToggleElement(togglePos: number, fromIdx: number, toInsertIdx: number) {
+  // Sortiert die Kinder eines umschliessenden Knotens um -- Toggle wie Liste.
+  // Die Funktion war immer schon generisch, sie hiess nur nach ihrem ersten
+  // Anwendungsfall.
+  function moveContainerElement(containerPos: number, fromIdx: number, toInsertIdx: number) {
     if (!editor) return
     if (fromIdx === toInsertIdx || fromIdx + 1 === toInsertIdx) return
-    const toggleNode = editor.state.doc.nodeAt(togglePos)
-    if (!toggleNode) return
+    const containerNode = editor.state.doc.nodeAt(containerPos)
+    if (!containerNode) return
 
     const children: PMNode[] = []
-    for (let i = 0; i < toggleNode.childCount; i++) children.push(toggleNode.child(i))
+    for (let i = 0; i < containerNode.childCount; i++) children.push(containerNode.child(i))
     const [moved] = children.splice(fromIdx, 1)
     const adjustedIdx = toInsertIdx > fromIdx ? toInsertIdx - 1 : toInsertIdx
     children.splice(adjustedIdx, 0, moved)
 
     const tr = editor.state.tr
-    tr.replaceWith(togglePos + 1, togglePos + toggleNode.nodeSize - 1, Fragment.from(children))
+    tr.replaceWith(containerPos + 1, containerPos + containerNode.nodeSize - 1, Fragment.from(children))
     editor.view.dispatch(tr)
   }
 
@@ -1467,10 +1505,10 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   function deleteElement() {
     if (!handle || !editor) return
-    const { childPos, childSize, togglePos } = handle
+    const { childPos, childSize, containerPos } = handle
 
-    if (togglePos !== undefined) {
-      const toggleNode = editor.state.doc.nodeAt(togglePos)
+    if (containerPos !== undefined) {
+      const toggleNode = editor.state.doc.nodeAt(containerPos)
       if (!toggleNode) return
       if (toggleNode.childCount <= 1) {
         // Replace last block with empty paragraph so the toggle stays valid
@@ -1810,7 +1848,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             In article mode each section holds a single block, so the section-level
             controls already cover move/delete — only show the per-element handle for
             toggle children (multi-child container) to avoid duplicate ⠿ icons. */}
-        {editable && handle && !dragging && handle.togglePos !== undefined && (
+        {editable && handle && !dragging && handle.containerPos !== undefined && (
           <div style={{
             position: 'absolute',
             left: 4, top: handle.top, height: handle.height,
