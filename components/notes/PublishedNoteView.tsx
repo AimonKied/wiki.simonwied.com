@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { PublishedNoteResult } from '@/lib/notes/types'
+import type { Backlink } from '@/lib/notes/published'
 import EditorViewer from '@/components/editor/EditorViewer'
 import ArticleToc from '@/components/editor/ArticleToc'
 import NoteHeader from '@/components/editor/NoteHeader'
@@ -9,10 +10,12 @@ export default function PublishedNoteView({
   note,
   access,
   isOwner,
+  backlinks = [],
 }: {
   note: PublishedNoteResult
   access: 'public' | 'link'
   isOwner: boolean
+  backlinks?: Backlink[]
 }) {
   const pub = note.published
   const accessLabel = access === 'public' ? 'Öffentlich' : 'Nur per Link'
@@ -54,6 +57,33 @@ export default function PublishedNoteView({
         </div>
 
         <EditorViewer content={pub.content} />
+
+        {backlinks.length > 0 && (
+          <section style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+            <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
+              Verlinkt von
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {backlinks.map(link => (
+                <Link
+                  key={link.id}
+                  href={`/notes/${link.slug}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '7px 10px', borderRadius: '7px',
+                    color: 'var(--text)', textDecoration: 'none', fontSize: '13px',
+                    border: '1px solid var(--border)', background: 'var(--surface)',
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>{link.emoji ?? '📄'}</span>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {link.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {pub.content && <ArticleToc content={pub.content} />}

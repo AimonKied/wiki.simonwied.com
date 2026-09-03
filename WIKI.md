@@ -479,7 +479,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 - [x] To-do-Liste / Checkboxen (`@tiptap/extension-list`: TaskList + TaskItem)
 - [x] Callout-Block (farbige Hinweisbox mit Emoji, eigener Node)
-- [ ] Video-Block (MediaNodes hat bisher nur Bilder; Upload-Pfad existiert schon)
+- [x] Video-Block (2026-09-04): YouTube/Vimeo als Einbettung, sonst Videodatei per URL. Kein Datei-Upload — uploadMedia komprimiert nach WebP und begrenzt auf 2 MB, fuer Video unbrauchbar
 
 ### Phase 2 — Verlinkung und Finden (Wiki-Kern)
 
@@ -503,7 +503,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 - [ ] Spalten-Layout (Bloecke nebeneinander)
 - [ ] Embeds/Bookmark-Karten (Link-Preview)
-- [ ] Backlinks ("Verlinkt von" unter dem Artikel)
+- [x] Backlinks ("Verlinkt von" unter dem Artikel, 2026-09-04)
 - [ ] Mathe-Formeln (KaTeX)
 - [ ] Mermaid-Diagramme
 

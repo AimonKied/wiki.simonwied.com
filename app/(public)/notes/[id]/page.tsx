@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import PublishedNoteView from '@/components/notes/PublishedNoteView'
-import { getPublicNote, recordOwnerVisit } from '@/lib/notes/published'
+import { getPublicNote, recordOwnerVisit, listBacklinks } from '@/lib/notes/published'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +27,12 @@ export default async function PublicNotePage({ params }: { params: Promise<{ id:
   const note = await getPublicNote(slug)
 
   if (!note?.published) notFound()
-  const isOwner = await recordOwnerVisit(note)
+  const [isOwner, backlinks] = await Promise.all([
+    recordOwnerVisit(note),
+    // Nur hier, nicht in der Geheimlink-Ansicht: dort ist der Artikel gar
+    // nicht oeffentlich, also kann auch nichts oeffentlich darauf verweisen.
+    listBacklinks(note.published.slug ?? ''),
+  ])
 
-  return <PublishedNoteView note={note} access="public" isOwner={isOwner} />
+  return <PublishedNoteView note={note} access="public" isOwner={isOwner} backlinks={backlinks} />
 }
