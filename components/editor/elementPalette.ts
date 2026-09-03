@@ -47,6 +47,7 @@ export const ELEMENT_PALETTE: ElementPaletteItem[] = [
   { key: 'table',       label: 'Tabelle',           icon: 'TB',  group: 'Media', keywords: 'table tabelle grid daten', description: 'Tabelle mit 3 × 3 Zellen' },
   { key: 'image',       label: 'Bild',              icon: 'IMG', group: 'Media', keywords: 'image img bild foto jpg png', description: 'Bild über URL oder Datei' },
   { key: 'video',       label: 'Video',             icon: 'VID', group: 'Media', keywords: 'video youtube vimeo mp4 film clip', description: 'YouTube, Vimeo oder Videodatei' },
+  { key: 'bookmark',    label: 'Lesezeichen',       icon: 'URL', group: 'Media', keywords: 'lesezeichen bookmark link vorschau embed karte', description: 'Externer Link als Vorschaukarte' },
   { key: 'codeBlock',   label: 'Codeblock',         icon: '</>', group: 'Media', keywords: 'code programmieren snippet pre', description: 'Codeblock mit Highlighting' },
   { key: 'hr',          label: 'Trennlinie',        icon: '-',   group: 'Basic', keywords: 'linie divider separator trennlinie', description: 'Horizontale Linie' },
   { key: 'toggle',      label: 'Toggle',            icon: '▶T',  group: 'Toggle', keywords: 'toggle aufklappen details', description: 'Einklappbarer Block' },

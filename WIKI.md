@@ -502,7 +502,7 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 > mehrere Schreibende voraussetzt.
 
 - [ ] Spalten-Layout (Bloecke nebeneinander)
-- [ ] Embeds/Bookmark-Karten (Link-Preview)
+- [x] Bookmark-Karten (2026-09-04): externer Link als Vorschaukarte. Metadaten werden einmal beim Einfuegen geholt und im Dokument gespeichert -- oeffentliche Seiten loesen beim Anzeigen keinen Abruf aus
 - [x] Backlinks ("Verlinkt von" unter dem Artikel, 2026-09-04)
 - [ ] Mathe-Formeln (KaTeX) — zurueckgestellt, siehe unten
 - [ ] Mermaid-Diagramme — zurueckgestellt, siehe unten

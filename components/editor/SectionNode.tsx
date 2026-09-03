@@ -420,7 +420,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [mediaUrl, setMediaUrl] = useState('')
   // Dasselbe Popover bedient Bild und Video; der Modus entscheidet ueber den
   // eingefuegten Knoten und ob ein Datei-Upload angeboten wird.
-  const [mediaKind, setMediaKind] = useState<'image' | 'video'>('image')
+  const [mediaKind, setMediaKind] = useState<'image' | 'video' | 'bookmark'>('image')
   const [mediaUploading, setMediaUploading] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const mediaInsertPosRef = useRef<number | null>(null)
@@ -1382,7 +1382,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   function convertArticleBlock(key: string) {
-    if (key === 'image' || key === 'video') {
+    if (key === 'image' || key === 'video' || key === 'bookmark') {
       addElement(key)
       blockMenu.close()
       return
@@ -1545,9 +1545,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         }
       } catch { /* ignore */ }
     }
-    if (key === 'image' || key === 'video') {
+    if (key === 'image' || key === 'video' || key === 'bookmark') {
       mediaInsertPosRef.current = elementInsertPos
-      setMediaKind(key === 'video' ? 'video' : 'image')
+      setMediaKind(key === 'video' ? 'video' : key === 'bookmark' ? 'bookmark' : 'image')
       setImageInsertAnchor(getImageInsertAnchor(elementInsertPos))
       setMediaUrl('')
       setMediaError(null)
@@ -1652,19 +1652,56 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     return typeof req === 'number' && req > sectionPos && req < sectionEnd ? req : sectionEnd
   }
 
-  function insertMediaFromUrl() {
-    if (!editor || !mediaUrl.trim()) return
-    const insertPos = resolveMediaInsertPos()
-    if (insertPos === null) return
-    editor.chain().focus()
-      .insertContentAt(insertPos, mediaKind === 'video'
-        ? { type: 'videoEmbed', attrs: { src: mediaUrl.trim() } }
-        : { type: 'image', attrs: { src: mediaUrl.trim(), align: 'center' } })
-      .run()
+  function closeMediaPopover() {
     mediaInsertPosRef.current = null
     setImageInsertAnchor(null)
     setMediaUrl('')
     setImageInsertOpen(false)
+  }
+
+  async function insertMediaFromUrl() {
+    if (!editor || !mediaUrl.trim()) return
+    const insertPos = resolveMediaInsertPos()
+    if (insertPos === null) return
+    const url = mediaUrl.trim()
+
+    if (mediaKind === 'bookmark') {
+      // Die Vorschaudaten werden einmal hier geholt und als Attribute
+      // gespeichert. Eine oeffentliche Seite loest damit spaeter keinen Abruf
+      // aus, und die Karte bleibt lesbar, wenn das Ziel verschwindet.
+      setMediaError(null)
+      setMediaUploading(true)
+      try {
+        const response = await fetch(`/api/bookmark?url=${encodeURIComponent(url)}`)
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error ?? 'Vorschau konnte nicht geladen werden.')
+        editor.chain().focus()
+          .insertContentAt(insertPos, {
+            type: 'bookmark',
+            attrs: {
+              url: data.url ?? url,
+              title: data.title ?? null,
+              description: data.description ?? null,
+              image: data.image ?? null,
+              siteName: data.siteName ?? null,
+            },
+          })
+          .run()
+        closeMediaPopover()
+      } catch (err) {
+        setMediaError(err instanceof Error ? err.message : 'Vorschau konnte nicht geladen werden.')
+      } finally {
+        setMediaUploading(false)
+      }
+      return
+    }
+
+    editor.chain().focus()
+      .insertContentAt(insertPos, mediaKind === 'video'
+        ? { type: 'videoEmbed', attrs: { src: url } }
+        : { type: 'image', attrs: { src: url, align: 'center' } })
+      .run()
+    closeMediaPopover()
   }
 
   const handleMediaFileUpload = useCallback(async (file: File) => {
@@ -2025,8 +2062,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 autoFocus
                 value={mediaUrl}
                 onChange={e => setMediaUrl(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false) } }}
-                placeholder={mediaKind === 'video' ? 'YouTube-, Vimeo- oder Video-URL' : 'Bild-URL oder Datei wählen'}
+                onKeyDown={e => { if (e.key === 'Enter') void insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false) } }}
+                placeholder={
+                  mediaKind === 'video' ? 'YouTube-, Vimeo- oder Video-URL'
+                  : mediaKind === 'bookmark' ? 'Adresse der Seite'
+                  : 'Bild-URL oder Datei wählen'
+                }
                 style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
               />
               {/* Nur fuer Bilder: uploadMedia komprimiert nach WebP und
@@ -2041,7 +2082,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 {mediaUploading ? '…' : '↑ Hochladen'}
               </button>
               )}
-              <button onClick={insertMediaFromUrl} disabled={!mediaUrl.trim()} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
+              <button onClick={() => void insertMediaFromUrl()} disabled={!mediaUrl.trim() || mediaUploading} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
               <button onClick={() => { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false); setMediaError(null) }} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
             </div>
             {mediaError && <div style={{ fontSize: '11px', color: '#ef4444' }}>{mediaError}</div>}

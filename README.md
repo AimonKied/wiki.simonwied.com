@@ -177,6 +177,7 @@ components/editor/
   CalloutNode.tsx              callout block (emoji + color, document-level picker)
   MediaNodes.tsx               resizable image node (Supabase Storage upload)
   VideoNode.tsx                video block: YouTube/Vimeo embed or video file
+  BookmarkNode.tsx             link preview card; metadata stored in the doc
   elementPalette.ts            shared block palette + slash-menu ranking
   editorTransforms.ts          line/block transformations shared by both editors
   EmojiPicker.tsx              emoji picker for note icons
