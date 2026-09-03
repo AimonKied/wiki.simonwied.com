@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { deleteUnreferencedMedia } from '@/lib/supabase/mediaCleanup'
 import type { Note } from '@/lib/notes/types'
 
 function formatDate(iso: string) {
@@ -33,6 +34,16 @@ export default function TrashOverview({ notes: initialNotes }: { notes: Note[] }
   async function purge(note: Note) {
     setError('')
     setPendingId(note.id)
+
+    // Dateien zuerst: danach ist die Zeile weg und mit ihr die einzige Spur,
+    // welche Dateien zu dieser Notiz gehoerten.
+    const cleanup = await deleteUnreferencedMedia(
+      note.content,
+      note.cover_url ?? null,
+      (note.published ?? null) as object | null,
+      note.id,
+    )
+
     const { error: failure } = await createClient().from('notes').delete().eq('id', note.id)
     setPendingId(null)
     if (failure) {
@@ -41,6 +52,9 @@ export default function TrashOverview({ notes: initialNotes }: { notes: Note[] }
     }
     setNotes(current => current.filter(n => n.id !== note.id))
     setConfirmPurge(null)
+    // Die Notiz ist weg; ein Fehler beim Aufraeumen ist kein Grund, das zu
+    // verschweigen, aber auch keiner, das Loeschen als gescheitert zu melden.
+    if (cleanup.error) setError(`Artikel gelöscht. ${cleanup.error}`)
     document.dispatchEvent(new Event('wiki-notes-changed'))
   }
 
@@ -153,8 +167,8 @@ export default function TrashOverview({ notes: initialNotes }: { notes: Note[] }
           >
             <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>Endgültig löschen?</div>
             <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-              „{confirmPurge.title || 'Ohne Titel'}“ wird unwiderruflich entfernt. Hochgeladene Bilder
-              bleiben im Speicher liegen, weil sie an keiner Notiz hängen.
+              „{confirmPurge.title || 'Ohne Titel'}“ wird unwiderruflich entfernt. Hochgeladene
+              Bilder werden mitgelöscht, sofern kein anderer Artikel sie noch verwendet.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button

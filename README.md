@@ -96,6 +96,8 @@ width, the decorative grid is hidden while editing).
   (click the emoji for emoji/color picker), quotes, dividers.
 - Image uploads are compressed client-side before hitting Supabase Storage
   (max 1600px, WebP 85%, 2 MB stored limit; SVG/GIF pass through unchanged).
+  Deleting an article for good removes its uploads too, but only those no other
+  article still references — the same URL can sit in two documents after a copy.
 - Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
   "Umwandeln in" and "Duplizieren", dragging reorders.
 - A sticky table of contents (H1/H2/H3) sits on the right in the editor and

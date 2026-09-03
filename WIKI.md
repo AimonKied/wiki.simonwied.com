@@ -396,7 +396,7 @@ Beide schwebenden Canvas-Panels (Werkzeugleiste = Element-Palette, Blockliste = 
 - Typ-Filter aus Bibliothek und Arbeitsbereich entfernt; "Neuer Inhalt"-Flyout (Sidebar und Dashboard) ist ein direkter "Neuer Artikel"-Button, da nur noch ein Typ existiert
 - DB: `supabase/migration-remove-workspace.sql` loescht Canvas-Notizen, droppt `content_type` und legt `get_public_note`/`get_shared_note`/`list_public_notes` ohne die Spalte neu an; `migration.sql` kennt `content_type` gar nicht mehr (Bloecke neu durchnummeriert)
 - Verwaistes CSS raus: `.canvas-viewport`, `.canvas-outline`, `.outline-*`, alle `[data-content-type]`-Regeln
-- Offen: Bilder geloeschter Canvas-Notizen bleiben als Karteileichen im Bucket `wiki-media` (Storage-Pfade haengen an `user_id`, nicht an einer `note_id`)
+- Offen war: Bilder geloeschter Notizen blieben als Karteileichen im Bucket `wiki-media`. Erledigt am 2026-09-04 fuer den Weg ueber den Papierkorb — das endgueltige Loeschen raeumt die Dateien mit weg, sofern kein anderer Artikel sie noch verwendet. Alte Karteileichen von vor diesem Datum liegen weiterhin im Bucket
 
 ---
 
