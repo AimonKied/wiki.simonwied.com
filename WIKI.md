@@ -504,8 +504,20 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 - [ ] Spalten-Layout (Bloecke nebeneinander)
 - [ ] Embeds/Bookmark-Karten (Link-Preview)
 - [x] Backlinks ("Verlinkt von" unter dem Artikel, 2026-09-04)
-- [ ] Mathe-Formeln (KaTeX)
-- [ ] Mermaid-Diagramme
+- [ ] Mathe-Formeln (KaTeX) — zurueckgestellt, siehe unten
+- [ ] Mermaid-Diagramme — zurueckgestellt, siehe unten
+
+> Zurueckgestellt (2026-09-04): KaTeX und Mermaid. Beide loesen ein Problem,
+> das der aktuelle Bestand nicht hat -- Git-Befehle, Web-Hacking, Cybertools
+> und drei Rezepte kommen ohne Formeln und Diagramme aus. Beide kosten
+> Ladezeit (KaTeX rund 300 KB Schriften, Mermaid ueber 1 MB), die sich erst
+> lohnt, wenn tatsaechlich etwas damit gesetzt wird.
+>
+> Wieder aufgreifen, sobald beim Schreiben zum ersten Mal eine Formel oder
+> ein Diagramm fehlt. Dann steht auch fest, welche Variante gebraucht wird.
+> Umsetzung in beiden Faellen: eigener Block-Knoten, Bibliothek per dynamic
+> import erst beim Rendern nachladen -- ein Artikel ohne Formel oder Diagramm
+> soll nichts davon mitladen.
 
 ### Unabhaengig davon (App-Ebene)
 
