@@ -1603,8 +1603,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           minHeight: 0,
           boxSizing: 'border-box',
           overflow: 'visible',
-          outline: elementDropTarget || blockHighlighted ? '2px solid var(--accent)' : 'none',
-          outlineOffset: elementDropTarget ? '0' : '-1px',
+          outline: elementDropTarget ? '2px solid var(--accent)' : 'none',
+          outlineOffset: '0',
           boxShadow: elementDropTarget
             ? '0 18px 42px rgba(0,0,0,0.16), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
             : undefined,
@@ -1843,6 +1843,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
             style={{
               position: 'absolute',
               inset: 0,
+              borderRadius: '6px',
               background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
               pointerEvents: 'none',
               zIndex: 5,
