@@ -8,6 +8,7 @@ import { Mark, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import Placeholder from '@tiptap/extension-placeholder'
 import { ResizableImage } from './MediaNodes'
+import { VideoEmbed } from './VideoNode'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { Table } from '@tiptap/extension-table'
@@ -303,6 +304,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
       TableCell,
       TaskList,
       TaskItem.configure({ nested: true }),
+      VideoEmbed,
       SectionExtension,
       ToggleExtension,
       CalloutExtension,

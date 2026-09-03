@@ -418,6 +418,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [imageInsertAnchor, setImageInsertAnchor] = useState<{ left: number; top: number } | null>(null)
   const [elementDropTarget, setElementDropTarget] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
+  // Dasselbe Popover bedient Bild und Video; der Modus entscheidet ueber den
+  // eingefuegten Knoten und ob ein Datei-Upload angeboten wird.
+  const [mediaKind, setMediaKind] = useState<'image' | 'video'>('image')
   const [mediaUploading, setMediaUploading] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const mediaInsertPosRef = useRef<number | null>(null)
@@ -1379,8 +1382,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   function convertArticleBlock(key: string) {
-    if (key === 'image') {
-      addElement('image')
+    if (key === 'image' || key === 'video') {
+      addElement(key)
       blockMenu.close()
       return
     }
@@ -1542,8 +1545,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         }
       } catch { /* ignore */ }
     }
-    if (key === 'image') {
+    if (key === 'image' || key === 'video') {
       mediaInsertPosRef.current = elementInsertPos
+      setMediaKind(key === 'video' ? 'video' : 'image')
       setImageInsertAnchor(getImageInsertAnchor(elementInsertPos))
       setMediaUrl('')
       setMediaError(null)
@@ -1653,7 +1657,9 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     const insertPos = resolveMediaInsertPos()
     if (insertPos === null) return
     editor.chain().focus()
-      .insertContentAt(insertPos, { type: 'image', attrs: { src: mediaUrl.trim(), align: 'center' } })
+      .insertContentAt(insertPos, mediaKind === 'video'
+        ? { type: 'videoEmbed', attrs: { src: mediaUrl.trim() } }
+        : { type: 'image', attrs: { src: mediaUrl.trim(), align: 'center' } })
       .run()
     mediaInsertPosRef.current = null
     setImageInsertAnchor(null)
@@ -2020,9 +2026,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
                 value={mediaUrl}
                 onChange={e => setMediaUrl(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') insertMediaFromUrl(); if (e.key === 'Escape') { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false) } }}
-                placeholder="Bild-URL oder Datei wählen"
+                placeholder={mediaKind === 'video' ? 'YouTube-, Vimeo- oder Video-URL' : 'Bild-URL oder Datei wählen'}
                 style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
               />
+              {/* Nur fuer Bilder: uploadMedia komprimiert nach WebP und
+                  begrenzt auf 2 MB -- fuer Video ist beides unbrauchbar. */}
+              {mediaKind === 'image' && (
               <button
                 onClick={() => mediaFileInputRef.current?.click()}
                 disabled={mediaUploading}
@@ -2031,6 +2040,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               >
                 {mediaUploading ? '…' : '↑ Hochladen'}
               </button>
+              )}
               <button onClick={insertMediaFromUrl} disabled={!mediaUrl.trim()} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>OK</button>
               <button onClick={() => { mediaInsertPosRef.current = null; setImageInsertAnchor(null); setImageInsertOpen(false); setMediaError(null) }} style={{ padding: '6px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
             </div>
