@@ -132,6 +132,7 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
   const [notesError, setNotesError] = useState('')
   // Startwert kommt server-seitig, bereits nach last_opened_at sortiert
   const [recentNotes, setRecentNotes] = useState<NoteSummary[]>(notes)
+  const [favoriteNotes, setFavoriteNotes] = useState<NoteSummary[]>([])
 
   // Beim Navigieren neu laden; der last_opened_at-Stempel der Edit-Seite
   // sortiert die geoeffnete Notiz nach vorn.
@@ -177,22 +178,39 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
       if (userError) throw userError
       if (!user || cancelled) return
 
-      const loadRecentNotes = async () => {
-        const { data, error } = await supabase
-          .from('notes')
-          .select('id, title, emoji, visibility, is_public, slug, updated_at, is_favorite')
-          .eq('user_id', user.id)
-          .not('last_opened_at', 'is', null)
-          .order('last_opened_at', { ascending: false })
-          .limit(8)
+      const columns = 'id, title, emoji, visibility, is_public, slug, updated_at, is_favorite'
 
+      const loadRecentNotes = async () => {
+        // Zwei Abfragen: Favoriten haengen nicht am Oeffnen-Verlauf, ein lange
+        // nicht geoeffneter Favorit faellt sonst aus der Liste heraus.
+        const [recent, favorite] = await Promise.all([
+          supabase
+            .from('notes')
+            .select(columns)
+            .eq('user_id', user.id)
+            .is('deleted_at', null)
+            .not('last_opened_at', 'is', null)
+            .order('last_opened_at', { ascending: false })
+            .limit(8),
+          supabase
+            .from('notes')
+            .select(columns)
+            .eq('user_id', user.id)
+            .is('deleted_at', null)
+            .eq('is_favorite', true)
+            .order('updated_at', { ascending: false })
+            .limit(12),
+        ])
+
+        const error = recent.error ?? favorite.error
         if (error) {
           if (!cancelled) setNotesError(`Zuletzt-Liste konnte nicht geladen werden: ${error.message}`)
           return
         }
-        if (!cancelled && data) {
+        if (!cancelled) {
           setNotesError('')
-          setRecentNotes(data as NoteSummary[])
+          setRecentNotes((recent.data ?? []) as NoteSummary[])
+          setFavoriteNotes((favorite.data ?? []) as NoteSummary[])
         }
       }
 
@@ -289,12 +307,69 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
     document.dispatchEvent(new Event('wiki-notes-changed'))
   }
 
+  async function toggleFavorite(note: NoteSummary) {
+    const next = !note.is_favorite
+    // Sofort umschalten, damit der Stern nicht auf die Antwort wartet.
+    setRecentNotes(current => current.map(n => (n.id === note.id ? { ...n, is_favorite: next } : n)))
+    setFavoriteNotes(current => next
+      ? (current.some(n => n.id === note.id) ? current : [{ ...note, is_favorite: true }, ...current])
+      : current.filter(n => n.id !== note.id))
+    setOpenMenuId(null)
+    const { error } = await createClient()
+      .from('notes')
+      .update({ is_favorite: next })
+      .eq('id', note.id)
+    if (error) {
+      setNotesError(`Favorit konnte nicht gesetzt werden: ${error.message}`)
+      void reloadNotesRef.current?.()
+      return
+    }
+    document.dispatchEvent(new Event('wiki-notes-changed'))
+  }
+
   // Verlaufsreihenfolge kommt aus recentIds: die aktive Notiz wurde beim
-  // Oeffnen bereits nach vorn gebumpt.
+  // Oeffnen bereits nach vorn gebumpt. Favoriten stehen als eigene Gruppe
+  // darueber, damit sie nicht aus dem Verlauf herausfallen.
   const visibleNotes = recentNotes
-  if (!visibleNotes.length && !notesError) return null
+  if (!visibleNotes.length && !favoriteNotes.length && !notesError) return null
   return (
     <div ref={listRef} style={{ padding: '0 12px', marginBottom: '10px' }}>
+      {favoriteNotes.length > 0 && (
+        <>
+          <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
+            Favoriten
+          </div>
+          {favoriteNotes.map(note => {
+            const href = `/notes/${note.id}/edit`
+            const isActive = pathname === href
+            return (
+              <Link
+                key={note.id}
+                href={href}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: isActive ? 'var(--text)' : 'var(--muted)',
+                  background: isActive ? 'var(--surface2)' : 'transparent',
+                  textDecoration: 'none',
+                  transition: 'all 0.15s',
+                  overflow: 'hidden',
+                }}
+              >
+                <span style={{ flexShrink: 0, fontSize: '13px' }}>{note.emoji ?? '📄'}</span>
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {note.title || 'Neuer Artikel'}
+                </span>
+                <span style={{ marginLeft: 'auto', flexShrink: 0, color: 'var(--accent4)' }}>★</span>
+              </Link>
+            )
+          })}
+        </>
+      )}
       <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
         Zuletzt
       </div>
@@ -421,6 +496,27 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
                     Privat schalten
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(note)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: 'transparent',
+                    color: 'var(--muted)',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  {note.is_favorite ? 'Von Favoriten lösen' : 'Zu Favoriten'}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
