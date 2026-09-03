@@ -6,14 +6,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Note } from '@/lib/notes/types'
 
-type TypeFilter = 'all' | 'article' | 'workspace'
-
-const TYPE_FILTERS: Array<{ key: TypeFilter; label: string }> = [
-  { key: 'all', label: 'Alle' },
-  { key: 'article', label: 'Artikel' },
-  { key: 'workspace', label: 'Workspaces' },
-]
-
 function formatDate(iso: string) {
   const date = new Date(iso)
   const today = new Date()
@@ -42,7 +34,6 @@ function LockIcon() {
 function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteRequest: (note: Note) => void; onUnpublish: (note: Note) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
-  const isArticle = note.content_type === 'article'
   const visibility = note.visibility ?? (note.is_public ? 'public' : 'private')
   const showActions = hovered || menuOpen
 
@@ -70,14 +61,14 @@ function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteR
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
       >
         <span style={{ fontSize: '16px', flexShrink: 0, width: '22px', textAlign: 'center' }}>
-          {note.emoji ?? (isArticle ? '📄' : '🗂️')}
+          {note.emoji ?? '📄'}
         </span>
         <span style={{
           fontSize: '14px', fontWeight: 700, minWidth: 0,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           color: note.title ? 'var(--text)' : 'var(--muted)',
         }}>
-          {note.title || (isArticle ? 'Ohne Titel' : 'Unbenannter Workspace')}
+          {note.title || 'Ohne Titel'}
         </span>
         {visibility === 'private' && <LockIcon />}
         {visibility === 'link' && (
@@ -188,7 +179,6 @@ function NoteRow({ note, onDeleteRequest, onUnpublish }: { note: Note; onDeleteR
 export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }) {
   const router = useRouter()
   const [notes, setNotes] = useState(initialNotes)
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Note | null>(null)
@@ -196,13 +186,9 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
 
   const filtered = notes.filter(note => {
-    if (typeFilter !== 'all' && note.content_type !== typeFilter) return false
     if (query.trim() && !(note.title || '').toLowerCase().includes(query.trim().toLowerCase())) return false
     return true
   })
-
-  const articles = filtered.filter(n => n.content_type === 'article')
-  const workspaces = filtered.filter(n => n.content_type === 'workspace')
 
   async function deleteNote(note: Note) {
     setOperationError('')
@@ -248,30 +234,6 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
   return (
     <section>
       <div className="notes-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        {TYPE_FILTERS.map(f => {
-          const isActive = typeFilter === f.key
-          return (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setTypeFilter(f.key)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '999px',
-                border: '1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)'),
-                background: isActive ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--surface)',
-                color: isActive ? 'var(--accent)' : 'var(--muted)',
-                fontSize: '12px',
-                fontWeight: 700,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {f.label}
-            </button>
-          )
-        })}
         <button
           type="button"
           className="notes-search-toggle"
@@ -325,27 +287,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
         }}>
           {notes.length
             ? 'Nichts gefunden.'
-            : 'Noch keine Inhalte. Lege oben über „Neuer Inhalt“ deinen ersten Artikel oder Workspace an.'}
-        </div>
-      ) : typeFilter === 'all' ? (
-        // Artikel und Workspaces nebeneinander; auf schmalen Screens untereinander
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '24px', alignItems: 'start' }}>
-          {articles.length > 0 && (
-            <div>
-              <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                Artikel
-              </h2>
-              {renderList(articles)}
-            </div>
-          )}
-          {workspaces.length > 0 && (
-            <div>
-              <h2 style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                Workspaces
-              </h2>
-              {renderList(workspaces)}
-            </div>
-          )}
+            : 'Noch keine Artikel. Lege oben über „Neuer Artikel“ deinen ersten an.'}
         </div>
       ) : (
         renderList(filtered)
@@ -380,7 +322,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
             }}
           >
             <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>
-              {pendingDelete.content_type === 'article' ? 'Artikel löschen?' : 'Workspace löschen?'}
+              Artikel löschen?
             </div>
             <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
               „{pendingDelete.title || 'Ohne Titel'}“ wird endgültig gelöscht.
