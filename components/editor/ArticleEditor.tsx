@@ -168,6 +168,42 @@ function dispatchAddElement(key: string, targetPos?: number) {
   document.dispatchEvent(new CustomEvent('wiki-editor-add-element', { detail: { key, targetPos } }))
 }
 
+// Bilder aus Zwischenablage und Dateisystem. Die genaue Typpruefung macht
+// uploadMedia (samt Groessenlimit und WebP-Kompression) -- hier reicht die
+// grobe Frage, ob ueberhaupt ein Bild dabei ist, um das Event zu uebernehmen.
+function imageFilesFrom(data: DataTransfer | null): File[] {
+  if (!data) return []
+  return Array.from(data.files).filter(file => file.type.startsWith('image/'))
+}
+
+async function uploadImagesInto(
+  editor: TiptapEditor,
+  files: File[],
+  at: number,
+  onBusy: (delta: number) => void,
+  onError: (message: string | null) => void,
+) {
+  const { uploadMedia } = await import('@/lib/supabase/storage')
+  let pos = at
+  for (const file of files) {
+    onBusy(1)
+    try {
+      const url = await uploadMedia(file)
+      // insertContentAt statt tr.insert: es teilt einen Absatz auf, wenn die
+      // Position mitten im Text liegt -- ein Bildknoten passt dort sonst nicht
+      // ins Schema.
+      editor.chain().focus().insertContentAt(pos, { type: 'image', attrs: { src: url, align: 'center' } }).run()
+      onError(null)
+      // Weitere Bilder landen hinter dem gerade eingefuegten.
+      pos = editor.state.selection.to
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
+    } finally {
+      onBusy(-1)
+    }
+  }
+}
+
 export default function ArticleEditor({ content, onChange, editable = true }: ArticleEditorProps) {
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const [tableMenuOpen, setTableMenuOpen] = useState(false)
@@ -175,6 +211,11 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
+  const [mediaBusy, setMediaBusy] = useState(0)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  // Die Handler unten entstehen in der useEditor-Konfiguration, koennen die
+  // Editor-Instanz also noch nicht kennen -- der Ref schliesst die Luecke.
+  const editorRef = useRef<TiptapEditor | null>(null)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ document: false, codeBlock: false, link: { openOnClick: !editable } }),
@@ -213,6 +254,33 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     content: normalizeArticleContent(content),
     editable,
     immediatelyRender: true,
+    editorProps: {
+      handlePaste(_view, event) {
+        if (!editable) return false
+        const files = imageFilesFrom(event.clipboardData)
+        if (!files.length) return false
+        const ed = editorRef.current
+        if (!ed) return false
+        event.preventDefault()
+        void uploadImagesInto(ed, files, ed.state.selection.from, d => setMediaBusy(n => n + d), setMediaError)
+        return true
+      },
+      handleDrop(view, event, _slice, moved) {
+        // moved = ein Knoten aus dem Dokument wird verschoben; Dateien von
+        // ausserhalb sind das nie. Element-Drags (x-wiki-element) und
+        // Text-Drags tragen ebenfalls keine files und fallen durch.
+        if (!editable || moved) return false
+        const files = imageFilesFrom(event.dataTransfer)
+        if (!files.length) return false
+        const ed = editorRef.current
+        if (!ed) return false
+        event.preventDefault()
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+          ?? ed.state.selection.from
+        void uploadImagesInto(ed, files, at, d => setMediaBusy(n => n + d), setMediaError)
+        return true
+      },
+    },
     onUpdate({ editor }) {
       onChange?.(withArticleMode(editor.getJSON()))
       syncSlashMenu(editor)
@@ -228,6 +296,16 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     slashMenuRef.current = slashMenu
   }, [slashMenu])
+
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
+
+  useEffect(() => {
+    if (!mediaError) return
+    const id = window.setTimeout(() => setMediaError(null), 6000)
+    return () => window.clearTimeout(id)
+  }, [mediaError])
 
   // Writing surface sits directly on the page since the panel was removed —
   // hide the decorative grid so text stays readable (edit and read-only alike).
@@ -417,6 +495,30 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
         width: '100%',
       }}
     >
+      {/* Ein Upload dauert spuerbar (Kompression + Netz). Ohne Hinweis sieht
+          es nach einem verschluckten Einfuegen aus. */}
+      {(mediaBusy > 0 || mediaError) && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: '24px',
+            transform: 'translateX(-50%)',
+            zIndex: 400,
+            padding: '9px 16px',
+            borderRadius: '999px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: mediaError ? 'var(--accent2)' : 'var(--muted)',
+            fontSize: '12px',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+          }}
+          onClick={() => setMediaError(null)}
+        >
+          {mediaError ?? (mediaBusy === 1 ? 'Bild wird hochgeladen…' : `${mediaBusy} Bilder werden hochgeladen…`)}
+        </div>
+      )}
       {slashMenu && (
         <div
           ref={slashMenuListRef}
