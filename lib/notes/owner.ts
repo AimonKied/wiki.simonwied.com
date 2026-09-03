@@ -16,7 +16,7 @@ export async function listRecentOwnerNotes(userId: string): Promise<NoteSummary[
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('notes')
-    .select('id, title, emoji, content_type, visibility, is_public, slug, updated_at')
+    .select('id, title, emoji, visibility, is_public, slug, updated_at')
     .eq('user_id', userId)
     .not('last_opened_at', 'is', null)
     .order('last_opened_at', { ascending: false })

@@ -13,7 +13,6 @@ export interface Note {
   emoji: string | null
   description: string | null
   content: object | null
-  content_type: 'article' | 'workspace'
   slug: string | null
   is_public: boolean
   visibility: 'private' | 'link' | 'public'
@@ -28,7 +27,7 @@ export interface Note {
 
 export type NoteSummary = Pick<
   Note,
-  'id' | 'title' | 'emoji' | 'content_type' | 'slug' | 'is_public' | 'visibility' | 'updated_at'
+  'id' | 'title' | 'emoji' | 'slug' | 'is_public' | 'visibility' | 'updated_at'
 >
 
 export interface NoteShareLink {
@@ -41,7 +40,6 @@ export interface NoteShareLink {
 export interface PublishedNoteResult {
   note_id: string
   user_id: string
-  content_type: 'article' | 'workspace'
   published: PublishedSnapshot
   updated_at: string
   published_at: string | null

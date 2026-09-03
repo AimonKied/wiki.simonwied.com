@@ -9,7 +9,6 @@ export interface PublicNoteSummary {
   emoji: string | null
   description: string | null
   slug: string | null
-  contentType: 'article' | 'workspace'
   updatedAt: string
   categories: Category[]
   author: string | null
@@ -54,7 +53,6 @@ export async function listPublicNotes(): Promise<PublicNoteSummary[]> {
       emoji: published?.emoji ?? (row.emoji as string | null),
       description: published?.description ?? (row.description as string | null),
       slug: published?.slug ?? (row.slug as string | null),
-      contentType: row.content_type as 'article' | 'workspace',
       updatedAt: row.updated_at as string,
       categories: (row.categories as Category[] | null) ?? [],
       author: (row.author_name as string | null) ?? null,
