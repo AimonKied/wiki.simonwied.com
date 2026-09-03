@@ -91,8 +91,9 @@ width, the decorative grid is hidden while editing).
   line shows the hint. Markdown shortcuts work while typing (`#`, `-`, `1.`,
   `[] `, `>`, ` ``` `, `**bold**`).
 - Blocks: headings, lists, to-dos (nest with `Tab`), tables, code (highlighted),
-  images (upload/URL), toggles, callouts (click the emoji for emoji/color
-  picker), quotes, dividers.
+  images (upload/URL), video (YouTube/Vimeo embed or a video URL — no file
+  upload, the image pipeline compresses to WebP under 2 MB), toggles, callouts
+  (click the emoji for emoji/color picker), quotes, dividers.
 - Image uploads are compressed client-side before hitting Supabase Storage
   (max 1600px, WebP 85%, 2 MB stored limit; SVG/GIF pass through unchanged).
 - Each block row shows `+` (insert below) and `⠿` on hover; the handle menu has
@@ -104,7 +105,30 @@ width, the decorative grid is hidden while editing).
   `NoteHeader` component as the editor (`editable={false}`) — Notion share-link
   parity: viewers see the identical page, just without edit controls.
 - "Neuer Artikel" creates the article directly and opens `/notes/[id]/edit`
-  with the title focused — there is no separate create page.
+  with the title focused — there is no separate create page. The caret beside
+  it offers templates (recipe, how-to, cheatsheet); on mobile the caret is
+  hidden and the button stays a plain `+`.
+- Selecting blocks follows Notion: click `⠿` selects and opens the menu,
+  `Shift`-click extends a range from the anchor, `Ctrl`/`Cmd`-click toggles a
+  single block, and dragging text across block boundaries selects them too.
+  `Esc` lifts from text to block level, arrow keys move the selection,
+  `Ctrl`/`Cmd`+`A` goes text → all blocks, `Ctrl`/`Cmd`+`D` duplicates.
+- Images can be pasted or dropped straight into the article; the upload path is
+  the same one the palette uses.
+- `Ctrl`/`Cmd`+`K` sets a link on the selected text (Notion parity), so the
+  quick search sits on `Ctrl`/`Cmd`+`P` instead — it searches your own notes
+  (into the editor) or, for visitors, published ones (into the reading view).
+- `[[` opens a picker of your own pages and inserts an internal link. Only
+  notes with a slug are linkable, since the public route resolves by slug;
+  unpublished ones are marked ENTWURF and start working once published.
+- Headings get readable anchor ids; TOC entries are real links and clicking one
+  writes the anchor into the address bar, so a section can be shared.
+- A cover image can be set per article and travels into the published snapshot.
+- Deleting moves an article to `/papierkorb` (soft delete via `deleted_at`).
+  Trashed articles go offline immediately and restore unchanged, publication
+  included. Favourites are pinned above the "Zuletzt" list in the sidebar.
+- Public articles list "Verlinkt von" — which other published articles link
+  here, found by scanning the published snapshots' JSON.
 
 ## Editor
 
@@ -129,14 +153,16 @@ immediately. Closing the tab while a save is pending shows a browser warning.
 
 ```text
 app/
-  (dashboard)/dashboard/       article overview: search, delete
+  (dashboard)/dashboard/       article overview: search, move to trash
   (dashboard)/notes/[id]/edit/ article editor
+  (dashboard)/papierkorb/      trash: restore or delete permanently
   (public)/bibliothek/         public library (route remains /bibliothek)
   (public)/notes/[id]/         public note view (published snapshot)
   (public)/share/[token]/      secret-link view (published snapshot)
 components/dashboard/
   NewContentButton.tsx         creates an article and jumps into the editor
-  NotesOverview.tsx            dashboard list with visibility/search/delete
+  NotesOverview.tsx            dashboard list with visibility/search/trash
+  TrashOverview.tsx            trash list: restore, delete permanently
 components/editor/
   ArticleEditor.tsx            linear Notion-style article editor (slash menu)
   NoteHeader.tsx               shared header (emoji/title/description/badges) for
@@ -149,14 +175,19 @@ components/editor/
   ToggleNode.tsx               collapsible toggle block
   CalloutNode.tsx              callout block (emoji + color, document-level picker)
   MediaNodes.tsx               resizable image node (Supabase Storage upload)
+  VideoNode.tsx                video block: YouTube/Vimeo embed or video file
   elementPalette.ts            shared block palette + slash-menu ranking
   editorTransforms.ts          line/block transformations shared by both editors
   EmojiPicker.tsx              emoji picker for note icons
 components/notes/
-  PublishedNoteView.tsx        shared public/link snapshot view
+  PublishedNoteView.tsx        shared public/link snapshot view + backlinks
+components/search/
+  QuickSearch.tsx              Ctrl/Cmd+P overlay; mounted in the sidebar, so
+                               both layouts get it without wiring it twice
 components/sidebar/
-  Sidebar.tsx                  main navigation, live "Zuletzt" list; per-note
-                               ⋯ menu (delete, unpublish back to private);
+  Sidebar.tsx                  main navigation, favourites + live "Zuletzt"
+                               list; per-note ⋯ menu (favourite, move to trash,
+                               unpublish back to private); hosts QuickSearch;
                                collapsible at ≥769px (localStorage-persisted,
                                default open — mobile drawer default is closed)
 components/
@@ -167,6 +198,7 @@ components/
 lib/
   auth/session.ts              cached owner-session lookup for server routes
   editor/markdown.ts           article Markdown import/export
+  notes/templates.ts           article templates as TipTap JSON
   notes/create.ts              insert new note with per-type default content
   notes/owner.ts               owner-only note listing queries
   notes/published.ts           public/link snapshot queries

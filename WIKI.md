@@ -483,16 +483,16 @@ Schon auf Notion-Niveau: cleane Schreibflaeche ohne Panel, Slash-Menue mit Ranki
 
 ### Phase 2 — Verlinkung und Finden (Wiki-Kern)
 
-- [ ] Schnellsuche (Cmd+K) ueber eigene Notizen + oeffentliche Inhalte
-- [ ] Interne Links: `@`- oder `[[`-Trigger im Editor verlinkt auf andere Notizen
-- [ ] Anker-Links auf Ueberschriften (TOC-Eintraege und oeffentliche URLs teilbar machen)
+- [x] Schnellsuche (2026-09-03): Overlay ueber Strg/Cmd+P — nicht Cmd+K, das ist wie in Notion fuer Links vergeben. Eigene Notizen fuehren in den Editor, oeffentliche in die Leseansicht
+- [x] Interne Links (2026-09-03): `[[` oeffnet die Seitenauswahl. Nur Notizen mit Slug sind verlinkbar, unveroeffentlichte als ENTWURF markiert
+- [x] Anker-Links auf Ueberschriften (2026-09-03): lesbare Ids aus dem Text, TOC-Eintraege sind echte Links, Klick schreibt den Anker in die Adresszeile
 
 ### Phase 3 — Seiten-Features
 
-- [ ] Cover-Bild pro Artikel (wie Notion-Header)
-- [ ] Templates (z. B. Rezept-Vorlage bei "Neuer Artikel")
-- [ ] Papierkorb: Soft-Delete mit Wiederherstellen statt endgueltigem Loeschen
-- [ ] Favoriten/Pinnen in der Sidebar
+- [x] Cover-Bild pro Artikel (2026-09-04), wandert in den veroeffentlichten Snapshot
+- [x] Vorlagen (2026-09-04): leer, Rezept, Anleitung, Cheatsheet — am Pfeil neben "Neuer Artikel", der Hauptknopf legt weiter direkt leer an
+- [x] Papierkorb (2026-09-04): deleted_at statt Zeile entfernen, /papierkorb stellt wieder her oder loescht endgueltig
+- [x] Favoriten in der Sidebar (2026-09-04), eigene Abfrage statt Filter auf der Verlaufsliste
 
 ### Phase 4 — Layout und Extras
 
