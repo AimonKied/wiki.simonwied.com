@@ -51,6 +51,22 @@ const sectionSel = {
   sub:      (fn: () => void) => { _selCbs.add(fn); return () => _selCbs.delete(fn) },
 }
 
+// Es darf immer nur ein Block-Menue offen sein. Als lokaler State pro Block
+// ging das schief: der Klick auf einen Griff ruft preventDefault (pointerdown)
+// und stopPropagation (onClick) auf, erreicht also nie den click-Listener am
+// document, der die anderen Menues schliessen wuerde. Ergebnis waren mehrere
+// offene Menues -- und damit mehrere stehengebliebene Markierungen.
+let _menuOwner: string | null = null
+const _menuCbs = new Set<() => void>()
+function _fireMenu() { _menuCbs.forEach(f => f()) }
+
+const blockMenu = {
+  isOpen: (id: string) => _menuOwner === id,
+  open:   (id: string) => { _menuOwner = id; _fireMenu() },
+  close:  () => { if (_menuOwner !== null) { _menuOwner = null; _fireMenu() } },
+  sub:    (fn: () => void) => { _menuCbs.add(fn); return () => _menuCbs.delete(fn) },
+}
+
 function _orderedSectionIds(fromCard: HTMLElement | null): string[] {
   const root = fromCard?.closest('[data-article-editor]') as HTMLElement | null
   if (!root) return []
@@ -266,7 +282,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   const [handle, setHandle] = useState<HandleInfo | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sectionDragging, setSectionDragging] = useState(false)
-  const [blockMenuOpen, setBlockMenuOpen] = useState(false)
+  const blockMenuOpen = useSyncExternalStore(
+    blockMenu.sub,
+    () => blockMenu.isOpen(sectionId),
+    () => false,
+  )
   const [blockMenuPos, setBlockMenuPos] = useState<{ left?: number; right?: number; top: number; maxHeight: number; maxWidth: number } | null>(null)
   const [blockMenuView, setBlockMenuView] = useState<'main' | 'turn' | 'color'>('main')
   const dragHandleRef = useRef<HTMLDivElement>(null)
@@ -1106,11 +1126,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
           sectionSel.selectOnly(sectionId)
         }
         if (blockMenuOpen) {
-          setBlockMenuOpen(false)
+          blockMenu.close()
         } else {
           setBlockMenuView('main')
           setBlockMenuPos(null)
-          setBlockMenuOpen(true)
+          blockMenu.open(sectionId)
         }
         return
       }
@@ -1128,8 +1148,8 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
   useEffect(() => {
     if (!blockMenuOpen) return
-    const close = () => setBlockMenuOpen(false)
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBlockMenuOpen(false) }
+    const close = () => blockMenu.close()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') blockMenu.close() }
     const id = window.setTimeout(() => document.addEventListener('click', close), 0)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -1237,7 +1257,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   function convertArticleBlock(key: string) {
     if (key === 'image') {
       addElement('image')
-      setBlockMenuOpen(false)
+      blockMenu.close()
       return
     }
     const selected = articleSelectionOrSelf()
@@ -1249,7 +1269,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
         tr.replaceWith(tr.mapping.map(pos + 1), tr.mapping.map(pos + sectionNode.nodeSize - 1), Fragment.from(replacement))
       })
       editor.view.dispatch(tr.scrollIntoView())
-      setBlockMenuOpen(false)
+      blockMenu.close()
       return
     }
 
@@ -1262,7 +1282,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
     if (!replacement) return
     tr.replaceWith(pos + 1, pos + sectionNode.nodeSize - 1, Fragment.from(replacement))
     editor.view.dispatch(tr.scrollIntoView())
-    setBlockMenuOpen(false)
+    blockMenu.close()
   }
 
   function deleteArticleBlocks() {
@@ -1276,12 +1296,12 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       if (tr.doc.childCount === 0) tr.insert(0, editor.state.schema.nodes.section.create(null, editor.state.schema.nodes.paragraph.create()))
       editor.view.dispatch(tr.scrollIntoView())
       sectionSel.clear()
-      setBlockMenuOpen(false)
+      blockMenu.close()
       return
     }
     sectionSel.clear()
     deleteNode()
-    setBlockMenuOpen(false)
+    blockMenu.close()
   }
 
   function duplicateArticleBlocks() {
@@ -1292,11 +1312,11 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       const tr = editor.state.tr.insert(insertPos, Fragment.fromArray(copies))
       editor.view.dispatch(tr.scrollIntoView())
       sectionSel.clear()
-      setBlockMenuOpen(false)
+      blockMenu.close()
       return
     }
     duplicateSection()
-    setBlockMenuOpen(false)
+    blockMenu.close()
   }
 
   function setBlockColor(bgColor: string | null, borderColor: string | null) {
@@ -1658,6 +1678,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
               // ueber der Auswahl-Flaeche (zIndex 5), sonst faerbt die sie mit ein
               zIndex: 10,
               opacity: cardHovered || blockMenuOpen ? 1 : 0,
+              pointerEvents: cardHovered || blockMenuOpen ? 'auto' : 'none',
               transition: 'opacity 0.1s',
             }}
           >
@@ -1913,6 +1934,7 @@ export const SectionExtension = Node.create({
   onDestroy() {
     if (_activeEditor === (this.editor as unknown as Editor)) _activeEditor = null
     sectionSel.clear()
+    blockMenu.close()
   },
   priority: 1000,
   group: 'block',
