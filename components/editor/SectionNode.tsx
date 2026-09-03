@@ -14,32 +14,49 @@ import { toggleJSON } from './ToggleNode'
 import { ELEMENT_PALETTE } from './elementPalette'
 
 // ── Module-level section selection store ──────────────────────────────────────
+// Notion-Modell: ein Anker merkt sich, wo die Auswahl begann. Shift spannt von
+// dort bis zum angeklickten Block auf, Strg/Cmd schaltet einzelne Bloecke um.
 const _selSet = new Set<string>()
 const _selCbs = new Set<() => void>()
 let _selDragging = false
+let _selAnchor: string | null = null
 function _fireSel() { _selCbs.forEach(f => f()) }
 
 const sectionSel = {
   has:      (id: string) => _selSet.has(id),
   size:     () => _selSet.size,
-  ids:      () => new Set(_selSet),
+  anchor:   () => _selAnchor,
   dragging: () => _selDragging,
-  add:      (id: string) => { if (!_selSet.has(id)) { _selSet.add(id); _fireSel() } },
-  setExact: (ids: string[]) => { _selSet.clear(); ids.forEach(id => _selSet.add(id)); _fireSel() },
-  toggle:   (id: string, additive: boolean) => {
-    if (!additive) {
-      const onlyThis = _selSet.size === 1 && _selSet.has(id)
-      _selSet.clear()
-      if (!onlyThis) _selSet.add(id)
-    } else {
-      if (_selSet.has(id)) _selSet.delete(id)
-      else _selSet.add(id)
-    }
+  selectOnly: (id: string) => {
+    _selSet.clear()
+    _selSet.add(id)
+    _selAnchor = id
     _fireSel()
   },
-  clear:    () => { if (_selSet.size > 0) { _selSet.clear(); _fireSel() } },
+  // Der Anker bleibt stehen: mehrere Shift-Klicks hintereinander spannen
+  // immer vom selben Startpunkt auf, statt den Bereich mitwandern zu lassen.
+  selectRange: (ids: string[]) => {
+    _selSet.clear()
+    ids.forEach(id => _selSet.add(id))
+    _fireSel()
+  },
+  toggleOne: (id: string) => {
+    if (_selSet.has(id)) _selSet.delete(id)
+    else _selSet.add(id)
+    _selAnchor = id
+    _fireSel()
+  },
+  clear:    () => { _selAnchor = null; if (_selSet.size > 0) { _selSet.clear(); _fireSel() } },
   setDrag:  (v: boolean) => { _selDragging = v; _fireSel() },
   sub:      (fn: () => void) => { _selCbs.add(fn); return () => _selCbs.delete(fn) },
+}
+
+function _orderedSectionIds(fromCard: HTMLElement | null): string[] {
+  const root = fromCard?.closest('[data-article-editor]') as HTMLElement | null
+  if (!root) return []
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-section-card]'))
+    .map(el => el.dataset.sectionId ?? '')
+    .filter(Boolean)
 }
 
 let _activeEditor: Editor | null = null
@@ -65,6 +82,7 @@ function _ensureGlobalHandlers() {
     const target = e.target
     if (target instanceof Element && target.closest('[data-section-drag-handle]')) return
     if (target instanceof Element && target.closest('[data-article-block-controls]')) return
+    if (target instanceof Element && target.closest('[data-block-menu]')) return
     if (target instanceof Element && target.closest('[data-element-palette]')) return
     sectionSel.clear()
   })
@@ -1057,17 +1075,43 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       setSectionDragging(false)
 
       if (!didDrag) {
-        // Klick oeffnet das Block-Popover, Shift-Klick waehlt aus.
-        if (!nativeEvent.shiftKey) {
-          if (blockMenuOpen) {
-            setBlockMenuOpen(false)
+        // Shift: Bereich vom Anker bis hierher (Notion-Verhalten -- erweitern,
+        // nicht einzeln umschalten).
+        if (nativeEvent.shiftKey) {
+          const ids = _orderedSectionIds(cardRef.current)
+          const anchor = sectionSel.anchor()
+          const from = anchor ? ids.indexOf(anchor) : -1
+          const to = ids.indexOf(sectionId)
+          if (from >= 0 && to >= 0) {
+            const [lo, hi] = from <= to ? [from, to] : [to, from]
+            sectionSel.selectRange(ids.slice(lo, hi + 1))
           } else {
-            setBlockMenuView('main')
-            setBlockMenuPos(null)
-            setBlockMenuOpen(true)
+            // Ohne Anker (oder Block nicht im DOM gefunden) verhaelt sich der
+            // erste Shift-Klick wie ein normaler und setzt den Startpunkt.
+            sectionSel.selectOnly(sectionId)
           }
+          return
         }
-        else sectionSel.toggle(sectionId, nativeEvent.shiftKey)
+
+        // Strg/Cmd: einzelnen Block zur Auswahl hinzunehmen oder herausnehmen.
+        if (nativeEvent.metaKey || nativeEvent.ctrlKey) {
+          sectionSel.toggleOne(sectionId)
+          return
+        }
+
+        // Normaler Klick waehlt den Block aus und oeffnet sein Menue. Eine
+        // bestehende Mehrfachauswahl, die ihn enthaelt, bleibt erhalten --
+        // sonst koennte man das Menue nie auf mehrere Bloecke anwenden.
+        if (!(sectionSel.has(sectionId) && sectionSel.size() > 1)) {
+          sectionSel.selectOnly(sectionId)
+        }
+        if (blockMenuOpen) {
+          setBlockMenuOpen(false)
+        } else {
+          setBlockMenuView('main')
+          setBlockMenuPos(null)
+          setBlockMenuOpen(true)
+        }
         return
       }
 
@@ -1085,8 +1129,14 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   useEffect(() => {
     if (!blockMenuOpen) return
     const close = () => setBlockMenuOpen(false)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBlockMenuOpen(false) }
     const id = window.setTimeout(() => document.addEventListener('click', close), 0)
-    return () => { window.clearTimeout(id); document.removeEventListener('click', close) }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      window.clearTimeout(id)
+      document.removeEventListener('click', close)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [blockMenuOpen])
 
   // Position the block popover like Notion: to the LEFT of the block, its right edge just
@@ -1229,6 +1279,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
       setBlockMenuOpen(false)
       return
     }
+    sectionSel.clear()
     deleteNode()
     setBlockMenuOpen(false)
   }
@@ -1653,6 +1704,7 @@ function SectionView({ editor, node, getPos, deleteNode }: NodeViewProps) {
 
               {blockMenuOpen && blockMenuPos && createPortal(
                 <div
+                  data-block-menu="true"
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                   style={{
