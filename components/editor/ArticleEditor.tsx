@@ -87,6 +87,47 @@ function normalizeHref(raw: string): string {
   return `https://${value}`
 }
 
+interface PageTarget {
+  id: string
+  title: string
+  emoji: string | null
+  slug: string
+  isPublic: boolean
+}
+
+interface PageMenuState {
+  from: number
+  to: number
+  query: string
+  left: number
+  top: number
+  selected: number
+}
+
+function filterPages(pages: PageTarget[], query: string): PageTarget[] {
+  const q = query.trim().toLowerCase()
+  const matches = q ? pages.filter(page => page.title.toLowerCase().includes(q)) : pages
+  return matches.slice(0, 8)
+}
+
+function insertPageLink(ed: TiptapEditor, target: PageTarget, menu: PageMenuState) {
+  ed
+    .chain()
+    .focus()
+    .deleteRange({ from: menu.from, to: menu.to })
+    .insertContent([
+      {
+        type: 'text',
+        text: target.emoji ? `${target.emoji} ${target.title}` : target.title,
+        marks: [{ type: 'link', attrs: { href: `/notes/${target.slug}` } }],
+      },
+      // Ohne den angehaengten Leerraum liefe die Link-Markierung beim
+      // Weitertippen einfach mit.
+      { type: 'text', text: ' ' },
+    ])
+    .run()
+}
+
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, markdown })
 const slashItems = filterPalette
@@ -222,6 +263,10 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const slashMenuListRef = useRef<HTMLDivElement>(null)
   // null = geschlossen; ein String ist der Entwurf im Eingabefeld
   const [linkDraft, setLinkDraft] = useState<string | null>(null)
+  const [pageMenu, setPageMenu] = useState<PageMenuState | null>(null)
+  const pageMenuRef = useRef<PageMenuState | null>(null)
+  const [pages, setPages] = useState<PageTarget[] | null>(null)
+  const pagesRef = useRef<PageTarget[] | null>(null)
   const [mediaBusy, setMediaBusy] = useState(0)
   const [mediaError, setMediaError] = useState<string | null>(null)
   // Die Handler unten entstehen in der useEditor-Konfiguration, koennen die
@@ -311,18 +356,58 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     onUpdate({ editor }) {
       onChange?.(withArticleMode(editor.getJSON()))
       syncSlashMenu(editor)
+      syncPageMenu(editor)
     },
     onSelectionUpdate({ editor }) {
       syncSlashMenu(editor)
+      syncPageMenu(editor)
     },
     onBlur() {
-      window.setTimeout(() => setSlashMenu(null), 120)
+      window.setTimeout(() => { setSlashMenu(null); setPageMenu(null) }, 120)
     },
   }, [editable])
 
   useEffect(() => {
     slashMenuRef.current = slashMenu
   }, [slashMenu])
+
+  useEffect(() => {
+    pageMenuRef.current = pageMenu
+  }, [pageMenu])
+
+  useEffect(() => {
+    pagesRef.current = pages
+  }, [pages])
+
+  // Erst laden, wenn jemand tatsaechlich "[[" tippt -- die Liste interessiert
+  // beim blossen Oeffnen eines Artikels niemanden.
+  useEffect(() => {
+    if (!pageMenu || pages !== null) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        // Nur Notizen mit Slug: die oeffentliche Route loest ausschliesslich
+        // ueber den Slug auf, ohne ihn gibt es kein verlinkbares Ziel.
+        const { data } = await createClient()
+          .from('notes')
+          .select('id, title, emoji, slug, visibility, is_public')
+          .not('slug', 'is', null)
+          .order('updated_at', { ascending: false })
+        if (cancelled) return
+        setPages((data ?? []).map((row: Record<string, unknown>) => ({
+          id: row.id as string,
+          title: (row.title as string) || 'Ohne Titel',
+          emoji: (row.emoji as string | null) ?? null,
+          slug: row.slug as string,
+          isPublic: ((row.visibility as string | null) ?? (row.is_public ? 'public' : 'private')) === 'public',
+        })))
+      } catch {
+        if (!cancelled) setPages([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [pageMenu, pages])
 
   useEffect(() => {
     editorRef.current = editor
@@ -358,6 +443,25 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   useEffect(() => {
     if (!editor || !editable) return
     function onKeyDown(e: KeyboardEvent) {
+      const page = pageMenuRef.current
+      if (page) {
+        const pageItems = filterPages(pagesRef.current ?? [], page.query)
+        if (e.key === 'Escape') { e.preventDefault(); setPageMenu(null); return }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault()
+          setPageMenu(current => current
+            ? { ...current, selected: (current.selected + (e.key === 'ArrowDown' ? 1 : -1) + pageItems.length) % Math.max(1, pageItems.length) }
+            : current)
+          return
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          if (!pageItems.length) return
+          e.preventDefault()
+          insertPageLink(editor, pageItems[page.selected] ?? pageItems[0], page)
+          setPageMenu(null)
+        }
+        return
+      }
       const menu = slashMenuRef.current
       if (!menu) return
       const items = slashItems(menu.query)
@@ -394,6 +498,39 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   }, [tableMenuOpen])
 
   if (!editor) return null
+
+  // Erkennt "[[stichwort" an beliebiger Stelle der Zeile -- anders als das
+  // Slash-Menue, das nur am Zeilenanfang greift: ein Seitenverweis steht
+  // typischerweise mitten im Satz.
+  function syncPageMenu(ed: TiptapEditor) {
+    const { selection } = ed.state
+    if (!selection.empty || !ed.isEditable || !selection.$from.parent.isTextblock) {
+      setPageMenu(null)
+      return
+    }
+    const { $from } = selection
+    const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, node => node.type.name === 'hardBreak' ? '\n' : '\ufffc')
+    const currentLine = textBefore.slice(textBefore.lastIndexOf('\n') + 1)
+    const match = currentLine.match(/\[\[([^\]\n]*)$/)
+    if (!match) {
+      setPageMenu(null)
+      return
+    }
+    try {
+      const coords = ed.view.coordsAtPos(selection.from)
+      const query = match[1]
+      setPageMenu(previous => ({
+        from: selection.from - query.length - 2,
+        to: selection.from,
+        query,
+        left: coords.left,
+        top: coords.bottom + 8,
+        selected: previous?.query === query ? previous.selected : 0,
+      }))
+    } catch {
+      setPageMenu(null)
+    }
+  }
 
   function syncSlashMenu(ed: TiptapEditor) {
     const { selection } = ed.state
@@ -556,6 +693,80 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           {mediaError ?? (mediaBusy === 1 ? 'Bild wird hochgeladen…' : `${mediaBusy} Bilder werden hochgeladen…`)}
         </div>
       )}
+      {pageMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: pageMenu.left,
+            top: pageMenu.top,
+            zIndex: 100000,
+            width: 300,
+            maxHeight: 320,
+            overflowY: 'auto',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '6px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div style={{ padding: '7px 9px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>
+            SEITE VERLINKEN
+          </div>
+          {pages === null && (
+            <div style={{ padding: '8px 9px', fontSize: 12, color: 'var(--muted)' }}>Wird geladen…</div>
+          )}
+          {pages !== null && filterPages(pages, pageMenu.query).length === 0 && (
+            <div style={{ padding: '8px 9px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+              {pages.length === 0
+                ? 'Keine Seite mit Slug vorhanden. Ein Ziel braucht einen Slug, sonst ist es nicht erreichbar.'
+                : 'Nichts gefunden.'}
+            </div>
+          )}
+          {pages !== null && filterPages(pages, pageMenu.query).map((target, index) => (
+            <button
+              key={target.id}
+              type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => { insertPageLink(editor, target, pageMenu); setPageMenu(null) }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left',
+                padding: '7px 9px',
+                border: 0,
+                borderRadius: 6,
+                background: index === pageMenu.selected ? 'var(--surface2)' : 'transparent',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 13,
+              }}
+            >
+              <span style={{ width: 18, flexShrink: 0, textAlign: 'center' }}>{target.emoji ?? '📄'}</span>
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {target.title}
+              </span>
+              {!target.isPublic && (
+                <span
+                  title="Noch nicht veröffentlicht — der Link greift erst danach"
+                  style={{
+                    marginLeft: 'auto', flexShrink: 0,
+                    padding: '2px 6px', borderRadius: 999,
+                    background: '#d9770622', color: '#d97706',
+                    fontSize: 9, fontWeight: 800,
+                  }}
+                >
+                  ENTWURF
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {slashMenu && (
         <div
           ref={slashMenuListRef}
