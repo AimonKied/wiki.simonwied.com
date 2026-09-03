@@ -1072,6 +1072,14 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           pointer-events: none;
         }
         [data-article-editor] .ProseMirror > * + * { margin-top: 2px; }
+        /* Waehrend einer Blockauswahl uebernimmt die Blockflaeche die
+           Hervorhebung; die Textmarkierung wuerde sonst doppelt liegen. */
+        body[data-block-selection] [data-article-editor] .ProseMirror ::selection {
+          background: transparent;
+        }
+        body[data-block-selection] [data-article-editor] .ProseMirror::selection {
+          background: transparent;
+        }
         [data-article-editor] [data-section-card] {
           border-radius: 0 !important;
           min-height: 0 !important;

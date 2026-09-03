@@ -35,9 +35,10 @@ const sectionSel = {
   },
   // Der Anker bleibt stehen: mehrere Shift-Klicks hintereinander spannen
   // immer vom selben Startpunkt auf, statt den Bereich mitwandern zu lassen.
-  selectRange: (ids: string[]) => {
+  selectRange: (ids: string[], anchorId?: string) => {
     _selSet.clear()
     ids.forEach(id => _selSet.add(id))
+    if (anchorId) _selAnchor = anchorId
     _fireSel()
   },
   toggleOne: (id: string) => {
@@ -118,6 +119,14 @@ let _globalHandlersInstalled = false
 function _ensureGlobalHandlers() {
   if (_globalHandlersInstalled) return
   _globalHandlersInstalled = true
+
+  // Sobald Bloecke ausgewaehlt sind, soll die Textmarkierung des Browsers
+  // nicht mehr durchscheinen -- sonst liegen zwei Hervorhebungen uebereinander.
+  // Ein Attribut am body statt einer Klasse pro Block: das Abo laeuft hier
+  // einmal, nicht in jedem Node-View.
+  sectionSel.sub(() => {
+    document.body.toggleAttribute('data-block-selection', _selSet.size > 0)
+  })
 
   // Ein Zeigerdruck irgendwo ausserhalb der Bedienelemente beendet die
   // Markierung. Beide Quellen werden abgeraeumt: die Markierung ist
@@ -2044,6 +2053,33 @@ export const SectionExtension = Node.create({
 
   onFocus() {
     _activeEditor = this.editor as unknown as Editor
+  },
+
+  // Zieht man ueber mehrere Bloecke, wird daraus eine Blockauswahl. Bewegt
+  // sich der Cursor wieder innerhalb eines Blocks, faellt sie weg -- auch das
+  // macht Notion so. Gesteuert ueber die Textauswahl statt ueber Zeigerdaten,
+  // weil ProseMirror die Blockgrenzen ohnehin kennt.
+  onSelectionUpdate() {
+    const view = _mountedView(this.editor as unknown as Editor)
+    // Ohne Fokus stammt die Auswahl vom Griff oder der Tastatur, nicht vom
+    // Ziehen -- die darf hier nicht angefasst werden.
+    if (!view?.hasFocus()) return
+    const entries = _sectionEntries(view)
+    if (!entries.length) return
+    const { from, to } = this.editor.state.selection
+    const indexAt = (pos: number) =>
+      entries.findIndex(entry => pos > entry.pos && pos < entry.pos + entry.node.nodeSize)
+    const start = indexAt(from)
+    const end = indexAt(to)
+    if (start < 0 || end < 0) return
+    if (start === end) {
+      // Der Cursor steht wieder in einem einzelnen Block. Ein offenes
+      // Block-Menue haelt seine Auswahl trotzdem.
+      if (_menuOwner === null) sectionSel.clear()
+      return
+    }
+    const [lo, hi] = start <= end ? [start, end] : [end, start]
+    sectionSel.selectRange(entries.slice(lo, hi + 1).map(entry => entry.id), entries[start].id)
   },
 
   onDestroy() {
