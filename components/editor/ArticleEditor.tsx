@@ -78,6 +78,15 @@ const bBtn = (active: boolean, extra?: React.CSSProperties): React.CSSProperties
   ...extra,
 })
 
+// Notion nimmt "example.com" genauso an wie eine vollstaendige URL. Relative
+// Ziele, Anker und mailto/tel bleiben unangetastet.
+function normalizeHref(raw: string): string {
+  const value = raw.trim()
+  if (!value) return ''
+  if (/^(https?:\/\/|mailto:|tel:|#|\/)/i.test(value)) return value
+  return `https://${value}`
+}
+
 const lowlight = createLowlight()
 lowlight.register({ javascript, typescript, python, bash, css, xml, json, sql, markdown })
 const slashItems = filterPalette
@@ -211,6 +220,8 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const slashMenuRef = useRef<SlashMenuState | null>(null)
   const slashMenuListRef = useRef<HTMLDivElement>(null)
+  // null = geschlossen; ein String ist der Entwurf im Eingabefeld
+  const [linkDraft, setLinkDraft] = useState<string | null>(null)
   const [mediaBusy, setMediaBusy] = useState(0)
   const [mediaError, setMediaError] = useState<string | null>(null)
   // Die Handler unten entstehen in der useEditor-Konfiguration, koennen die
@@ -255,6 +266,22 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     editable,
     immediatelyRender: true,
     editorProps: {
+      handleKeyDown(_view, event) {
+        if (!editable) return false
+        if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return false
+        // Immer abfangen, sonst kapert der Browser die Tastenkombination.
+        event.preventDefault()
+        const ed = editorRef.current
+        if (!ed) return true
+        // Ohne Auswahl und ausserhalb eines Links gibt es nichts zu verlinken.
+        if (ed.state.selection.empty && !ed.isActive('link')) return true
+        // Steht der Cursor nur irgendwo im Link, erst dessen Text markieren:
+        // das BubbleMenu (und damit das Eingabefeld) erscheint ausschliesslich
+        // bei nicht-leerer Auswahl -- und man sieht, was man gerade bearbeitet.
+        if (ed.state.selection.empty) ed.chain().extendMarkRange('link').run()
+        setLinkDraft((ed.getAttributes('link').href as string | undefined) ?? '')
+        return true
+      },
       handlePaste(_view, event) {
         if (!editable) return false
         const files = imageFilesFrom(event.clipboardData)
@@ -478,6 +505,16 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
     if (!editor.schema.marks[TEXT_STYLE_MARK]) return
     editor.chain().focus().setMark(TEXT_STYLE_MARK, attrs).run()
   }
+  // Leere Eingabe entfernt den Link -- so muss man nicht den Entfernen-Knopf
+  // suchen, wenn man das Feld ohnehin schon geleert hat.
+  const applyLink = () => {
+    const href = normalizeHref(linkDraft ?? '')
+    const chain = editor.chain().focus().extendMarkRange('link')
+    if (href) chain.setLink({ href }).run()
+    else chain.unsetLink().run()
+    setLinkDraft(null)
+  }
+
   const closeTextToolbar = () => {
     editor.commands.setTextSelection(editor.state.selection.to)
     editor.commands.blur()
@@ -663,6 +700,13 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
             <button style={bBtn(editor.isActive('underline'), { textDecoration: 'underline' })}  onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
             <button style={bBtn(editor.isActive('strike'),    { textDecoration: 'line-through' })} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
             <button style={bBtn(editor.isActive('code'),      { fontFamily: 'monospace' })}      onClick={() => editor.chain().focus().toggleCode().run()}>`</button>
+            <button
+              title="Link setzen (Strg/Cmd+K)"
+              style={bBtn(editor.isActive('link'))}
+              onClick={() => setLinkDraft((editor.getAttributes('link').href as string | undefined) ?? '')}
+            >
+              ⛓
+            </button>
 
             <span style={{ width: '1px', background: '#2e2e42', margin: '2px 4px', alignSelf: 'stretch' }} />
 
@@ -673,6 +717,38 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
             <button style={bBtn(editor.isActive('paragraph'))} onClick={() => editor.chain().focus().setParagraph().run()}>Tx</button>
 
             <button title="Schließen" style={bBtn(false)} onClick={closeTextToolbar}>×</button>
+
+            {linkDraft !== null && (
+              <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 4, paddingTop: 4 }}>
+                <input
+                  autoFocus
+                  value={linkDraft}
+                  onChange={e => setLinkDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); applyLink() }
+                    if (e.key === 'Escape') { e.preventDefault(); setLinkDraft(null); editor.chain().focus().run() }
+                  }}
+                  placeholder="Adresse oder example.com"
+                  style={{
+                    flex: 1, minWidth: 0, height: 26, padding: '0 8px',
+                    border: '1px solid #2e2e42', borderRadius: 5,
+                    background: '#242438', color: '#e8e8f0',
+                    fontFamily: 'inherit', fontSize: 12, outline: 'none',
+                  }}
+                />
+                <button title="Übernehmen" style={bBtn(false, { fontWeight: 700 })} onClick={applyLink}>OK</button>
+                {editor.isActive('link') && (
+                  <button
+                    title="Link entfernen"
+                    style={bBtn(false, { color: '#ef4444' })}
+                    onClick={() => { editor.chain().focus().extendMarkRange('link').unsetLink().run(); setLinkDraft(null) }}
+                  >
+                    ⛓✕
+                  </button>
+                )}
+                <button title="Abbrechen" style={bBtn(false)} onClick={() => { setLinkDraft(null); editor.chain().focus().run() }}>×</button>
+              </div>
+            )}
           </div>
         </BubbleMenu>
       )}
