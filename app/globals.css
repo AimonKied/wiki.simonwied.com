@@ -78,7 +78,7 @@ body::before {
 }
 
 /* While the article editor is open the text sits directly on the page —
-   drop the grid so long-form text stays readable (canvas keeps it). */
+   drop the grid so long-form text stays readable. */
 body[data-calm-bg="true"]::before {
   display: none;
 }
@@ -208,7 +208,7 @@ body[data-calm-bg="true"]::before {
   padding-left: 24px;
 }
 
-/* To-do-Listen (Notion-Stil) — gelten in Artikel- und Canvas-Editor */
+/* To-do-Listen (Notion-Stil) */
 .ProseMirror ul[data-type="taskList"] {
   list-style: none;
   padding-left: 4px;
@@ -366,15 +366,6 @@ body[data-calm-bg="true"]::before {
   transition: margin-left 0.2s ease;
 }
 
-/* Workspace-Notizen: Canvas soll wie eine eigene Arbeitsflaeche wirken statt
-   ein eingebettetes Widget -- Seiten-Padding raus, randlos bis zur Sidebar.
-   Nur ab 769px: auf Mobil haelt das Padding die fixe Mobil-Topbar frei. */
-@media (min-width: 769px) {
-  .app-main:has(.note-editor-shell[data-content-type="workspace"]) {
-    padding: 0;
-  }
-}
-
 .sidebar-nav {
   width: 260px;
   min-height: 100vh;
@@ -460,41 +451,8 @@ body[data-calm-bg="true"]::before {
 /* Kleine UI-Inputs: 16px auf Mobil verhindert den iOS-Auto-Zoom beim Fokus */
 .ui-input { font-size: 13px; }
 
-/* Workspace-Seiten: die Seite selbst zeigt keinen Hintergrund mehr — der
-   Canvas IST die Seite (Canva-Muster). Ohne das blitzt das body-Grid als
-   Streifen durch, sobald mobile dvh/vh auseinanderlaufen (URL-Leiste). */
-body:has(.note-editor-shell[data-content-type="workspace"]) {
-  min-height: 0;
-  overscroll-behavior: none;
-}
-
-body:has(.note-editor-shell[data-content-type="workspace"])::before {
-  display: none;
-}
-
-/* Canvas-Viewport: fuellt den kompletten Viewport (Canva-Muster) — die
-   Kopfleisten-Pille (NoteHeader) liegt als Overlay drauf statt Platz zu
-   reservieren. Auf Mobil bleibt nur die fixe 56px-Topbar abgezogen. */
-.canvas-viewport {
-  height: 100vh;
-  height: 100dvh;
-  min-height: 520px;
-}
-
-@media (max-width: 768px) {
-  .app-main:has(.note-editor-shell[data-content-type="workspace"]) {
-    padding: 56px 0 0;
-  }
-
-  .canvas-viewport {
-    height: calc(100vh - 56px);
-    height: calc(100dvh - 56px);
-    min-height: 0;
-  }
-}
-
 @media (min-width: 1101px) {
-  .note-editor-shell[data-content-type="article"] {
+  .note-editor-shell {
     padding-right: clamp(250px, 22vw, 300px);
   }
 
@@ -682,64 +640,24 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
   }
 }
 
-/* Seitenpanels (Artikel-TOC, Canvas-Outline): unter 1100px ausblenden —
-   durch flex-wrap wuerden sie sonst unter den Inhalt rutschen */
+/* Artikel-TOC unter 1100px ausblenden — durch flex-wrap wuerde sie sonst
+   unter den Inhalt rutschen (Ersatz ist der Drawer weiter unten) */
 @media (max-width: 1100px) {
-  .article-toc,
-  .canvas-outline {
+  .article-toc {
     display: none;
   }
 }
 
-/* Workspace-Blockliste auf Desktop: schwebt rechts neben der Werkzeugleiste
-   (die bei top:64/right:10 liegt, siehe data-element-palette in Editor.tsx).
-   Das ist nur der Default-Ort — beide Panels sind per Griff frei
-   verschiebbar (useDraggablePanel), Position landet in localStorage.
-   .outline-desktop-trigger ist der runde Button, auf den das Panel
-   eingeklappt wird. */
-.outline-desktop-trigger {
-  display: none;
-}
-
-@media (min-width: 1101px) {
-  .canvas-outline,
-  .outline-desktop-trigger {
-    position: fixed;
-    top: 64px;
-    right: 110px;
-    z-index: 60;
-  }
-
-  .outline-desktop-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    box-shadow: 0 8px 24px var(--shadow-faint);
-  }
-}
-
-/* Rechte Drawer unter 1100px: Artikel-TOC (.toc-*) und Workspace-Blockliste
-   (.outline-*) teilen sich Optik und Verhalten (analog zum linken
-   Sidebar-Drawer) — Ersatz fuer die ausgeblendeten Seitenpanels. */
+/* Rechter Drawer unter 1100px: Artikel-TOC (.toc-*) analog zum linken
+   Sidebar-Drawer — Ersatz fuer das ausgeblendete Seitenpanel. */
 .toc-mobile-trigger,
 .toc-drawer-backdrop,
-.toc-drawer,
-.outline-mobile-trigger,
-.outline-drawer-backdrop,
-.outline-drawer {
+.toc-drawer {
   display: none;
 }
 
 @media (max-width: 1100px) {
-  .toc-mobile-trigger,
-  .outline-mobile-trigger {
+  .toc-mobile-trigger {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -757,13 +675,7 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     z-index: 65;
   }
 
-  /* Blockliste: ueber der Zoom-Leiste, die unten rechts im Canvas liegt */
-  .outline-mobile-trigger {
-    bottom: 66px;
-  }
-
-  .toc-drawer-backdrop,
-  .outline-drawer-backdrop {
+  .toc-drawer-backdrop {
     display: block;
     position: fixed;
     inset: 0;
@@ -773,14 +685,12 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     pointer-events: none;
     transition: opacity 0.2s ease;
   }
-  .toc-drawer-backdrop[data-open],
-  .outline-drawer-backdrop[data-open] {
+  .toc-drawer-backdrop[data-open] {
     opacity: 1;
     pointer-events: auto;
   }
 
-  .toc-drawer,
-  .outline-drawer {
+  .toc-drawer {
     display: block;
     position: fixed;
     top: 0;
@@ -797,8 +707,7 @@ body:has(.note-editor-shell[data-content-type="workspace"])::before {
     transition: transform 0.2s ease;
     z-index: 80;
   }
-  .toc-drawer[data-open],
-  .outline-drawer[data-open] {
+  .toc-drawer[data-open] {
     transform: translateX(0);
   }
 }
