@@ -393,6 +393,7 @@ export default function ArticleEditor({ content, onChange, editable = true }: Ar
           .from('notes')
           .select('id, title, emoji, slug, visibility, is_public')
           .not('slug', 'is', null)
+          .is('deleted_at', null)
           .order('updated_at', { ascending: false })
         if (cancelled) return
         setPages((data ?? []).map((row: Record<string, unknown>) => ({

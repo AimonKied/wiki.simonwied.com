@@ -23,11 +23,16 @@ export interface Note {
   updated_at: string
   // Wann zuletzt im Editor geoeffnet; speist die "Zuletzt"-Liste der Sidebar
   last_opened_at?: string | null
+  // Gesetzt = liegt im Papierkorb. Zeilen bleiben erhalten, alle Listen
+  // blenden sie aus und die Lesefunktionen liefern sie nicht mehr aus.
+  deleted_at?: string | null
+  is_favorite?: boolean
+  cover_url?: string | null
 }
 
 export type NoteSummary = Pick<
   Note,
-  'id' | 'title' | 'emoji' | 'slug' | 'is_public' | 'visibility' | 'updated_at'
+  'id' | 'title' | 'emoji' | 'slug' | 'is_public' | 'visibility' | 'updated_at' | 'is_favorite'
 >
 
 export interface NoteShareLink {

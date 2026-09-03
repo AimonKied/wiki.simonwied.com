@@ -261,7 +261,16 @@ grant execute on function is_wiki_owner(uuid) to anon, authenticated;
 
 alter table notes
   add column if not exists visibility text not null default 'private',
-  add column if not exists published_at timestamptz;
+  add column if not exists published_at timestamptz,
+  -- deleted_at gesetzt = liegt im Papierkorb (Soft-Delete)
+  add column if not exists deleted_at timestamptz,
+  add column if not exists is_favorite boolean not null default false,
+  add column if not exists cover_url text;
+
+-- Haeufigste Abfrage: eigene, nicht geloeschte Notizen, neueste zuerst.
+create index if not exists notes_owner_active
+  on notes (user_id, updated_at desc)
+  where deleted_at is null;
 
 update notes
 set visibility = case when is_public then 'public' else 'private' end;
@@ -531,6 +540,7 @@ as $$
   where n.visibility = 'public'
     and n.is_public = true
     and n.published is not null
+    and n.deleted_at is null
     and n.published->>'slug' = p_slug
   limit 1;
 $$;
@@ -557,6 +567,7 @@ as $$
   where link.token = p_token
     and n.visibility = 'link'
     and n.published is not null
+    and n.deleted_at is null
   limit 1;
 $$;
 
@@ -597,6 +608,7 @@ as $$
   where n.visibility = 'public'
     and n.is_public = true
     and n.published is not null
+    and n.deleted_at is null
   group by n.id, n.user_id, n.published, n.updated_at,
            n.published_at, p.display_name
   order by n.published_at desc nulls last, n.updated_at desc;
@@ -673,4 +685,5 @@ create unique index if not exists notes_public_snapshot_slug_unique
   on notes ((lower(published->>'slug')))
   where visibility = 'public'
     and is_public = true
-    and published is not null;
+    and published is not null
+    and deleted_at is null;

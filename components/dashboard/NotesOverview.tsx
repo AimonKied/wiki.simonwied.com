@@ -194,10 +194,13 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
     setOperationError('')
     setPendingActionId(note.id)
     const supabase = createClient()
-    const { error } = await supabase.from('notes').delete().eq('id', note.id)
+    const { error } = await supabase
+      .from('notes')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', note.id)
     setPendingActionId(null)
     if (error) {
-      setOperationError(`Löschen fehlgeschlagen: ${error.message}`)
+      setOperationError(`In den Papierkorb verschieben fehlgeschlagen: ${error.message}`)
       return
     }
     setNotes(current => current.filter(n => n.id !== note.id))
@@ -322,10 +325,10 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
             }}
           >
             <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '6px' }}>
-              Artikel löschen?
+              In den Papierkorb?
             </div>
             <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-              „{pendingDelete.title || 'Ohne Titel'}“ wird endgültig gelöscht.
+              „{pendingDelete.title || 'Ohne Titel'}“ wandert in den Papierkorb und lässt sich von dort wiederherstellen.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button
@@ -359,7 +362,7 @@ export default function NotesOverview({ notes: initialNotes }: { notes: Note[] }
                   opacity: pendingActionId === pendingDelete.id ? 0.7 : 1,
                 }}
               >
-                {pendingActionId === pendingDelete.id ? 'Wird gelöscht…' : 'Löschen'}
+                {pendingActionId === pendingDelete.id ? 'Wird verschoben…' : 'In den Papierkorb'}
               </button>
             </div>
           </div>

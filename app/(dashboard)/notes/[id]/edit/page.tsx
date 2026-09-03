@@ -318,7 +318,7 @@ export default function EditNotePage() {
     window.clearTimeout(debounceRef.current)
     debounceRef.current = 0
     const supabase = createClient()
-    const { error } = await supabase.from('notes').delete().eq('id', id)
+    const { error } = await supabase.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     if (error) {
       setDeleteError(`Löschen fehlgeschlagen: ${error.message}`)
       setDeletePending(false)
@@ -736,10 +736,10 @@ export default function EditNotePage() {
             }}
           >
             <div style={{ fontSize: '17px', fontWeight: 800, marginBottom: '6px', fontFamily: 'var(--font-display)' }}>
-              Artikel löschen?
+              In den Papierkorb?
             </div>
             <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-              „{title || 'Ohne Titel'}“ wird endgültig gelöscht.
+              „{title || 'Ohne Titel'}“ wandert in den Papierkorb und lässt sich von dort wiederherstellen.
             </p>
             {deleteError && (
               <p role="alert" style={{ margin: '0 0 14px', color: 'var(--accent2)', fontSize: '12px' }}>
@@ -768,7 +768,7 @@ export default function EditNotePage() {
                   fontFamily: 'inherit', cursor: deletePending ? 'wait' : 'pointer', opacity: deletePending ? 0.7 : 1,
                 }}
               >
-                {deletePending ? 'Wird gelöscht…' : 'Löschen'}
+                {deletePending ? 'Wird verschoben…' : 'In den Papierkorb'}
               </button>
             </div>
           </div>

@@ -25,6 +25,7 @@ async function search(query: string, isOwner: boolean): Promise<Hit[]> {
       .from('notes')
       .select('id, title, emoji, slug, visibility, is_public')
       .ilike('title', `%${q}%`)
+      .is('deleted_at', null)
       .order('updated_at', { ascending: false })
       .limit(12)
     return (data ?? []).map((row: Record<string, unknown>) => {

@@ -15,6 +15,7 @@ const primaryNav = [
 
 const privateNav = [
   { label: 'Arbeitsbereich', href: '/dashboard' },
+  { label: 'Papierkorb', href: '/papierkorb' },
 ]
 
 // Ein Klick legt den Artikel an und springt in den Editor — seit dem Wegfall
@@ -179,7 +180,7 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
       const loadRecentNotes = async () => {
         const { data, error } = await supabase
           .from('notes')
-          .select('id, title, emoji, visibility, is_public, slug, updated_at')
+          .select('id, title, emoji, visibility, is_public, slug, updated_at, is_favorite')
           .eq('user_id', user.id)
           .not('last_opened_at', 'is', null)
           .order('last_opened_at', { ascending: false })
@@ -259,7 +260,7 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
   async function deleteNote(noteId: string) {
     setNotesError('')
     const supabase = createClient()
-    const { error } = await supabase.from('notes').delete().eq('id', noteId)
+    const { error } = await supabase.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', noteId)
     if (error) {
       setNotesError(`Löschen fehlgeschlagen: ${error.message}`)
       return
@@ -479,7 +480,7 @@ function NotesList({ notes, pathname }: { notes: NoteSummary[]; pathname: string
                     Artikel löschen?
                   </div>
                   <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-                    „{note.title || 'Unbenannter Artikel'}“ wird endgültig gelöscht.
+                    „{note.title || 'Unbenannter Artikel'}“ wandert in den Papierkorb.
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                     <button
