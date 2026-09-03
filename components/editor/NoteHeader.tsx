@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import EmojiPicker from './EmojiPicker'
 
 // Eine Chrome fuer Edit- und Public-Ansicht einer Notiz, damit beide exakt
@@ -21,6 +21,8 @@ export default function NoteHeader({
   titleInputRef,
   actions,
   linkRight,
+  coverUrl,
+  onCoverChange,
 }: {
   emoji: string
   title: string
@@ -36,11 +38,104 @@ export default function NoteHeader({
   titleInputRef?: React.Ref<HTMLInputElement>
   actions?: React.ReactNode
   linkRight?: React.ReactNode
+  coverUrl?: string | null
+  // Fehlt der Handler, ist das Cover nur Anzeige (oeffentliche Ansicht).
+  onCoverChange?: (url: string | null) => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [coverBusy, setCoverBusy] = useState(false)
+  const [coverError, setCoverError] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+
+  async function uploadCover(file: File) {
+    setCoverError(null)
+    setCoverBusy(true)
+    try {
+      const { uploadMedia } = await import('@/lib/supabase/storage')
+      onCoverChange?.(await uploadMedia(file))
+    } catch (err) {
+      setCoverError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
+    } finally {
+      setCoverBusy(false)
+    }
+  }
 
   return (
     <>
+      {/* Cover: liegt ueber der ganzen Kopfzeile wie in Notion. Ohne Bild
+          erscheint im Bearbeitungsmodus nur ein unscheinbarer Knopf. */}
+      {coverUrl && (
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt=""
+            style={{
+              display: 'block', width: '100%', height: 'clamp(140px, 22vh, 260px)',
+              objectFit: 'cover', borderRadius: '12px',
+            }}
+          />
+          {editable && onCoverChange && (
+            <div style={{ position: 'absolute', right: 10, bottom: 10, display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverBusy}
+                style={{
+                  padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)',
+                  background: 'var(--surface)', color: 'var(--text)',
+                  fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                {coverBusy ? 'Lädt…' : 'Ändern'}
+              </button>
+              <button
+                type="button"
+                onClick={() => onCoverChange(null)}
+                style={{
+                  padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)',
+                  background: 'var(--surface)', color: 'var(--accent2)',
+                  fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Entfernen
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {editable && onCoverChange && (
+        <>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) void uploadCover(f); e.target.value = '' }}
+          />
+          {!coverUrl && (
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverBusy}
+              style={{
+                marginBottom: '10px', padding: '4px 8px', borderRadius: '6px',
+                border: 'none', background: 'transparent', color: 'var(--muted)',
+                fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              {coverBusy ? 'Cover wird geladen…' : '+ Cover hinzufügen'}
+            </button>
+          )}
+          {coverError && (
+            <p role="alert" style={{ margin: '0 0 10px', color: 'var(--accent2)', fontSize: '11px' }}>{coverError}</p>
+          )}
+        </>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
 
         {/* Emoji */}

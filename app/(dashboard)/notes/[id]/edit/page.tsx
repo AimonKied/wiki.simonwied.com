@@ -48,6 +48,7 @@ export default function EditNotePage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
+  const [coverUrl, setCoverUrl] = useState<string | null>(null)
   const [content, setContent] = useState<object>({})
   const [visibility, setVisibility] = useState<Visibility>('private')
   const [publishVisibility, setPublishVisibility] = useState<Visibility>('public')
@@ -131,6 +132,7 @@ export default function EditNotePage() {
         setTitle(data.title)
         setDescription(data.description ?? '')
         setEmoji(data.emoji ?? '')
+        setCoverUrl(data.cover_url ?? null)
         setContent(data.content ?? {})
         const loadedVisibility = data.visibility ?? (data.is_public ? 'public' : 'private')
         setVisibility(loadedVisibility)
@@ -168,6 +170,7 @@ export default function EditNotePage() {
       description: description.trim() || null,
       content,
       slug: draftSlug,
+      cover: coverUrl,
     }
     const payload: Record<string, unknown> = {
       title: snapshot.title,
@@ -175,6 +178,7 @@ export default function EditNotePage() {
       description: snapshot.description,
       content,
       slug: draftSlug,
+      cover_url: coverUrl,
     }
     setSaveStatus('saving')
     saveChain.current = saveChain.current
@@ -187,7 +191,7 @@ export default function EditNotePage() {
         document.dispatchEvent(new Event('wiki-notes-changed'))
       })
       .catch(() => setSaveStatus('error'))
-  }, [id, title, description, emoji, content, slug])
+  }, [id, title, description, emoji, content, slug, coverUrl])
 
   const handleSave = useCallback(() => { persist() }, [persist])
   const openPublishModal = useCallback(() => {
@@ -224,6 +228,7 @@ export default function EditNotePage() {
       description: description.trim() || null,
       content,
       slug: effectiveSlug || null,
+      cover: coverUrl,
     }
 
     const task = saveChain.current.then(async () => {
@@ -266,7 +271,7 @@ export default function EditNotePage() {
       setPublishError(error instanceof Error ? error.message : 'Freigabe fehlgeschlagen.')
     })
     await saveChain.current
-  }, [content, description, emoji, id, publishVisibility, selectedCategories, slug, title])
+  }, [content, coverUrl, description, emoji, id, publishVisibility, selectedCategories, slug, title])
 
   const handleUnpublish = useCallback(async () => {
     const supabase = createClient()
@@ -428,6 +433,8 @@ export default function EditNotePage() {
           visibilityLabel={visibilityLabel}
           typeLabel="Artikel"
           isPublic={visibility === 'public'}
+          coverUrl={coverUrl}
+          onCoverChange={setCoverUrl}
           editable
           titleInputRef={titleInputRef}
           onEmojiChange={e => { setEmoji(e); patchSidebar({ emoji: e || null }) }}

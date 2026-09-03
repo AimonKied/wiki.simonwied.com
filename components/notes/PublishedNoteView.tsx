@@ -32,6 +32,7 @@ export default function PublishedNoteView({
           visibilityLabel={accessLabel}
           typeLabel="Artikel"
           isPublic={access === 'public'}
+          coverUrl={pub.cover ?? null}
           editable={false}
           actions={<ThemeToggle />}
           linkRight={isOwner && (

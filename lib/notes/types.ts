@@ -4,6 +4,8 @@ export interface PublishedSnapshot {
   description: string | null
   content: object | null
   slug: string | null
+  // Erst mit Phase 3 dazugekommen: aeltere Snapshots haben das Feld nicht.
+  cover?: string | null
 }
 
 export interface Note {
