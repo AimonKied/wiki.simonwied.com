@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 
 type TipTapNode = {
   type: string
@@ -13,6 +13,19 @@ interface TocEntry {
   idx: number
   level: number
   text: string
+  id: string
+}
+
+// Anker aus dem Ueberschriftentext. Bewusst lesbar statt einer opaken Id:
+// die entstehende URL (/notes/rezept#zutaten) soll man verschicken koennen.
+// Preis dafuer ist, dass ein umbenannter Abschnitt alte Links brechen laesst
+// -- dieselbe Abwaegung treffen GitHub und MDN.
+function slugifyHeading(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function getText(node: TipTapNode): string {
@@ -29,7 +42,15 @@ function extractHeadings(content: object): TocEntry[] {
     if (node.type === 'heading') {
       const level = Number(node.attrs?.level) || 1
       const text = getText(node).trim()
-      if (text) entries.push({ idx: entries.length, level, text })
+      if (text) {
+        // Gleichlautende Ueberschriften bekommen einen Zaehler angehaengt,
+        // sonst zeigen zwei Anker auf dieselbe Stelle.
+        const base = slugifyHeading(text) || `abschnitt-${entries.length + 1}`
+        let id = base
+        let n = 2
+        while (entries.some(entry => entry.id === id)) { id = `${base}-${n}`; n += 1 }
+        entries.push({ idx: entries.length, level, text, id })
+      }
       return
     }
     node.content?.forEach(walk)
@@ -58,6 +79,10 @@ export default function ArticleToc({
   // Below 1100px the aside is hidden (CSS); this drives the right-side
   // drawer that stands in for it on mobile/tablet.
   const [mobileOpen, setMobileOpen] = useState(false)
+  // entries wird bei jedem Tastendruck neu berechnet, der Anker-Effekt laeuft
+  // also staendig. Ohne diese Sperre spraenge der Cursor beim Tippen immer
+  // wieder zum Anker aus der Adresszeile zurueck.
+  const jumpedToHashRef = useRef(false)
 
   useEffect(() => {
     if (!entries.length) return
@@ -97,6 +122,40 @@ export default function ArticleToc({
     }
   }, [containerSelector, content, entries.length])
 
+  // Die Ueberschriften rendert TipTap, Ids vergibt es keine. Sie hier zu
+  // setzen haelt Anker und TOC an derselben Quelle -- beide leiten sich aus
+  // derselben Liste ab und koennen nicht auseinanderlaufen.
+  // Der Editor mountet client-seitig, die Elemente existieren also spaeter als
+  // dieser Effekt; deshalb wird nachgefasst, bis sie da sind.
+  useEffect(() => {
+    if (!entries.length) return
+    let tries = 0
+    let raf = 0
+
+    function apply() {
+      const headings = headingElements(containerSelector)
+      if (headings.length !== entries.length) {
+        // Noch nicht fertig gerendert -- ein paar Frames warten.
+        if (tries++ < 60) { raf = window.requestAnimationFrame(apply) }
+        return
+      }
+      headings.forEach((el, i) => { el.id = entries[i].id })
+
+      // Einmalig zum Anker aus der Adresszeile springen.
+      if (jumpedToHashRef.current) return
+      jumpedToHashRef.current = true
+      const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''))
+      if (!hash) return
+      const target = entries.findIndex(entry => entry.id === hash)
+      if (target >= 0) scrollTo(target)
+    }
+
+    apply()
+    return () => cancelAnimationFrame(raf)
+    // scrollTo liest nur Refs/DOM und ist ueber Renders hinweg gleichwertig
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerSelector, entries])
+
   // Escape schliesst, Body-Scroll gesperrt solange offen (wie Sidebar-Drawer)
   useEffect(() => {
     if (!mobileOpen) return
@@ -116,6 +175,12 @@ export default function ArticleToc({
     const el = headingElements(containerSelector)[idx]
     if (!el) return
     setActiveIdx(idx)
+    // replaceState statt pushState: der Zurueck-Knopf soll nicht durch die
+    // Abschnitte einer Seite zuruecklaufen, die Adresse aber kopierbar sein.
+    const id = entries[idx]?.id
+    if (id) {
+      try { window.history.replaceState(null, '', `#${id}`) } catch {}
+    }
     // Manual offset instead of scroll-margin-top + scrollIntoView: the fixed
     // mobile topbar (56px) isn't part of layout flow, and some mobile
     // browsers overshoot past the target when combining scroll-margin with
@@ -132,10 +197,10 @@ export default function ArticleToc({
     return entries.map(({ idx, level, text }) => {
       const isActive = idx === activeIdx
       return (
-        <button
+        <a
           key={idx}
-          type="button"
-          onClick={() => scrollTo(idx, closeMobile)}
+          href={`#${entries[idx].id}`}
+          onClick={e => { e.preventDefault(); scrollTo(idx, closeMobile) }}
           title={text}
           aria-current={isActive ? 'true' : undefined}
           style={{
@@ -148,6 +213,7 @@ export default function ArticleToc({
             paddingLeft: `${8 + (level - 1) * 14}px`,
             borderRadius: '6px',
             border: 'none',
+            textDecoration: 'none',
             background: isActive ? 'color-mix(in srgb, var(--accent) 9%, transparent)' : 'transparent',
             color: isActive ? 'var(--text)' : 'var(--muted)',
             fontWeight: isActive ? 600 : 500,
@@ -180,7 +246,7 @@ export default function ArticleToc({
           }}>
             {text}
           </span>
-        </button>
+        </a>
       )
     })
   }
